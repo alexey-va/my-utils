@@ -21,15 +21,15 @@ export default function LoremBox() {
       punctuation,
     });
 
-const fmt = (v?: string | number) =>
-  v === undefined || v === null ? "" : String(v).replace(/^(-?)0+(?=\d)/, "$1");
+  const fmt = (v?: string | number) =>
+    v === undefined || v === null ? "" : String(v).replace(/^(-?)0+(?=\d)/, "$1");
 
-const parse = (v?: string) => {
-  if (!v) return 0;
-  const s = v.replace(/[^\d-]/g, "").replace(/^(-?)0+(?=\d)/, "$1");
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-};
+  const parse = (v?: string) => {
+    if (!v) return 0;
+    const s = v.replace(/[^\d-]/g, "").replace(/^(-?)0+(?=\d)/, "$1");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
 
   const [v, setV] = useState(make());
 
@@ -59,23 +59,23 @@ const parse = (v?: string) => {
       >
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span>Words</span>
-<InputNumber
-  min={5}
-  max={10000}
-  value={words}
-  onChange={(n) => setWords(Number(n ?? 0))}
-  formatter={fmt}
-  parser={parse}
-/>
+          <InputNumber
+            min={5}
+            max={10000}
+            value={words}
+            onChange={(n) => setWords(Number(n ?? 0))}
+            formatter={fmt}
+            parser={parse}
+          />
           <span>Paragraphs</span>
-<InputNumber
-  min={1}
-  max={500}
-  value={paras}
-  onChange={(n) => setParas(Number(n ?? 0))}
-  formatter={fmt}
-  parser={parse}
-/>
+          <InputNumber
+            min={1}
+            max={500}
+            value={paras}
+            onChange={(n) => setParas(Number(n ?? 0))}
+            formatter={fmt}
+            parser={parse}
+          />
           <Checkbox checked={langRu} onChange={(e) => setLangRu(e.target.checked)}>
             Russian
           </Checkbox>

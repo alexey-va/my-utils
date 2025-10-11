@@ -14,7 +14,8 @@ export function randPassword(
 import lipsums from "i18n-lipsum";
 
 function toAscii(s: string) {
-  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x00-\x7F]/g, "");
+  // removes diacritics and any non-ASCII
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "");
 }
 
 function pickEntries(lang: "en" | "ru"): string[] {
@@ -47,17 +48,24 @@ function buildTextFromCorpus(
   opts: { capital?: boolean; punctuation?: boolean },
 ): string {
   if (!corpus.length) return "";
+
+  // random start offset for variability
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const start = buf[0] % corpus.length;
+
   const out: string[] = [];
-  for (let i = 0; i < totalWords; i++) out.push(corpus[i % corpus.length]);
+  for (let i = 0; i < totalWords; i++) {
+    out.push(corpus[(start + i) % corpus.length]);
+  }
 
   let text = out.join(" ");
 
   if (opts.punctuation) {
     const words = text.split(" ");
-    for (let i = 11; i < words.length; i += 12) {
-      words[i] = words[i].replace(/[.,;!?]*$/, "") + ".";
-      const j = i - 2;
-      if (j > 0) words[j] = words[j].replace(/[.,;!?]*$/, "") + ",";
+    for (let i = 0; i < totalWords; i++) {
+      const r = crypto.getRandomValues(new Uint32Array(1))[0] % corpus.length;
+      out.push(corpus[r]);
     }
     text = words.join(" ");
     if (!/[.!?]$/.test(text)) text += ".";
