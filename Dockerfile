@@ -1,9 +1,13 @@
-# This Dockerfile uses `serve` npm package to serve the static files with node process.
-# You can find the Dockerfile for nginx in the following link:
-# https://github.com/refinedev/dockerfiles/blob/main/vite/Dockerfile.nginx
-FROM refinedev/node:18 AS base
+# ---------- Base stage ----------
+FROM node:18 AS base
 
+# Install `serve` globally to serve static files
+RUN npm install -g serve
+
+# ---------- Dependency stage ----------
 FROM base as deps
+
+WORKDIR /app
 
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 
@@ -14,24 +18,33 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+# ---------- Build stage ----------
 FROM base as builder
 
-ENV NODE_ENV production
+WORKDIR /app
 
-COPY --from=deps /app/refine/node_modules ./node_modules
+# Copy node_modules and build files
+COPY --from=deps /app/node_modules ./node_modules
 
+# Copy source files
 COPY . .
 
+# Run build command to generate static assets
 RUN npm run build
 
+# ---------- Production stage ----------
 FROM base as runner
 
-ENV NODE_ENV production
+WORKDIR /app
 
-RUN npm install -g serve
+# Copy the build folder
+COPY --from=builder /app/dist ./dist
 
-COPY --from=builder /app/refine/dist ./
+# Set the default environment to production
+ENV NODE_ENV=production
 
-USER refine
+# Start the app using `serve`
+CMD ["serve", "-s", "dist", "-l", "80"]
 
-CMD ["serve"]
+# Expose port 80
+EXPOSE 80

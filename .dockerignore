@@ -1,0 +1,10 @@
+node_modules
+dist
+.build
+.cache
+.git
+.github
+*.log
+*.local
+.env*
+Dockerfile

@@ -1,0 +1,28 @@
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; }
+body { margin: 0; background: #1f1f20; }
+.ant-layout { background: transparent !important; }
+
+/* react-grid-layout drag/resize placeholder */
+.react-grid-item.react-grid-placeholder {
+  background: #2a3142 !important; /* your slate border color */
+  border-radius: 8px;
+  opacity: 0.6;
+}
+
+/* resize handle color to match theme */
+.react-resizable-handle::after {
+  border-right-color: #3a4254;
+  border-bottom-color: #3a4254;
+}
+
+/* make grid items fill and flex */
+.react-grid-item { display: flex; }
+.react-grid-item > div { flex: 1; display: flex; }
+
+/* make AntD Card fill and its body flex */
+.ant-card { height: 100%; display: flex; flex-direction: column; }
+.ant-card-body { flex: 1; display: flex; flex-direction: column; }
+
+/* optional: tidy card head padding height */
+.ant-card-head { min-height: 40px; }
