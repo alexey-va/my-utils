@@ -39,11 +39,11 @@ const authProvider: AuthProvider = {
     return token
       ? { authenticated: true }
       : {
-          authenticated: false,
-          logout: false,
-          redirectTo: "/login",
-          error: { name: "Unauthenticated", message: "Please log in" },
-        };
+        authenticated: false,
+        logout: false,
+        redirectTo: "/login",
+        error: { name: "Unauthenticated", message: "Please log in" },
+      };
   },
   getIdentity: async () => {
     const u = localStorage.getItem("user");
@@ -56,68 +56,68 @@ const authProvider: AuthProvider = {
 export default function App() {
   return (
     <BrowserRouter>
-<ConfigProvider
-  theme={{
-    algorithm: theme.darkAlgorithm,
-    token: {
-      // grafana-like grays
-      colorBgBase: "#121621",
-      colorBgLayout: "#121621",
-      colorBgContainer: "#181d29",
-      colorTextBase: "#d6dae1",
-      colorBorder: "#2a3142",
-      colorPrimary: "#9aa4b2",      // neutral accent (no blue)
-      borderRadius: 8,
-      controlHeight: 36,
-    },
-    components: {
-      Layout: {
-        siderBg: "#151a26",
-        headerBg: "#121621",
-        bodyBg: "#121621",
-      },
-      Menu: {
-        itemBg: "transparent",
-        itemColor: "#b7c0cc",
-        itemHoverBg: "#1c2230",
-        itemHoverColor: "#e5eaf1",
-        itemSelectedBg: "#222838",
-        itemSelectedColor: "#eef2f7",
-        activeBarBorderWidth: 0,
-      },
-      Card: {
-        colorBgContainer: "#181d29",
-        colorBorderSecondary: "#2a3142",
-        headerBg: "#181d29",
-      },
-      Button: {
-        colorPrimary: "#394457",
-        colorPrimaryHover: "#46536a",
-        colorPrimaryActive: "#2e394a",
-        defaultBg: "#1f2533",
-        defaultBorderColor: "#2a3142",
-        defaultColor: "#c7cfdb",
-        borderRadius: 8,
-      },
-      Input: {
-        colorBgContainer: "#141a26",
-        colorTextPlaceholder: "#8b93a1",
-        hoverBorderColor: "#394457",
-        activeBorderColor: "#394457",
-      },
-    },
-  }}
->
+      <ConfigProvider
+        theme={{
+          algorithm: theme.darkAlgorithm,
+          token: {
+            // grafana-like grays
+            colorBgBase: "#121621",
+            colorBgLayout: "#121621",
+            colorBgContainer: "#181d29",
+            colorTextBase: "#d6dae1",
+            colorBorder: "#2a3142",
+            colorPrimary: "#9aa4b2",      // neutral accent (no blue)
+            borderRadius: 8,
+            controlHeight: 36,
+          },
+          components: {
+            Layout: {
+              siderBg: "#151a26",
+              headerBg: "#121621",
+              bodyBg: "#121621",
+            },
+            Menu: {
+              itemBg: "transparent",
+              itemColor: "#b7c0cc",
+              itemHoverBg: "#1c2230",
+              itemHoverColor: "#e5eaf1",
+              itemSelectedBg: "#222838",
+              itemSelectedColor: "#eef2f7",
+              activeBarBorderWidth: 0,
+            },
+            Card: {
+              colorBgContainer: "#181d29",
+              colorBorderSecondary: "#2a3142",
+              headerBg: "#181d29",
+            },
+            Button: {
+              colorPrimary: "#394457",
+              colorPrimaryHover: "#46536a",
+              colorPrimaryActive: "#2e394a",
+              defaultBg: "#1f2533",
+              defaultBorderColor: "#2a3142",
+              defaultColor: "#c7cfdb",
+              borderRadius: 8,
+            },
+            Input: {
+              colorBgContainer: "#141a26",
+              colorTextPlaceholder: "#8b93a1",
+              hoverBorderColor: "#394457",
+              activeBorderColor: "#394457",
+            },
+          },
+        }}
+      >
         <Refine
           routerProvider={routerProvider}
           dataProvider={dataProvider}
           authProvider={authProvider}
           options={{ syncWithLocation: true }}
-            resources={[
-  { name: "dashboard", list: "/", meta: { label: "Dashboard" } },
-  { name: "generators", list: "/generators", meta: { label: "Generators", icon: <ThunderboltOutlined /> } },
-  { name: "json", list: "/json", meta: { label: "JSON Prettify" } },
-  ]}
+          resources={[
+            { name: "dashboard", list: "/", meta: { label: "Dashboard" } },
+            { name: "generators", list: "/generators", meta: { label: "Generators", icon: <ThunderboltOutlined /> } },
+            { name: "json", list: "/json", meta: { label: "JSON Prettify" } },
+          ]}
         >
           <Routes>
             <Route path="/login" element={<Login />} />

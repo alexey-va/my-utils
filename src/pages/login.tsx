@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLogin } from "@refinedev/core";
 import { Form, Input, Button, Card, Typography } from "antd";
 
 export default function Login() {
-  const { mutate: login, isLoading, error } = useLogin();
+  const { mutate: login, isPending, error, isError } = useLogin();
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -17,14 +18,14 @@ export default function Login() {
           <Form.Item name="password" label="Password" rules={[{ required: true }]}>
             <Input.Password autoComplete="current-password" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" loading={isLoading} block>
+          <Button type="primary" htmlType="submit" loading={isPending} block>
             Sign in
           </Button>
-          {error ? (
+          {isError && (
             <Typography.Text type="danger" style={{ display: "block", marginTop: 8 }}>
               {(error as any)?.message ?? "Login error"}
             </Typography.Text>
-          ) : null}
+          )}
         </Form>
       </Card>
     </div>
