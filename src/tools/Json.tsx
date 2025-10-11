@@ -11,7 +11,7 @@ SyntaxHighlighter.registerLanguage("json", jsonLang);
 
 const { TextArea } = Input;
 
-const STORE_KEY = "generators_json_state_v2";
+const STORE_KEY = "generators_json_state_v2"; // 123
 const HISTORY_KEY = "generators_json_history_v2";
 const HISTORY_LIMIT = 20;
 
