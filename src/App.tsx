@@ -5,8 +5,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ConfigProvider, theme } from "antd";
 import { ThemedLayout, ErrorComponent } from "@refinedev/antd";
 import { ThunderboltOutlined } from "@ant-design/icons";
-import Login from "./pages/Login";
 import Admin from "./pages/Admin";
+import Login from "./pages/Login";
 import Generators from "./pages/Generators";
 import Json from "./tools/Json";
 
