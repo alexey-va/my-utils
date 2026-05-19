@@ -1,48 +1,41 @@
 # my-utils
 
-<div align="center" style="margin: 30px;">
-    <a href="https://refine.dev">
-    <img alt="refine logo" src="https://refine.ams3.cdn.digitaloceanspaces.com/readme/refine-readme-banner.png">
-    </a>
-</div>
-<br/>
+Internal **Admin Panel** — browser utilities for developers: UUID/password/number generators and JSON prettify/minify. Built with [Refine](https://refine.dev) v5, React 19, Ant Design 5, and Vite 6.
 
-This [Refine](https://github.com/refinedev/refine) project was generated with [create refine-app](https://github.com/refinedev/refine/tree/master/packages/create-refine-app).
+## Features
 
-## Getting Started
+- **Generators** (`/`) — UUID v4, random password, random integer
+- **JSON** (`/json`) — prettify, minify, history (localStorage)
+- **Admin** (`/admin`) — optional account area (sign in required)
+- **Optional auth** — use the app without logging in; sign in from the sidebar to open restricted tabs
 
-A React Framework for building internal tools, admin panels, dashboards & B2B apps with unmatched flexibility ✨
-
-Refine's hooks and components simplifies the development process and eliminates the repetitive tasks by providing industry-standard solutions for crucial aspects of a project, including authentication, access control, routing, networking, state management, and i18n.
-
-## Available Scripts
-
-### Running the development server.
+## Getting started
 
 ```bash
-    npm run dev
+cd utils/my-utils
+npm install
+npm run dev
 ```
 
-### Building for production.
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Development server (`refine dev`) |
+| `npm run build` | Typecheck + production build |
+| `npm run start` | Serve production build |
 
-```bash
-    npm run build
-```
+## Project layout
 
-### Running the production server.
+- `src/App.tsx` — Refine providers and layout
+- `src/components/AppRoutes.tsx` — routes
+- `src/components/AppSider.tsx` — collapsible sidebar
+- `src/config/resources.tsx` — sidebar menu entries
+- `src/providers/` — auth (mock), access control, data (stub)
+- `AGENTS.md` — guide for AI agents working in this repo
+- `docs/REFINE.md` — Refine framework reference for this project
 
-```bash
-    npm run start
-```
+## Auth (development only)
 
-## Learn More
-
-To learn more about **Refine**, please check out the [Documentation](https://refine.dev/docs)
-
-- **GraphQL Data Provider** [Docs](https://refine.dev/docs/core/providers/data-provider/#overview)
-- **Tailwind CSS** [Docs](https://refine.dev/docs/guides-concepts/general-concepts/#headless-concept)
-- **React Router** [Docs](https://refine.dev/docs/core/providers/router-provider/)
-- **Google Auth Provider** [Docs](https://refine.dev/docs/core/providers/auth-provider/)
+Mock login: any non-empty email and password. Session is stored in `localStorage`. Not suitable for production.
 
 ## License
 
