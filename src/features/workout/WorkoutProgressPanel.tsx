@@ -139,16 +139,19 @@ export default function WorkoutProgressPanel({
           value={progress?.stats.bestWeightKg ?? "—"}
           suffix={progress?.stats.bestWeightKg != null ? "kg" : undefined}
         />
-        <Statistic
-          title="Latest"
-          value={progress?.stats.latestWeightKg ?? "—"}
-          suffix={
-            <>
-              {progress?.stats.latestWeightKg != null ? "kg" : null}
+        <div className="workout-progress__stat">
+          <Statistic
+            title="Latest"
+            value={progress?.stats.latestWeightKg ?? "—"}
+            suffix={progress?.stats.latestWeightKg != null ? "kg" : undefined}
+          />
+          {trendSuffix(trends.weightVsPrevious, "kg") ? (
+            <div className="workout-progress__stat-delta">
               {trendSuffix(trends.weightVsPrevious, "kg")}
-            </>
-          }
-        />
+              <span className="workout-progress__stat-delta-label"> vs prev</span>
+            </div>
+          ) : null}
+        </div>
         <Statistic
           title={`vs ${trends.weeksAgoLabel ?? 4} wk ago`}
           value={
