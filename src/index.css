@@ -781,12 +781,14 @@ textarea.generator-output {
 }
 
 .workout-matrix__clip {
-  width: var(--matrix-width);
+  width: 100%;
+  min-width: var(--matrix-width);
   overflow: hidden;
 }
 
 .workout-matrix__grid {
   width: 100%;
+  min-width: var(--matrix-width);
   table-layout: fixed;
   border-collapse: collapse;
   background: #141a26;
@@ -797,7 +799,8 @@ textarea.generator-output {
 }
 
 .workout-matrix__grid col.workout-matrix__date-col {
-  width: 125px;
+  width: auto;
+  min-width: 125px;
 }
 
 .workout-matrix__empty {
@@ -1350,6 +1353,15 @@ textarea.generator-output {
   border-bottom: none;
 }
 
+.workout-matrix__grid tbody tr {
+  height: 52px;
+}
+
+.workout-matrix__grid tbody td {
+  height: 52px;
+  max-height: 52px;
+}
+
 .workout-matrix__exercise-col {
   position: sticky;
   left: 0;
@@ -1377,8 +1389,8 @@ textarea.generator-output {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: var(--matrix-width);
-  max-width: 100%;
+  width: 100%;
+  min-width: var(--matrix-width);
   box-sizing: border-box;
   min-height: 44px;
   margin-top: 0;
@@ -1503,15 +1515,26 @@ textarea.generator-output {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 0;
   min-width: 0;
+  min-height: 2.375rem;
 }
 
 .workout-matrix__row-trend {
+  display: block;
+  min-height: 0.825rem;
   font-size: 0.6875rem;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 0.825rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workout-matrix__row-trend--placeholder {
+  visibility: hidden;
 }
 
 .workout-matrix__row-trend--up {
@@ -1558,7 +1581,17 @@ textarea.generator-output {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 100%;
   min-width: 0;
+}
+
+.workout-matrix__sparkline-slot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  width: 56px;
+  height: 22px;
 }
 
 .workout-matrix__exercise-name {
@@ -1572,9 +1605,15 @@ textarea.generator-output {
 }
 
 .workout-sparkline {
+  display: block;
   flex-shrink: 0;
   color: #6b9fff;
   opacity: 0.85;
+}
+
+.workout-sparkline--empty {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .workout-matrix__cell--empty {
@@ -1620,7 +1659,7 @@ textarea.generator-output {
   }
 
   .workout-matrix__grid col.workout-matrix__date-col {
-    width: 108px;
+    width: auto;
     min-width: 108px;
   }
 }

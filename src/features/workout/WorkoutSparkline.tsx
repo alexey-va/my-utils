@@ -7,7 +7,7 @@ type Props = {
 
 export default function WorkoutSparkline({ values, width = 56, height = 22, color }: Props) {
   if (values.length < 2) {
-    return null;
+    return <svg className="workout-sparkline workout-sparkline--empty" width={width} height={height} aria-hidden />;
   }
 
   const min = Math.min(...values);

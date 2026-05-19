@@ -270,25 +270,38 @@ function WorkoutMatrixTable({
                             <span className="workout-matrix__exercise-name" title={row.exerciseName}>
                               {row.exerciseName}
                             </span>
-                            {trend ? (
-                              <span
-                                className={`workout-matrix__row-trend${trend.deltaKg > 0 ? " workout-matrix__row-trend--up" : ""}`}
-                                title={`${PROGRESS_WEEKS} week weight trend`}
-                              >
-                                {trend.percent != null
-                                  ? `${trend.percent > 0 ? "+" : ""}${Math.round(trend.percent)}%`
-                                  : formatSignedDelta(trend.deltaKg, "kg")}
-                                <span className="workout-matrix__row-trend-period">
-                                  {" "}
-                                  · {PROGRESS_WEEKS}w
-                                </span>
-                              </span>
-                            ) : null}
+                            <span
+                              className={[
+                                "workout-matrix__row-trend",
+                                trend ? "" : "workout-matrix__row-trend--placeholder",
+                                trend && trend.deltaKg > 0 ? "workout-matrix__row-trend--up" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              title={trend ? `${PROGRESS_WEEKS} week weight trend` : undefined}
+                              aria-hidden={!trend}
+                            >
+                              {trend ? (
+                                <>
+                                  {trend.percent != null
+                                    ? `${trend.percent > 0 ? "+" : ""}${Math.round(trend.percent)}%`
+                                    : formatSignedDelta(trend.deltaKg, "kg")}
+                                  <span className="workout-matrix__row-trend-period">
+                                    {" "}
+                                    · {PROGRESS_WEEKS}w
+                                  </span>
+                                </>
+                              ) : (
+                                "—"
+                              )}
+                            </span>
                           </span>
-                          <WorkoutSparkline
-                            values={rowWeightSeries(row, grid.dates)}
-                            color={chartColor}
-                          />
+                          <span className="workout-matrix__sparkline-slot" aria-hidden>
+                            <WorkoutSparkline
+                              values={rowWeightSeries(row, grid.dates)}
+                              color={chartColor}
+                            />
+                          </span>
                         </span>
                       </td>
                       {displayDates.map((date, colIndex) => {
