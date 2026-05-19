@@ -60,6 +60,7 @@ export default function WorkoutPage() {
     updateExercise,
     deleteExercise,
     saveEntry,
+    deleteEntry,
   } = useWorkoutGrid();
   const [sessionOpen, setSessionOpen] = useState(false);
   const [metric, setMetric] = useState<ProgressMetric>("weight");
@@ -340,6 +341,15 @@ export default function WorkoutPage() {
                             setProgressRefreshKey((k) => k + 1);
                             closeForm();
                           }}
+                          onDelete={
+                            isEntryEdit && activeCell?.cell
+                              ? async () => {
+                                  await deleteEntry(editor.draft.exerciseId, editor.draft.performedOn);
+                                  setProgressRefreshKey((k) => k + 1);
+                                  closeForm();
+                                }
+                              : undefined
+                          }
                         />
                       ) : (
                         <WorkoutExerciseForm

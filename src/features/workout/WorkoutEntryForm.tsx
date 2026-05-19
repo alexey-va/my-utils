@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Button, DatePicker, Form, InputNumber, Space } from "antd";
+import { Button, DatePicker, Form, InputNumber, Popconfirm, Space } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import type { UpsertWorkoutEntryRequest, WorkoutCell } from "../../api/types";
 import type { WorkoutEntryDraft } from "./types";
@@ -18,6 +18,7 @@ type Props = {
   isEdit: boolean;
   lastSession?: WorkoutCell;
   onSubmit: (values: UpsertWorkoutEntryRequest) => Promise<void>;
+  onDelete?: () => Promise<void>;
 };
 
 function draftToFormValues(draft: WorkoutEntryDraft): FormValues {
@@ -54,6 +55,7 @@ export default function WorkoutEntryForm({
   isEdit,
   lastSession,
   onSubmit,
+  onDelete,
 }: Props) {
   const [form] = Form.useForm<FormValues>();
 
@@ -167,6 +169,19 @@ export default function WorkoutEntryForm({
           >
             Reset
           </Button>
+          {isEdit && onDelete ? (
+            <Popconfirm
+              title="Delete this session?"
+              description={`Remove ${draft.exerciseName} on ${draft.performedOn} from the log.`}
+              onConfirm={() => void onDelete()}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger disabled={saving}>
+                Delete session
+              </Button>
+            </Popconfirm>
+          ) : null}
         </Space>
       </Form>
     </>

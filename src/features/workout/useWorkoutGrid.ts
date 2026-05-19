@@ -106,6 +106,24 @@ export function useWorkoutGrid() {
     [reload],
   );
 
+  const deleteEntry = useCallback(
+    async (exerciseId: string, performedOn: string) => {
+      setSaving(true);
+      try {
+        await apiClient.delete(apiEndpoints.workouts.entry(exerciseId, performedOn));
+        message.success("Session removed");
+        await reload();
+      } catch (err) {
+        const text = err instanceof ApiError ? err.message : "Failed to delete session";
+        message.error(text);
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [reload],
+  );
+
   return {
     exercises,
     grid,
@@ -117,6 +135,7 @@ export function useWorkoutGrid() {
     updateExercise,
     deleteExercise,
     saveEntry,
+    deleteEntry,
     reload,
   };
 }

@@ -12,6 +12,8 @@ export const apiEndpoints = {
     exercises: "/api/workouts/exercises",
     exerciseProgress: (id: string) => `/api/workouts/exercises/${id}/progress`,
     exercise: (id: string) => `/api/workouts/exercises/${id}`,
+    entry: (exerciseId: string, performedOn: string) =>
+      `/api/workouts/exercises/${exerciseId}/entries/${performedOn}`,
     grid: "/api/workouts/grid",
     entries: "/api/workouts/entries",
   },
