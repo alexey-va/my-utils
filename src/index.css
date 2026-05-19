@@ -686,7 +686,7 @@ textarea.generator-output {
 }
 
 .workout-shell__insights {
-  min-height: 280px;
+  flex: none;
 }
 
 .workout-shell__log {
@@ -853,14 +853,32 @@ textarea.generator-output {
 }
 
 .workout-progress__chart {
-  flex: 1;
+  flex: none;
+  height: 200px;
   min-height: 200px;
   margin-bottom: 12px;
 }
 
 .workout-sessions {
+  flex: none;
   border-top: 1px solid var(--border-subtle);
   padding-top: 12px;
+}
+
+.workout-sessions__table-wrap {
+  min-height: 252px;
+}
+
+.workout-sessions__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 252px;
+  margin: 0;
+}
+
+.workout-sessions .ant-table-pagination {
+  margin: 8px 0 0 !important;
 }
 
 .workout-sessions__title {

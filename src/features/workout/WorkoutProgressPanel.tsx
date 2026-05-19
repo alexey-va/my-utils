@@ -233,7 +233,7 @@ export default function WorkoutProgressPanel({
         )}
       </div>
 
-      {filteredPoints.length > 0 ? <WorkoutSessionList points={filteredPoints} /> : null}
+      <WorkoutSessionList points={filteredPoints} />
     </div>
   );
 }

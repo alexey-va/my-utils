@@ -1,4 +1,4 @@
-import { Table, Tag } from "antd";
+import { Empty, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { ProgressPoint } from "../../api/types";
 import { formatSignedDelta } from "./workoutAnalytics";
@@ -8,6 +8,10 @@ type Row = ProgressPoint & {
   weightDelta: number | null;
   volumeDelta: number | null;
 };
+
+/** Fixed body height for 5 small rows — keeps layout stable when switching exercises. */
+const TABLE_BODY_HEIGHT = 200;
+const PAGE_SIZE = 5;
 
 type Props = {
   points: ProgressPoint[];
@@ -76,16 +80,33 @@ export default function WorkoutSessionList({ points }: Props) {
     },
   ];
 
+  const dataSource = [...rows].reverse();
+
   return (
     <div className="workout-sessions">
       <h3 className="workout-sessions__title">Session history</h3>
-      <Table<Row>
-        size="small"
-        pagination={{ pageSize: 5, hideOnSinglePage: true, size: "small" }}
-        columns={columns}
-        dataSource={[...rows].reverse()}
-        scroll={{ x: true }}
-      />
+      <div className="workout-sessions__table-wrap">
+        {dataSource.length === 0 ? (
+          <Empty
+            className="workout-sessions__empty"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No sessions in this period"
+          />
+        ) : (
+          <Table<Row>
+            size="small"
+            pagination={{
+              pageSize: PAGE_SIZE,
+              size: "small",
+              hideOnSinglePage: false,
+              showSizeChanger: false,
+            }}
+            columns={columns}
+            dataSource={dataSource}
+            scroll={{ x: true, y: TABLE_BODY_HEIGHT }}
+          />
+        )}
+      </div>
     </div>
   );
 }
