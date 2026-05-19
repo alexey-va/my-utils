@@ -10,6 +10,12 @@ HOST_PORT="13082"
 # Option B — separate public API host: e.g. https://utils-api.rus-crafting.ru
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
 
+if [[ "${VITE_API_BASE_URL}" == *"127.0.0.1"* || "${VITE_API_BASE_URL}" == *"localhost"* ]]; then
+  echo "ERROR: VITE_API_BASE_URL must not use 127.0.0.1/localhost (browser cannot reach server localhost)."
+  echo "Leave empty when nginx proxies /api on https://utils.alexeyav.ru"
+  exit 1
+fi
+
 if [[ "${DEPLOY_MODE:-}" == "split" && -z "${VITE_API_BASE_URL}" ]]; then
   echo "ERROR: DEPLOY_MODE=split requires VITE_API_BASE_URL (public API URL for the browser)."
   exit 1
