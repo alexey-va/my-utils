@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Button, Empty, Popconfirm, Segmented, Statistic } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
@@ -5,11 +6,18 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import type { ExerciseProgress, ProgressMetric } from "../../api/types";
+import WorkoutSessionList from "./WorkoutSessionList";
+import {
+  type ProgressPeriod,
+  computeProgressTrends,
+  filterPointsByPeriod,
+  formatSignedDelta,
+} from "./workoutAnalytics";
 
 type ChartRow = {
   date: string;
@@ -23,7 +31,9 @@ type Props = {
   progress: ExerciseProgress | null;
   loading: boolean;
   metric: ProgressMetric;
+  period: ProgressPeriod;
   onMetricChange: (metric: ProgressMetric) => void;
+  onPeriodChange: (period: ProgressPeriod) => void;
   onDelete: () => void;
 };
 
@@ -50,11 +60,25 @@ function chartDataKey(metric: ProgressMetric): keyof ChartRow {
   return metric;
 }
 
+function trendSuffix(delta: number | null, unit: string): ReactNode {
+  if (delta == null || delta === 0) {
+    return null;
+  }
+  const positive = delta > 0;
+  return (
+    <span className={`workout-progress__trend ${positive ? "workout-progress__trend--up" : ""}`}>
+      {formatSignedDelta(delta, unit)}
+    </span>
+  );
+}
+
 export default function WorkoutProgressPanel({
   progress,
   loading,
   metric,
+  period,
   onMetricChange,
+  onPeriodChange,
   onDelete,
 }: Props) {
   if (!progress && !loading) {
@@ -68,14 +92,17 @@ export default function WorkoutProgressPanel({
     );
   }
 
-  const chartData: ChartRow[] =
-    progress?.points.map((p) => ({
-      date: p.date,
-      label: formatShortDate(p.date),
-      weightKg: p.weightKg,
-      maxReps: p.maxReps,
-      volume: p.volume,
-    })) ?? [];
+  const allPoints = progress?.points ?? [];
+  const filteredPoints = filterPointsByPeriod(allPoints, period);
+  const trends = computeProgressTrends(allPoints);
+
+  const chartData: ChartRow[] = filteredPoints.map((p) => ({
+    date: p.date,
+    label: formatShortDate(p.date),
+    weightKg: p.weightKg,
+    maxReps: p.maxReps,
+    volume: p.volume,
+  }));
 
   const yKey = chartDataKey(metric);
   const hasChart = chartData.length > 0;
@@ -103,7 +130,10 @@ export default function WorkoutProgressPanel({
       </div>
 
       <div className="workout-progress__stats">
-        <Statistic title="Sessions" value={progress?.stats.sessions ?? "—"} />
+        <Statistic
+          title="Sessions"
+          value={progress?.stats.sessions ?? "—"}
+        />
         <Statistic
           title="Best weight"
           value={progress?.stats.bestWeightKg ?? "—"}
@@ -112,10 +142,40 @@ export default function WorkoutProgressPanel({
         <Statistic
           title="Latest"
           value={progress?.stats.latestWeightKg ?? "—"}
-          suffix={progress?.stats.latestWeightKg != null ? "kg" : undefined}
+          suffix={
+            <>
+              {progress?.stats.latestWeightKg != null ? "kg" : null}
+              {trendSuffix(trends.weightVsPrevious, "kg")}
+            </>
+          }
         />
-        <Statistic title="Best max" value={progress?.stats.bestMaxReps ?? "—"} />
+        <Statistic
+          title={`vs ${trends.weeksAgoLabel ?? 4} wk ago`}
+          value={
+            trends.weightVsWeeksAgo != null
+              ? formatSignedDelta(trends.weightVsWeeksAgo, "kg")
+              : "—"
+          }
+        />
+        <Statistic title="Best max reps" value={progress?.stats.bestMaxReps ?? "—"} />
+        <Statistic
+          title="Best volume"
+          value={progress?.stats.bestVolume ?? "—"}
+          suffix={progress?.stats.bestVolume != null ? "kg" : undefined}
+        />
       </div>
+
+      <Segmented
+        className="workout-progress__period"
+        value={period}
+        onChange={(value) => onPeriodChange(value as ProgressPeriod)}
+        options={[
+          { label: "4 wk", value: "4" },
+          { label: "8 wk", value: "8" },
+          { label: "12 wk", value: "12" },
+          { label: "All", value: "all" },
+        ]}
+      />
 
       <Segmented
         className="workout-progress__metric"
@@ -130,11 +190,11 @@ export default function WorkoutProgressPanel({
 
       <div className="workout-progress__chart">
         {!hasChart ? (
-          <Empty description="No sessions yet — log one below" />
+          <Empty description="No sessions in this period — log one below" />
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200}>
             <LineChart
-              key={`${progress?.exercise.id ?? "none"}-${metric}`}
+              key={`${progress?.exercise.id ?? "none"}-${metric}-${period}`}
               data={chartData}
               margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
             >
@@ -145,7 +205,7 @@ export default function WorkoutProgressPanel({
                 width={40}
                 allowDecimals={metric !== "maxReps"}
               />
-              <Tooltip
+              <RechartsTooltip
                 contentStyle={{
                   background: "#1c2333",
                   border: "1px solid #2a3142",
@@ -169,6 +229,8 @@ export default function WorkoutProgressPanel({
           </ResponsiveContainer>
         )}
       </div>
+
+      {filteredPoints.length > 0 ? <WorkoutSessionList points={filteredPoints} /> : null}
     </div>
   );
 }

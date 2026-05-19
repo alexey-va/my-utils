@@ -5,6 +5,9 @@ import dayjs from "dayjs";
 import PageLayout from "../../shared/components/PageLayout";
 import AppPanel from "../../shared/components/AppPanel";
 import type { ProgressMetric } from "../../api/types";
+import type { ProgressPeriod } from "./workoutAnalytics";
+import { computeWeeklySummary } from "./workoutAnalytics";
+import WorkoutWeeklySummary from "./WorkoutWeeklySummary";
 import { exportWorkoutGridCsv } from "./exportWorkoutGridCsv";
 import WorkoutEntryForm from "./WorkoutEntryForm";
 import WorkoutExerciseForm from "./WorkoutExerciseForm";
@@ -51,6 +54,9 @@ export default function WorkoutPage() {
   } = useWorkoutGrid();
   const [sessionOpen, setSessionOpen] = useState(false);
   const [metric, setMetric] = useState<ProgressMetric>("weight");
+  const [period, setPeriod] = useState<ProgressPeriod>("12");
+
+  const weeklySummary = useMemo(() => computeWeeklySummary(grid), [grid]);
   const [activeCell, setActiveCell] = useState<WorkoutCellTarget>();
   const [editor, setEditor] = useState<FooterEditor | null>(null);
 
@@ -121,11 +127,14 @@ export default function WorkoutPage() {
           <div className="workout-shell__main">
             <section className="workout-shell__insights" aria-label="Progress">
               <h3 className="workout-shell__label">Progress</h3>
+              <WorkoutWeeklySummary summary={weeklySummary} />
               <WorkoutProgressPanel
                 progress={progress}
                 loading={progressLoading}
                 metric={metric}
+                period={period}
                 onMetricChange={setMetric}
+                onPeriodChange={setPeriod}
                 onDelete={() => {
                   if (selectedExerciseId) {
                     void deleteExercise(selectedExerciseId);

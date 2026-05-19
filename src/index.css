@@ -787,11 +787,43 @@ textarea.generator-output {
   color: var(--text-muted);
 }
 
+.workout-weekly {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #1a2233;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.workout-weekly__delta {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  color: #52c41a;
+}
+
 .workout-progress__stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px 16px;
   margin-bottom: 12px;
+}
+
+.workout-progress__trend {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.workout-progress__trend--up {
+  color: #52c41a;
+}
+
+.workout-progress__period {
+  margin-bottom: 8px;
 }
 
 .workout-progress__stats .ant-statistic-title {
@@ -810,6 +842,23 @@ textarea.generator-output {
 .workout-progress__chart {
   flex: 1;
   min-height: 200px;
+  margin-bottom: 12px;
+}
+
+.workout-sessions {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+
+.workout-sessions__title {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.workout-sessions__muted {
+  color: var(--text-muted);
 }
 
 .workout-progress__empty {
@@ -930,13 +979,67 @@ textarea.generator-output {
   color: var(--text-muted);
 }
 
+.workout-matrix__exercise-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .workout-matrix__exercise-name {
-  display: block;
+  flex: 1;
+  min-width: 0;
   font-weight: 500;
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.workout-sparkline {
+  flex-shrink: 0;
+  color: #6b9fff;
+  opacity: 0.85;
+}
+
+.workout-matrix__cell-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.workout-matrix__pr-icon {
+  color: #faad14;
+  font-size: 0.75rem;
+}
+
+.workout-matrix__date-col--heat-1 {
+  background: rgba(107, 159, 255, 0.08) !important;
+}
+
+.workout-matrix__date-col--heat-2 {
+  background: rgba(107, 159, 255, 0.14) !important;
+}
+
+.workout-matrix__date-col--heat-3 {
+  background: rgba(107, 159, 255, 0.22) !important;
+}
+
+.workout-matrix__date-col--heat-4 {
+  background: rgba(107, 159, 255, 0.32) !important;
+}
+
+.workout-matrix__date-col--heat-5 {
+  background: rgba(107, 159, 255, 0.44) !important;
+}
+
+.workout-matrix__date-col--pr-weight.workout-matrix__date-col--pr-volume {
+  box-shadow: inset 0 0 0 1px rgba(250, 173, 20, 0.55);
+}
+
+.workout-matrix__date-col--pr-weight:not(.workout-matrix__date-col--pr-volume) {
+  box-shadow: inset 0 0 0 1px rgba(250, 173, 20, 0.4);
 }
 
 .workout-matrix__date-col {
@@ -962,6 +1065,14 @@ textarea.generator-output {
 
 @media (max-width: 900px) {
   .workout-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workout-weekly {
+    grid-template-columns: 1fr;
+  }
+
+  .workout-progress__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

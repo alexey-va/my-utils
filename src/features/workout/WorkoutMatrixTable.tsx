@@ -1,8 +1,17 @@
-import { Button, Table } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { useMemo } from "react";
+import { Button, Table, Tooltip } from "antd";
+import { PlusOutlined, TrophyOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { WorkoutCell, WorkoutGrid, WorkoutGridRow } from "../../api/types";
+import WorkoutSparkline from "./WorkoutSparkline";
 import type { WorkoutCellTarget } from "./types";
+import {
+  cellVolume,
+  computeRowRecords,
+  heatmapLevel,
+  rowVolumeRange,
+  rowWeightSeries,
+} from "./workoutAnalytics";
 
 type TableRow = WorkoutGridRow & { key: string };
 
@@ -11,7 +20,7 @@ function formatColumnDate(iso: string): string {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-const EXERCISE_COL_WIDTH = 160;
+const EXERCISE_COL_WIDTH = 200;
 const DATE_COL_WIDTH = 108;
 
 type Props = {
@@ -41,35 +50,77 @@ export default function WorkoutMatrixTable({
   onExerciseSelect,
   onAddExercise,
 }: Props) {
+  const rowRecordsMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeRowRecords>>();
+    for (const row of grid.rows) {
+      map.set(row.exerciseId, computeRowRecords(row));
+    }
+    return map;
+  }, [grid.rows]);
+
   const dateColumns: ColumnsType<TableRow> = grid.dates.map((date) => ({
     title: formatColumnDate(date),
     key: date,
     width: DATE_COL_WIDTH,
     align: "center" as const,
     className: "workout-matrix__date-col",
-    onCell: (row) => ({
-      onClick: (event) => {
-        event.stopPropagation();
-        onSelectExercise(row.exerciseId);
-        onCellSelect({
-          exerciseId: row.exerciseId,
-          date,
-          cell: row.cells[date],
-        });
-      },
-      className: [
+    onCell: (row) => {
+      const cell = row.cells[date];
+      const records = rowRecordsMap.get(row.exerciseId);
+      const flags = records?.byDate.get(date);
+      const volRange = rowVolumeRange(row);
+      const heat =
+        cell && volRange.max > 0
+          ? heatmapLevel(cellVolume(cell), volRange.min, volRange.max)
+          : 0;
+
+      const classes = [
         "workout-matrix__date-col",
         isSameCell(activeCell, row.exerciseId, date) ? "workout-matrix__date-col--active" : "",
+        heat > 0 ? `workout-matrix__date-col--heat-${heat}` : "",
+        flags?.isPrWeight ? "workout-matrix__date-col--pr-weight" : "",
+        flags?.isPrVolume ? "workout-matrix__date-col--pr-volume" : "",
       ]
         .filter(Boolean)
-        .join(" "),
-    }),
+        .join(" ");
+
+      return {
+        onClick: (event: React.MouseEvent) => {
+          event.stopPropagation();
+          onSelectExercise(row.exerciseId);
+          onCellSelect({
+            exerciseId: row.exerciseId,
+            date,
+            cell: row.cells[date],
+          });
+        },
+        className: classes,
+      };
+    },
     render: (_: unknown, row: TableRow) => {
       const cell: WorkoutCell | undefined = row.cells[date];
       if (!cell?.display) {
         return <span className="workout-matrix__cell workout-matrix__cell--empty">+</span>;
       }
-      return <span className="workout-matrix__cell">{cell.display}</span>;
+      const records = rowRecordsMap.get(row.exerciseId);
+      const flags = records?.byDate.get(date);
+      const prTitle = [
+        flags?.isPrWeight ? "PR weight" : null,
+        flags?.isPrVolume ? "PR volume" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      return (
+        <span className="workout-matrix__cell-inner">
+          {flags?.isPrWeight || flags?.isPrVolume ? (
+            <Tooltip title={prTitle}>
+              <TrophyOutlined className="workout-matrix__pr-icon" aria-label={prTitle} />
+            </Tooltip>
+          ) : null}
+          <span className="workout-matrix__cell">{cell.display}</span>
+        </span>
+      );
     },
   }));
 
@@ -82,7 +133,7 @@ export default function WorkoutMatrixTable({
       ellipsis: true,
       className: "workout-matrix__exercise-col",
       onCell: (row) => ({
-        onClick: (event) => {
+        onClick: (event: React.MouseEvent) => {
           event.stopPropagation();
           onSelectExercise(row.exerciseId);
           onExerciseSelect(row.exerciseId, row.exerciseName);
@@ -94,11 +145,17 @@ export default function WorkoutMatrixTable({
           .filter(Boolean)
           .join(" "),
       }),
-      render: (_: unknown, row: TableRow) => (
-        <span className="workout-matrix__exercise-name" title={row.exerciseName}>
-          {row.exerciseName}
-        </span>
-      ),
+      render: (_: unknown, row: TableRow) => {
+        const series = rowWeightSeries(row, grid.dates);
+        return (
+          <span className="workout-matrix__exercise-cell">
+            <span className="workout-matrix__exercise-name" title={row.exerciseName}>
+              {row.exerciseName}
+            </span>
+            <WorkoutSparkline values={series} />
+          </span>
+        );
+      },
     },
     ...dateColumns,
   ];
