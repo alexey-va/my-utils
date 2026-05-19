@@ -7,20 +7,23 @@ type Props = {
 };
 
 export default function WorkoutWeeklySummary({ summary }: Props) {
-  const sessionDelta = summary.thisWeekSessions - summary.lastWeekSessions;
+  const daysDelta = summary.thisWeekDays - summary.lastWeekDays;
   const volumeDelta = summary.thisWeekVolume - summary.lastWeekVolume;
 
   return (
     <div className="workout-weekly">
       <Statistic
-        title="Sessions this week"
-        value={summary.thisWeekSessions}
+        title="Workout days this week"
+        value={summary.thisWeekDays}
         suffix={
-          sessionDelta !== 0 ? (
-            <span className="workout-weekly__delta">
-              {formatSignedDelta(sessionDelta, "", 0)}
-            </span>
-          ) : undefined
+          <>
+            {" days"}
+            {daysDelta !== 0 ? (
+              <span className="workout-weekly__delta">
+                {formatSignedDelta(daysDelta, "", 0)}
+              </span>
+            ) : null}
+          </>
         }
       />
       <Statistic title="Volume this week" value={summary.thisWeekVolume} suffix="kg" />

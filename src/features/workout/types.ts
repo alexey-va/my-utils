@@ -1,3 +1,4 @@
+import type { MuscleGroup } from "./workoutMuscleGroups";
 import type { WorkoutCell } from "../../api/types";
 
 export type WorkoutCellTarget = {
@@ -21,14 +22,19 @@ export type ExerciseDraft = {
   key: string;
   exerciseId?: string;
   name: string;
+  muscleGroup: MuscleGroup;
 };
 
 export function exerciseDraftNew(): ExerciseDraft {
-  return { key: "exercise-new", name: "" };
+  return { key: "exercise-new", name: "", muscleGroup: "other" };
 }
 
-export function exerciseDraftFromExercise(exerciseId: string, name: string): ExerciseDraft {
-  return { key: `exercise-${exerciseId}`, exerciseId, name };
+export function exerciseDraftFromExercise(
+  exerciseId: string,
+  name: string,
+  muscleGroup: MuscleGroup,
+): ExerciseDraft {
+  return { key: `exercise-${exerciseId}`, exerciseId, name, muscleGroup };
 }
 
 export type FooterEditor =
@@ -38,16 +44,18 @@ export type FooterEditor =
 export function entryDraftFromCell(
   target: WorkoutCellTarget,
   exerciseName: string,
+  lastSession?: WorkoutCell,
 ): WorkoutEntryDraft {
   const cell = target.cell;
+  const template = cell ?? lastSession;
   return {
     key: `${target.exerciseId}-${target.date}`,
     exerciseId: target.exerciseId,
     exerciseName,
     performedOn: target.date,
-    weightKg: cell?.weightKg ?? 20,
-    setCount: cell?.setCount ?? 3,
-    repsPerSet: cell?.repsPerSet ?? 10,
-    maxReps: cell?.maxReps ?? 10,
+    weightKg: template?.weightKg ?? 20,
+    setCount: template?.setCount ?? 3,
+    repsPerSet: template?.repsPerSet ?? 10,
+    maxReps: template?.maxReps ?? 10,
   };
 }

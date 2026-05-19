@@ -10,6 +10,7 @@ export type UserProfile = {
 export type Exercise = {
   id: string;
   name: string;
+  muscleGroup: string;
 };
 
 export type WorkoutCell = {

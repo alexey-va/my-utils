@@ -2,9 +2,10 @@ type Props = {
   values: number[];
   width?: number;
   height?: number;
+  color?: string;
 };
 
-export default function WorkoutSparkline({ values, width = 56, height = 22 }: Props) {
+export default function WorkoutSparkline({ values, width = 56, height = 22, color }: Props) {
   if (values.length < 2) {
     return null;
   }
@@ -30,6 +31,7 @@ export default function WorkoutSparkline({ values, width = 56, height = 22 }: Pr
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      style={color ? { color } : undefined}
       aria-hidden
     >
       <polyline

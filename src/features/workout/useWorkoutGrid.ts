@@ -2,19 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { message } from "antd";
 import { apiClient, ApiError } from "../../api";
 import { apiEndpoints } from "../../api/endpoints";
-import type {
-  Exercise,
-  ExerciseProgress,
-  UpsertWorkoutEntryRequest,
-  WorkoutGrid,
-} from "../../api/types";
+import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid } from "../../api/types";
 
 export function useWorkoutGrid() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [grid, setGrid] = useState<WorkoutGrid>({ dates: [], rows: [] });
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>();
-  const [progress, setProgress] = useState<ExerciseProgress | null>(null);
-  const [progressLoading, setProgressLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -41,41 +34,20 @@ export function useWorkoutGrid() {
     }
   }, []);
 
-  const loadProgress = useCallback(async (exerciseId: string) => {
-    setProgressLoading(true);
-    try {
-      const data = await apiClient.get<ExerciseProgress>(
-        apiEndpoints.workouts.exerciseProgress(exerciseId),
-      );
-      setProgress(data);
-    } catch (err) {
-      setProgress(null);
-      const text = err instanceof ApiError ? err.message : "Failed to load progress";
-      message.error(text);
-    } finally {
-      setProgressLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     void reload();
   }, [reload]);
-
-  useEffect(() => {
-    if (!selectedExerciseId) {
-      setProgress(null);
-      return;
-    }
-    void loadProgress(selectedExerciseId);
-  }, [selectedExerciseId, loadProgress, grid]);
 
   const selectExercise = useCallback((exerciseId: string) => {
     setSelectedExerciseId(exerciseId);
   }, []);
 
   const addExercise = useCallback(
-    async (name: string) => {
-      const created = await apiClient.post<Exercise>(apiEndpoints.workouts.exercises, { name });
+    async (name: string, muscleGroup?: string) => {
+      const created = await apiClient.post<Exercise>(apiEndpoints.workouts.exercises, {
+        name,
+        muscleGroup,
+      });
       message.success(`Added “${created.name}”`);
       await reload();
       setSelectedExerciseId(created.id);
@@ -85,11 +57,12 @@ export function useWorkoutGrid() {
   );
 
   const updateExercise = useCallback(
-    async (exerciseId: string, name: string) => {
+    async (exerciseId: string, name: string, muscleGroup?: string) => {
       setSaving(true);
       try {
         const updated = await apiClient.patch<Exercise>(apiEndpoints.workouts.exercise(exerciseId), {
           name,
+          muscleGroup,
         });
         message.success("Exercise updated");
         await reload();
@@ -122,9 +95,6 @@ export function useWorkoutGrid() {
         await apiClient.post<void>(apiEndpoints.workouts.entries, body);
         message.success("Saved");
         await reload();
-        if (selectedExerciseId) {
-          await loadProgress(selectedExerciseId);
-        }
       } catch (err) {
         const text = err instanceof ApiError ? err.message : "Failed to save";
         message.error(text);
@@ -133,7 +103,7 @@ export function useWorkoutGrid() {
         setSaving(false);
       }
     },
-    [reload, loadProgress, selectedExerciseId],
+    [reload],
   );
 
   return {
@@ -143,8 +113,6 @@ export function useWorkoutGrid() {
     saving,
     selectedExerciseId,
     selectExercise,
-    progress,
-    progressLoading,
     addExercise,
     updateExercise,
     deleteExercise,

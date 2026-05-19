@@ -1,18 +1,25 @@
 import { useEffect } from "react";
-import { Button, Form, Input, Popconfirm, Space } from "antd";
+import { Button, Form, Input, Popconfirm, Select, Space } from "antd";
 import type { ExerciseDraft } from "./types";
+import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS } from "./workoutMuscleGroups";
 
 type FormValues = {
-  name: string;
+  exerciseName: string;
+  muscleGroup: string;
 };
 
 type Props = {
   draft: ExerciseDraft;
   saving: boolean;
   isEdit: boolean;
-  onSubmit: (name: string) => Promise<void>;
+  onSubmit: (name: string, muscleGroup: string) => Promise<void>;
   onDelete?: () => Promise<void>;
 };
+
+const GROUP_OPTIONS = MUSCLE_GROUPS.map((g) => ({
+  value: g,
+  label: MUSCLE_GROUP_LABELS[g],
+}));
 
 export default function WorkoutExerciseForm({
   draft,
@@ -24,34 +31,52 @@ export default function WorkoutExerciseForm({
   const [form] = Form.useForm<FormValues>();
 
   useEffect(() => {
-    form.setFieldsValue({ name: draft.name });
+    form.setFieldsValue({ exerciseName: draft.name, muscleGroup: draft.muscleGroup });
   }, [draft, form]);
 
   return (
     <>
       <p className="workout-form__hint">
-        {isEdit ? "Rename this exercise type." : "Add a new exercise type to the log."}
+        {isEdit ? "Rename or re-tag this exercise." : "Add a new exercise type to the log."}
       </p>
       <Form
         form={form}
         layout="vertical"
+        autoComplete="off"
         className="workout-form workout-form--exercise"
         onFinish={async (values) => {
-          await onSubmit(values.name.trim());
+          await onSubmit(values.exerciseName.trim(), values.muscleGroup);
         }}
       >
         <Form.Item
-          name="name"
+          name="exerciseName"
           label="Exercise name"
           rules={[{ required: true, message: "Enter a name" }]}
         >
-          <Input placeholder="e.g. Bench press" autoFocus />
+          <Input
+            placeholder="e.g. Bench press"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore
+          />
+        </Form.Item>
+        <Form.Item name="muscleGroup" label="Muscle group">
+          <Select options={GROUP_OPTIONS} />
         </Form.Item>
         <Space wrap>
           <Button type="primary" htmlType="submit" loading={saving}>
             {isEdit ? "Update" : "Add"}
           </Button>
-          <Button htmlType="button" disabled={saving} onClick={() => form.setFieldsValue({ name: draft.name })}>
+          <Button
+            htmlType="button"
+            disabled={saving}
+            onClick={() =>
+              form.setFieldsValue({ exerciseName: draft.name, muscleGroup: draft.muscleGroup })
+            }
+          >
             Reset
           </Button>
           {isEdit && onDelete ? (

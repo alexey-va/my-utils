@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Button, DatePicker, Form, InputNumber, Space } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import type { UpsertWorkoutEntryRequest } from "../../api/types";
+import type { UpsertWorkoutEntryRequest, WorkoutCell } from "../../api/types";
 import type { WorkoutEntryDraft } from "./types";
 
 type FormValues = {
@@ -16,6 +16,7 @@ type Props = {
   saving: boolean;
   draft: WorkoutEntryDraft;
   isEdit: boolean;
+  lastSession?: WorkoutCell;
   onSubmit: (values: UpsertWorkoutEntryRequest) => Promise<void>;
 };
 
@@ -29,7 +30,31 @@ function draftToFormValues(draft: WorkoutEntryDraft): FormValues {
   };
 }
 
-export default function WorkoutEntryForm({ saving, draft, isEdit, onSubmit }: Props) {
+function lastSessionToFormValues(cell: WorkoutCell, performedOn: Dayjs): FormValues {
+  return {
+    performedOn,
+    weightKg: cell.weightKg,
+    setCount: cell.setCount,
+    repsPerSet: cell.repsPerSet,
+    maxReps: cell.maxReps,
+  };
+}
+
+function bumpWeight(
+  form: ReturnType<typeof Form.useForm<FormValues>>[0],
+  delta: number,
+) {
+  const current = form.getFieldValue("weightKg") ?? 0;
+  form.setFieldValue("weightKg", Math.max(1, Math.round(current + delta)));
+}
+
+export default function WorkoutEntryForm({
+  saving,
+  draft,
+  isEdit,
+  lastSession,
+  onSubmit,
+}: Props) {
   const [form] = Form.useForm<FormValues>();
 
   useEffect(() => {
@@ -48,6 +73,7 @@ export default function WorkoutEntryForm({ saving, draft, isEdit, onSubmit }: Pr
       <Form
         form={form}
         layout="vertical"
+        autoComplete="off"
         className="workout-form"
         onFinish={async (values) => {
           await onSubmit({
@@ -66,41 +92,74 @@ export default function WorkoutEntryForm({ saving, draft, isEdit, onSubmit }: Pr
             label="Date"
             rules={[{ required: true, message: "Pick a date" }]}
           >
-            <DatePicker className="workout-form__full" format="YYYY-MM-DD" />
+            <DatePicker
+              className="workout-form__full"
+              format="YYYY-MM-DD"
+              autoComplete="off"
+            />
           </Form.Item>
           <Form.Item
             name="weightKg"
             label="Weight (kg)"
             rules={[{ required: true, message: "Enter weight" }]}
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} />
+            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
+          </Form.Item>
+          <Form.Item label=" " colon={false} className="workout-form__weight-bumps">
+            <Space wrap size={4}>
+              <Button size="small" disabled={saving} onClick={() => bumpWeight(form, -5)}>
+                −5
+              </Button>
+              <Button size="small" disabled={saving} onClick={() => bumpWeight(form, -2.5)}>
+                −2.5
+              </Button>
+              <Button size="small" disabled={saving} onClick={() => bumpWeight(form, 2.5)}>
+                +2.5
+              </Button>
+              <Button size="small" disabled={saving} onClick={() => bumpWeight(form, 5)}>
+                +5
+              </Button>
+            </Space>
           </Form.Item>
           <Form.Item
             name="setCount"
             label="Sets"
             rules={[{ required: true, message: "Enter sets" }]}
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} />
+            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
           </Form.Item>
           <Form.Item
             name="repsPerSet"
             label="Reps per set"
             rules={[{ required: true, message: "Enter reps" }]}
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} />
+            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
           </Form.Item>
           <Form.Item
             name="maxReps"
             label="Max on last set"
             rules={[{ required: true, message: "Enter max reps" }]}
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} />
+            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
           </Form.Item>
         </div>
-        <Space>
+        <Space wrap>
           <Button type="primary" htmlType="submit" loading={saving}>
             {isEdit ? "Update" : "Save"}
           </Button>
+          {!isEdit && lastSession ? (
+            <Button
+              htmlType="button"
+              disabled={saving}
+              onClick={() =>
+                form.setFieldsValue(
+                  lastSessionToFormValues(lastSession, form.getFieldValue("performedOn")),
+                )
+              }
+            >
+              Same as last
+            </Button>
+          ) : null}
           <Button
             htmlType="button"
             disabled={saving}
