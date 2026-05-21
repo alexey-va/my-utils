@@ -1,6 +1,7 @@
 import {
   CodeOutlined,
   HomeOutlined,
+  SettingOutlined,
   ThunderboltOutlined,
   TrophyOutlined,
 } from "@ant-design/icons";
@@ -9,6 +10,7 @@ import GeneratorsPage from "../features/generators/GeneratorsPage";
 import JsonPage from "../features/json/JsonPage";
 import AdminPage from "../features/admin/AdminPage";
 import WorkoutPage from "../features/workout/WorkoutPage";
+import PropertiesPage from "../features/properties/PropertiesPage";
 
 /**
  * Register new tabs here: one entry drives Refine resources, sidebar, and routes.
@@ -37,6 +39,13 @@ export const appFeatures: AppFeature[] = [
     label: "Workout",
     icon: <TrophyOutlined />,
     Page: WorkoutPage,
+  },
+  {
+    id: "properties",
+    path: "/properties",
+    label: "Properties",
+    icon: <SettingOutlined />,
+    Page: PropertiesPage,
   },
   {
     id: "dashboard",

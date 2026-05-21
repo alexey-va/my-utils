@@ -883,7 +883,12 @@ textarea.generator-output {
 
 .workout-progress__stats-band {
   flex: none;
+  min-height: 7.5rem;
   margin-bottom: 12px;
+}
+
+.workout-progress__stats--placeholder .ant-statistic-content {
+  color: var(--text-muted);
 }
 
 .workout-progress__controls {
@@ -1314,6 +1319,23 @@ textarea.generator-output {
   margin-bottom: 12px;
 }
 
+.workout-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.workout-form__action-slot {
+  display: inline-flex;
+}
+
+.workout-form__action-slot .workout-form__action-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .workout-form__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1718,4 +1740,17 @@ textarea.generator-output {
     grid-template-columns: 64px 1fr auto;
     gap: 6px;
   }
+}
+
+.properties-editor__table .ant-table {
+  background: transparent;
+}
+
+.properties-editor__object-type {
+  font-size: 0.75rem;
+}
+
+.properties-editor__json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
 }

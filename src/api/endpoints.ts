@@ -8,6 +8,10 @@ export const apiEndpoints = {
     logout: "/api/auth/logout",
     me: "/api/auth/me",
   },
+  admin: {
+    settings: "/api/admin/settings",
+    setting: (key: string) => `/api/admin/settings/${encodeURIComponent(key)}`,
+  },
   workouts: {
     exercises: "/api/workouts/exercises",
     exerciseProgress: (id: string) => `/api/workouts/exercises/${id}/progress`,
