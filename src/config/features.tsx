@@ -1,5 +1,6 @@
 import {
   CodeOutlined,
+  DashboardOutlined,
   HomeOutlined,
   SettingOutlined,
   ThunderboltOutlined,
@@ -11,6 +12,7 @@ import JsonPage from "../features/json/JsonPage";
 import AdminPage from "../features/admin/AdminPage";
 import WorkoutPage from "../features/workout/WorkoutPage";
 import PropertiesPage from "../features/properties/PropertiesPage";
+import GrafanaPage from "../features/observability/GrafanaPage";
 
 /**
  * Register new tabs here: one entry drives Refine resources, sidebar, and routes.
@@ -46,6 +48,13 @@ export const appFeatures: AppFeature[] = [
     label: "Properties",
     icon: <SettingOutlined />,
     Page: PropertiesPage,
+  },
+  {
+    id: "observability",
+    path: "/observability",
+    label: "Grafana",
+    icon: <DashboardOutlined />,
+    Page: GrafanaPage,
   },
   {
     id: "dashboard",
