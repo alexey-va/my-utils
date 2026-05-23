@@ -115,29 +115,36 @@ export default function WorkoutPage() {
 
   const activeExerciseId = editor?.kind === "exercise" ? editor.draft.exerciseId : undefined;
 
-  const openNewSession = useCallback(() => {
-    const exercise = exercises.find((e) => e.id === selectedExerciseId);
-    const row = grid.rows.find((r) => r.exerciseId === selectedExerciseId);
-    const last = row ? lastSessionForRow(row, grid.dates) : undefined;
-    const today = dayjs().format("YYYY-MM-DD");
-    setActiveCell(undefined);
-    setEditor({
-      kind: "entry",
-      draft: {
-        ...newSessionDraft(selectedExerciseId, exercise?.name),
-        ...(last
-          ? {
-              weightKg: last.weightKg,
-              setCount: last.setCount,
-              repsPerSet: last.repsPerSet,
-              maxReps: last.maxReps,
-            }
-          : {}),
-        performedOn: today,
-      },
-    });
-    setSessionOpen(true);
-  }, [exercises, grid.dates, grid.rows, selectedExerciseId]);
+  const openNewSession = useCallback(
+    (overrideExerciseId?: string) => {
+      const exerciseId = overrideExerciseId ?? selectedExerciseId;
+      const exercise = exercises.find((e) => e.id === exerciseId);
+      const row = grid.rows.find((r) => r.exerciseId === exerciseId);
+      const last = row ? lastSessionForRow(row, grid.dates) : undefined;
+      const today = dayjs().format("YYYY-MM-DD");
+      setActiveCell(undefined);
+      setEditor({
+        kind: "entry",
+        draft: {
+          ...newSessionDraft(exerciseId, exercise?.name),
+          ...(last
+            ? {
+                weightKg: last.weightKg,
+                setCount: last.setCount,
+                repsPerSet: last.repsPerSet,
+                maxReps: last.maxReps,
+              }
+            : {}),
+          performedOn: today,
+        },
+      });
+      if (exerciseId) {
+        selectExercise(exerciseId);
+      }
+      setSessionOpen(true);
+    },
+    [exercises, grid.dates, grid.rows, selectedExerciseId, selectExercise],
+  );
 
   const openCellEditor = useCallback(
     (target: WorkoutCellTarget) => {
@@ -150,6 +157,7 @@ export default function WorkoutPage() {
         draft: entryDraftFromCell(target, row?.exerciseName ?? "", last),
       });
       selectExercise(target.exerciseId);
+      setSessionOpen(true);
     },
     [grid.dates, grid.rows, selectExercise],
   );
@@ -344,9 +352,10 @@ export default function WorkoutPage() {
                           onDelete={
                             isEntryEdit && activeCell?.cell
                               ? async () => {
-                                  await deleteEntry(editor.draft.exerciseId, editor.draft.performedOn);
+                                  const exerciseId = editor.draft.exerciseId;
+                                  await deleteEntry(exerciseId, editor.draft.performedOn);
                                   setProgressRefreshKey((k) => k + 1);
-                                  closeForm();
+                                  openNewSession(exerciseId);
                                 }
                               : undefined
                           }

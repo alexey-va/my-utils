@@ -59,7 +59,14 @@ export function useCompareProgress(
       const nextSeries = seriesFromCache(ids, cache);
       setSeries(nextSeries);
       const targetId = primaryExerciseId ?? ids[0];
-      setPrimary(targetId ? (cache.get(targetId) ?? null) : null);
+      if (!targetId) {
+        setPrimary(null);
+        return;
+      }
+      const cached = cache.get(targetId);
+      if (cached) {
+        setPrimary(cached);
+      }
     },
     [cache, primaryExerciseId],
   );

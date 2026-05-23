@@ -9,6 +9,7 @@ export type RuntimeProperty = {
   type: PropertyType;
   objectType: string | null;
   description: string;
+  tags: string[];
   value: unknown;
   defaultValue: unknown;
   editor: PropertyEditor;

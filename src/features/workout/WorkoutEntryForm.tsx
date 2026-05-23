@@ -145,23 +145,25 @@ export default function WorkoutEntryForm({
             <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
           </Form.Item>
         </div>
-        <Space wrap>
+        <div className="workout-form__actions">
           <Button type="primary" htmlType="submit" loading={saving}>
             {isEdit ? "Update" : "Save"}
           </Button>
-          {!isEdit && lastSession ? (
-            <Button
-              htmlType="button"
-              disabled={saving}
-              onClick={() =>
-                form.setFieldsValue(
-                  lastSessionToFormValues(lastSession, form.getFieldValue("performedOn")),
-                )
-              }
-            >
-              Same as last
-            </Button>
-          ) : null}
+          <Button
+            type="default"
+            htmlType="button"
+            className="workout-form__action-slot"
+            disabled={saving || isEdit || !lastSession}
+            tabIndex={!isEdit && lastSession ? 0 : -1}
+            aria-hidden={isEdit || !lastSession}
+            onClick={() =>
+              form.setFieldsValue(
+                lastSessionToFormValues(lastSession!, form.getFieldValue("performedOn")),
+              )
+            }
+          >
+            Same as last
+          </Button>
           <Button
             htmlType="button"
             disabled={saving}
@@ -169,20 +171,26 @@ export default function WorkoutEntryForm({
           >
             Reset
           </Button>
-          {isEdit && onDelete ? (
-            <Popconfirm
-              title="Delete this session?"
-              description={`Remove ${draft.exerciseName} on ${draft.performedOn} from the log.`}
-              onConfirm={() => void onDelete()}
-              okText="Delete"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger disabled={saving}>
+          <span className="workout-form__action-slot">
+            {isEdit && onDelete ? (
+              <Popconfirm
+                title="Delete this session?"
+                description={`Remove ${draft.exerciseName} on ${draft.performedOn} from the log.`}
+                onConfirm={() => void onDelete()}
+                okText="Delete"
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger disabled={saving}>
+                  Delete session
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Button danger disabled className="workout-form__action-placeholder" aria-hidden tabIndex={-1}>
                 Delete session
               </Button>
-            </Popconfirm>
-          ) : null}
-        </Space>
+            )}
+          </span>
+        </div>
       </Form>
     </>
   );

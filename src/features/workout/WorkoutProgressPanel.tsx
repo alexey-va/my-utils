@@ -129,53 +129,54 @@ function WorkoutProgressPanel({
       </div>
 
       <div className="workout-progress__stats-band">
-        {primary ? (
-          <div className="workout-progress__stats">
-            <Statistic title="Sessions" value={primary.stats.sessions} />
+        <div
+          className={`workout-progress__stats${primary ? "" : " workout-progress__stats--placeholder"}`}
+          aria-busy={!primary && loading}
+        >
+          <Statistic title="Sessions" value={primary?.stats.sessions ?? "—"} />
+          <Statistic
+            title="Best weight"
+            value={primary?.stats.bestWeightKg ?? "—"}
+            suffix={primary?.stats.bestWeightKg != null ? "kg" : undefined}
+          />
+          <div className="workout-progress__stat">
             <Statistic
-              title="Best weight"
-              value={primary.stats.bestWeightKg ?? "—"}
-              suffix={primary.stats.bestWeightKg != null ? "kg" : undefined}
+              title="Latest"
+              value={primary?.stats.latestWeightKg ?? "—"}
+              suffix={primary?.stats.latestWeightKg != null ? "kg" : undefined}
             />
-            <div className="workout-progress__stat">
-              <Statistic
-                title="Latest"
-                value={primary.stats.latestWeightKg ?? "—"}
-                suffix={primary.stats.latestWeightKg != null ? "kg" : undefined}
-              />
-              <div className="workout-progress__stat-delta">
-                {trendSuffix(trends.weightVsPrevious, "kg") ? (
-                  <>
-                    {trendSuffix(trends.weightVsPrevious, "kg")}
-                    <span className="workout-progress__stat-delta-label"> vs prev</span>
-                  </>
-                ) : (
-                  <span className="workout-progress__stat-delta-placeholder" aria-hidden>
-                    —
-                  </span>
-                )}
-              </div>
+            <div className="workout-progress__stat-delta">
+              {trendSuffix(trends.weightVsPrevious, "kg") ? (
+                <>
+                  {trendSuffix(trends.weightVsPrevious, "kg")}
+                  <span className="workout-progress__stat-delta-label"> vs prev</span>
+                </>
+              ) : (
+                <span className="workout-progress__stat-delta-placeholder" aria-hidden>
+                  —
+                </span>
+              )}
             </div>
-            <Statistic
-              title={`vs ${trends.weeksAgoLabel ?? 4} wk ago`}
-              value={
-                trends.weightVsWeeksAgo != null
-                  ? formatSignedDelta(trends.weightVsWeeksAgo, "kg")
-                  : "—"
-              }
-            />
-            <Statistic
-              title="Best e1RM"
-              value={bestE1rm ?? "—"}
-              suffix={bestE1rm != null ? "kg" : undefined}
-            />
-            <Statistic
-              title="Best volume"
-              value={primary.stats.bestVolume ?? "—"}
-              suffix={primary.stats.bestVolume != null ? "kg" : undefined}
-            />
           </div>
-        ) : null}
+          <Statistic
+            title={`vs ${trends.weeksAgoLabel ?? 4} wk ago`}
+            value={
+              trends.weightVsWeeksAgo != null
+                ? formatSignedDelta(trends.weightVsWeeksAgo, "kg")
+                : "—"
+            }
+          />
+          <Statistic
+            title="Best e1RM"
+            value={bestE1rm ?? "—"}
+            suffix={bestE1rm != null ? "kg" : undefined}
+          />
+          <Statistic
+            title="Best volume"
+            value={primary?.stats.bestVolume ?? "—"}
+            suffix={primary?.stats.bestVolume != null ? "kg" : undefined}
+          />
+        </div>
       </div>
 
       <div className="workout-progress__controls">
