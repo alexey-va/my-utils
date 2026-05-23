@@ -1866,42 +1866,6 @@ textarea.generator-output {
   border: 0;
 }
 
-/* Floating app menu over Grafana embed */
-.app-quick-nav__fab {
-  position: fixed;
-  z-index: 1000;
-  left: calc(var(--sider-rail-width, 56px) + 12px);
-  bottom: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(18, 22, 33, 0.92);
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.app-quick-nav__fab:hover {
-  color: #fff;
-  background: rgba(28, 34, 48, 0.96);
-  border-color: rgba(255, 255, 255, 0.22);
-}
-
-.app-quick-nav__fab-label {
-  line-height: 1;
-}
-
-.app-quick-nav__drawer .ant-menu {
-  border-inline-end: none !important;
-}
-
 .ant-layout-content:has(.grafana-page),
 .ant-layout-content:has(.grafana-page) > div {
   padding: 0 !important;

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { grafanaEmbedUrl } from "../../config/grafana";
 import { grafanaPanels } from "../../config/grafanaDashboards";
-import AppQuickNav from "../../shared/components/AppQuickNav";
 
 export default function GrafanaPage() {
   const panels = useMemo(() => grafanaPanels(), []);
@@ -19,7 +18,6 @@ export default function GrafanaPage() {
         allow="fullscreen"
         referrerPolicy="no-referrer-when-downgrade"
       />
-      <AppQuickNav />
     </div>
   );
 }
