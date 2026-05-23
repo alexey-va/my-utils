@@ -52,7 +52,7 @@ export const appFeatures: AppFeature[] = [
   {
     id: "observability",
     path: "/observability",
-    label: "Grafana",
+    label: "Logs",
     icon: <DashboardOutlined />,
     Page: GrafanaPage,
   },

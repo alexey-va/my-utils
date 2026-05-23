@@ -1,10 +1,17 @@
+type GrafanaUrlOptions = {
+  /** Hide Grafana chrome (sidebar/top nav). Default true for iframe embed. */
+  kiosk?: boolean;
+};
+
 /** Grafana embed URL (iframe). Empty env → same-origin /grafana/ (nginx proxy, first-party cookies). */
-export function grafanaEmbedUrl(): string {
+export function grafanaEmbedUrl(options: GrafanaUrlOptions = {}): string {
+  const kiosk = options.kiosk ?? true;
   const configured = import.meta.env.VITE_GRAFANA_URL?.trim();
   const base = (configured && configured.length > 0 ? configured : "/grafana").replace(/\/$/, "");
   const path = (import.meta.env.VITE_GRAFANA_PATH ?? "").trim();
-  if (!path) {
-    return `${base}/`;
+  let url = path ? `${base}/${path.replace(/^\//, "")}` : `${base}/`;
+  if (kiosk) {
+    url += url.includes("?") ? "&kiosk" : "?kiosk";
   }
-  return `${base}/${path.replace(/^\//, "")}`;
+  return url;
 }

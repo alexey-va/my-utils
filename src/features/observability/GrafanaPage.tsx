@@ -1,30 +1,31 @@
-import { Button } from "antd";
+import { Tooltip } from "antd";
 import { ExportOutlined } from "@ant-design/icons";
-import PageLayout from "../../shared/components/PageLayout";
 import { grafanaEmbedUrl } from "../../config/grafana";
 
 export default function GrafanaPage() {
-  const embedUrl = grafanaEmbedUrl();
+  const embedUrl = grafanaEmbedUrl({ kiosk: true });
+  const tabUrl = grafanaEmbedUrl({ kiosk: false });
 
   return (
-    <PageLayout
-      title="Observability"
-      subtitle="Logs, metrics, and dashboards (Grafana)"
-      actions={
-        <Button type="link" href={embedUrl} target="_blank" rel="noopener noreferrer" icon={<ExportOutlined />}>
-          Open in new tab
-        </Button>
-      }
-    >
-      <div className="grafana-embed">
-        <iframe
-          className="grafana-embed__frame"
-          src={embedUrl}
-          title="Grafana"
-          allow="fullscreen"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </div>
-    </PageLayout>
+    <div className="grafana-page">
+      <iframe
+        className="grafana-page__frame"
+        src={embedUrl}
+        title="Grafana"
+        allow="fullscreen"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
+      <Tooltip title="Open Grafana in new tab">
+        <a
+          className="grafana-page__popout"
+          href={tabUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open Grafana in new tab"
+        >
+          <ExportOutlined />
+        </a>
+      </Tooltip>
+    </div>
   );
 }
