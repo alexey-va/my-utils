@@ -54,6 +54,18 @@ function ValueEditor({
   draft: unknown;
   onChange: (value: unknown) => void;
 }) {
+  if (property.editor === "TEXTAREA") {
+    return (
+      <Input.TextArea
+        rows={14}
+        value={typeof draft === "string" ? draft : String(draft ?? "")}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+        className="properties-editor__textarea"
+      />
+    );
+  }
+
   switch (property.type) {
     case "BOOLEAN":
       return (
@@ -216,16 +228,18 @@ export default function PropertiesPage() {
     {
       title: "Значение",
       key: "value",
-      width: 360,
+      width: 480,
       render: (_, property) => {
         const row = rows[property.key];
         if (!row) return null;
         return (
-          <ValueEditor
-            property={property}
-            draft={row.draft}
-            onChange={(v) => setDraft(property.key, v)}
-          />
+          <div className={property.editor === "TEXTAREA" ? "properties-editor__value-wide" : undefined}>
+            <ValueEditor
+              property={property}
+              draft={row.draft}
+              onChange={(v) => setDraft(property.key, v)}
+            />
+          </div>
         );
       },
     },

@@ -2,6 +2,8 @@ import { apiClient } from "./client";
 
 export type PropertyType = "BOOLEAN" | "INT" | "LONG" | "DOUBLE" | "STRING" | "OBJECT";
 
+export type PropertyEditor = "DEFAULT" | "TEXTAREA";
+
 export type RuntimeProperty = {
   key: string;
   type: PropertyType;
@@ -9,6 +11,7 @@ export type RuntimeProperty = {
   description: string;
   value: unknown;
   defaultValue: unknown;
+  editor: PropertyEditor;
   updatedAt: string | null;
   updatedBy: string | null;
 };

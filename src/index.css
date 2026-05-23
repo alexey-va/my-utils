@@ -1754,3 +1754,13 @@ textarea.generator-output {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
 }
+
+.properties-editor__textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  min-width: 28rem;
+}
+
+.properties-editor__value-wide {
+  min-width: 28rem;
+}
