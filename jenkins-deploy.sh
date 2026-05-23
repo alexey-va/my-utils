@@ -22,9 +22,10 @@ if [[ "${DEPLOY_MODE:-}" == "split" && -z "${VITE_API_BASE_URL}" ]]; then
 fi
 
 echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-<empty — same-origin /api via nginx>}"
-# Grafana: host network :3500, public https://grafana.rus-crafting.ru (override in Jenkins if needed)
-VITE_GRAFANA_URL="${VITE_GRAFANA_URL:-https://grafana.rus-crafting.ru}"
-echo "VITE_GRAFANA_URL=${VITE_GRAFANA_URL}"
+# Same-origin /grafana/ via nginx → localhost:3500 (fixes iframe login cookies).
+# Override only if you proxy Grafana elsewhere: VITE_GRAFANA_URL=https://...
+VITE_GRAFANA_URL="${VITE_GRAFANA_URL:-}"
+echo "VITE_GRAFANA_URL=${VITE_GRAFANA_URL:-<empty — same-origin /grafana via nginx>}"
 
 cd "${WORKSPACE}"
 
