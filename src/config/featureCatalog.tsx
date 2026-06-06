@@ -49,7 +49,7 @@ export const featureCatalog: FeatureCatalogEntry[] = [
   {
     id: "observability",
     path: "/observability",
-    label: "Logs",
+    label: "Grafana",
     icon: <DashboardOutlined />,
   },
   {

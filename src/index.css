@@ -1847,69 +1847,54 @@ textarea.generator-output {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Grafana iframe — app nav bar + fixed iframe height
+   Grafana tab — dashboard list + iframe
    ═══════════════════════════════════════════════════════════════ */
-.ant-layout-content:has(.grafana-shell),
-.ant-layout-content:has(.grafana-shell) > div {
+.ant-layout-content:has(.grafana-page),
+.ant-layout-content:has(.grafana-page) > div {
   padding: 0 !important;
 }
 
-.grafana-shell {
-  --grafana-chrome: 108px;
+.grafana-page {
+  display: flex;
   width: 100%;
+  height: 100dvh;
+  min-height: 480px;
   background: #0b0c0e;
 }
 
-.grafana-shell__nav {
+.grafana-page__sidebar {
+  flex: 0 0 240px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 8px 12px;
+  flex-direction: column;
+  min-height: 0;
   background: #151a26;
-  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
 }
 
-.grafana-shell__home-btn {
-  color: var(--text) !important;
+.grafana-page__sidebar-title {
+  flex: 0 0 auto;
+  padding: 14px 16px 10px;
+  font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-.grafana-shell__nav-links {
+.grafana-page__menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-inline-end: none !important;
+  background: transparent !important;
+}
+
+.grafana-page__frame {
   flex: 1;
   min-width: 0;
-}
-
-.grafana-shell__nav-btn {
-  background: #1c2230 !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-
-.grafana-shell__nav-btn:hover {
-  border-color: #3d4a63 !important;
-  color: #fff !important;
-}
-
-.grafana-shell__view-tabs {
-  padding: 0 12px;
-  background: #151a26;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.grafana-shell__view-tabs .ant-tabs-nav {
-  margin-bottom: 0;
-}
-
-.grafana-shell:has(.grafana-shell__view-tabs) {
-  --grafana-chrome: 148px;
-}
-
-.grafana-shell__frame {
   display: block;
   width: 100%;
-  height: calc(100dvh - var(--grafana-chrome));
-  min-height: 360px;
+  height: 100%;
   border: 0;
   background: #0b0c0e;
 }

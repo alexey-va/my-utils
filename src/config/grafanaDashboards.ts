@@ -28,14 +28,18 @@ function lokiExplorePath(query: string): string {
   return `explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}`;
 }
 
-/** Default panels when VITE_GRAFANA_DASHBOARDS is not set. Add your dashboard UIDs here. */
+/** Default dashboards when VITE_GRAFANA_DASHBOARDS is not set. Add UIDs from Grafana URL here. */
 const DEFAULT_PANELS: GrafanaPanel[] = [
   {
     id: "api-dashboard",
-    title: "Dashboard",
+    title: "My Utils API Logs",
     path: "d/myutils-api-logs/my-utils-api-logs",
   },
-  { id: "api-logs", title: "Explore", path: lokiExplorePath('{app="my-utils-api"}') },
+  {
+    id: "api-logs",
+    title: "API logs (Explore)",
+    path: lokiExplorePath('{app="my-utils-api"}'),
+  },
 ];
 
 function isPanel(value: unknown): value is GrafanaPanel {
@@ -51,7 +55,7 @@ function isPanel(value: unknown): value is GrafanaPanel {
   );
 }
 
-/** Panels to show as tabs. Override via VITE_GRAFANA_DASHBOARDS JSON at build time. */
+/** Dashboards for the Grafana tab sidebar. Override via VITE_GRAFANA_DASHBOARDS JSON at build time. */
 export function grafanaPanels(): GrafanaPanel[] {
   const raw = import.meta.env.VITE_GRAFANA_DASHBOARDS?.trim();
   if (!raw) {
