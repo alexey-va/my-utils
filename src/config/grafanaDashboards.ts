@@ -8,10 +8,27 @@ export type GrafanaPanel = {
   path: string;
 };
 
+function lokiExplorePath(query: string): string {
+  const panes = {
+    n: {
+      datasource: "loki",
+      queries: [
+        {
+          refId: "A",
+          expr: query,
+          datasource: { type: "loki", uid: "loki" },
+        },
+      ],
+      range: { from: "now-1h", to: "now" },
+    },
+  };
+  return `explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}&orgId=1`;
+}
+
 /** Default panels when VITE_GRAFANA_DASHBOARDS is not set. Add your dashboard UIDs here. */
 const DEFAULT_PANELS: GrafanaPanel[] = [
+  { id: "api-logs", title: "API logs", path: lokiExplorePath('{app="my-utils-api"}') },
   { id: "explore", title: "Explore", path: "explore" },
-  // Example: { id: "myutils", title: "MyUtils API", path: "d/abc12345/my-utils-api" },
 ];
 
 function isPanel(value: unknown): value is GrafanaPanel {
