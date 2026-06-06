@@ -274,6 +274,16 @@ body {
   background: #1c2230;
 }
 
+.app-sider__footer-btn--escape {
+  color: #141820;
+  background: #f0b429;
+}
+
+.app-sider__footer-btn--escape:hover {
+  color: #141820;
+  background: #ffd24d;
+}
+
 .app-sider__footer-btn-icon {
   grid-column: 1;
   justify-self: center;
@@ -1849,70 +1859,71 @@ textarea.generator-output {
 /* ═══════════════════════════════════════════════════════════════
    Grafana tab — dashboard list + iframe
    ═══════════════════════════════════════════════════════════════ */
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.grafana-page) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
 .ant-layout-content:has(.grafana-page),
 .ant-layout-content:has(.grafana-page) > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: 0 !important;
+  overflow: hidden;
 }
 
 .grafana-page {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100dvh;
-  min-height: 480px;
   background: #0b0c0e;
 }
 
-.grafana-page__frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #0b0c0e;
+.grafana-page__chrome {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: #151a26;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-/* Portal to body — always above iframe and layout stacking contexts */
-.grafana-escape {
-  position: fixed;
-  z-index: 100000;
-  bottom: 18px;
-  left: 68px;
+.grafana-page__exit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin: 0;
-  padding: 10px 16px 10px 12px;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  border-radius: 999px;
+  padding: 6px 14px;
+  border: 1px solid #5a6b88;
+  border-radius: 8px;
   background: #f0b429;
   color: #141820;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 6px 24px rgba(0, 0, 0, 0.55);
-  pointer-events: auto;
-  transition:
-    transform 0.12s ease,
-    background-color 0.12s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-.grafana-escape:hover {
+.grafana-page__exit:hover {
   background: #ffd24d;
-  transform: translateY(-1px);
 }
 
-.grafana-escape:active {
-  transform: translateY(0);
+.grafana-page__frame {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #0b0c0e;
 }
 
-.grafana-escape__icon {
-  font-size: 16px;
-}
-
-.grafana-escape__label {
-  white-space: nowrap;
-}

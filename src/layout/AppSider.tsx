@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Layout, Menu, Tooltip } from "antd";
 import {
+  HomeOutlined,
   LoginOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -10,7 +11,7 @@ import {
 import { useGetIdentity, useMenu, useTranslate } from "@refinedev/core";
 import type { RefineThemedLayoutSiderProps } from "@refinedev/antd";
 import { APP_NAME } from "../config/appBranding";
-import { PATH_ADMIN } from "../config/paths";
+import { PATH_ADMIN, PATH_HOME } from "../config/paths";
 import { SIDER_EXPANDED_WIDTH, SIDER_RAIL_WIDTH } from "../config/sidebar";
 import { useConfirmLogout } from "../shared/hooks/useConfirmLogout";
 import { buildMenuRouteMap } from "../shared/utils/buildMenuRouteMap";
@@ -27,7 +28,9 @@ export default function AppSider({
   siderItemsAreCollapsed = true,
 }: RefineThemedLayoutSiderProps) {
   const [expanded, setExpanded] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
+  const onGrafanaTab = location.pathname === "/observability";
   const { data: identity } = useGetIdentity();
   const translate = useTranslate();
   const { menuItems, selectedKey, defaultOpenKeys } = useMenu({ meta });
@@ -90,6 +93,15 @@ export default function AppSider({
         </Menu>
 
         <div className="app-sider__footer">
+          {onGrafanaTab ? (
+            <SiderFooterButton
+              expanded={expanded}
+              icon={<HomeOutlined />}
+              label="В приложение"
+              variant="escape"
+              onClick={() => navigate(PATH_HOME)}
+            />
+          ) : null}
           <SiderFooterButton
             expanded={expanded}
             icon={identity ? <LogoutOutlined /> : <LoginOutlined />}

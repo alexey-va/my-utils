@@ -1,7 +1,7 @@
-import { AppstoreOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { PATH_HOME } from "../../config/paths";
 import {
   grafanaEmbedUrl,
   persistGrafanaIframePath,
@@ -36,38 +36,25 @@ export default function GrafanaPage() {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    navigate("/");
+    navigate(PATH_HOME);
   };
 
-  const escapeButton = (
-    <button
-      type="button"
-      className="grafana-escape"
-      aria-label="Выйти в приложение"
-      onMouseDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onClick={leaveGrafana}
-    >
-      <AppstoreOutlined className="grafana-escape__icon" />
-      <span className="grafana-escape__label">App</span>
-    </button>
-  );
-
   return (
-    <>
-      {createPortal(escapeButton, document.body)}
-      <div className="grafana-page">
-        <iframe
-          ref={iframeRef}
-          className="grafana-page__frame"
-          src={src}
-          title="Grafana"
-          allow="fullscreen"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </div>
-    </>
+    <div className="grafana-page">
+      <header className="grafana-page__chrome">
+        <button type="button" className="grafana-page__exit" onClick={leaveGrafana}>
+          <ArrowLeftOutlined aria-hidden />
+          <span>В приложение</span>
+        </button>
+      </header>
+      <iframe
+        ref={iframeRef}
+        className="grafana-page__frame"
+        src={src}
+        title="Grafana"
+        allow="fullscreen"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
+    </div>
   );
 }
