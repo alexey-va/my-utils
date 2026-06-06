@@ -1,13 +1,17 @@
 # my-utils
 
-Internal **Admin Panel** — browser utilities for developers: UUID/password/number generators and JSON prettify/minify. Built with [Refine](https://refine.dev) v5, React 19, Ant Design 5, and Vite 6.
+Internal utilities SPA: generators, JSON, workout diary, runtime properties, Grafana logs. [Refine](https://refine.dev) v5 + React + Vite.
+
+**Agent/dev guide:** [AGENTS.md](AGENTS.md) · API: [../my-utils-api/AGENTS.md](../my-utils-api/AGENTS.md)
 
 ## Features
 
-- **Generators** (`/`) — UUID v4, random password, random integer
-- **JSON** (`/json`) — prettify, minify, history (localStorage)
-- **Admin** (`/admin`) — optional account area (sign in required)
-- **Optional auth** — use the app without logging in; sign in from the sidebar to open restricted tabs
+- **Generators** (`/`) — UUID, password, integer
+- **JSON** (`/json`) — prettify / minify
+- **Workout** (`/workout`) — training grid (API)
+- **Properties** (`/properties`) — runtime settings
+- **Logs** (`/observability`) — Grafana / Loki dashboard
+- **Admin** (`/admin`) — sign-in required
 
 ## Getting started
 
