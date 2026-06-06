@@ -32,8 +32,7 @@ cd "${WORKSPACE}"
 docker build \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_GRAFANA_URL=${VITE_GRAFANA_URL}" \
-  --build-arg "VITE_GRAFANA_PATH=${VITE_GRAFANA_PATH:-}" \
-  --build-arg "VITE_GRAFANA_DASHBOARDS=${VITE_GRAFANA_DASHBOARDS:-}" \
+  --build-arg "VITE_GRAFANA_PATH=${VITE_GRAFANA_PATH:-dashboards}" \
   -t "${IMAGE_NAME}:latest" .
 
 docker stop "${CONTAINER_NAME}" || true

@@ -1,16 +1,16 @@
 type GrafanaUrlOptions = {
-  /** Path under /grafana/ (e.g. explore, d/uid/slug). Falls back to VITE_GRAFANA_PATH. */
+  /** Path under /grafana/ (e.g. dashboards, d/uid/slug). Falls back to VITE_GRAFANA_PATH. */
   path?: string;
-  /** Hide Grafana chrome (sidebar/top nav). Default true for iframe embed. */
+  /** Hide Grafana chrome (sidebar/top nav). Default false — full browse UI. */
   kiosk?: boolean;
 };
 
 /** Grafana embed URL (iframe). Empty env → same-origin /grafana/ (nginx proxy, first-party cookies). */
 export function grafanaEmbedUrl(options: GrafanaUrlOptions = {}): string {
-  const kiosk = options.kiosk ?? true;
+  const kiosk = options.kiosk ?? false;
   const configured = import.meta.env.VITE_GRAFANA_URL?.trim();
   const base = (configured && configured.length > 0 ? configured : "/grafana").replace(/\/$/, "");
-  const path = (options.path ?? import.meta.env.VITE_GRAFANA_PATH ?? "").trim();
+  const path = (options.path ?? import.meta.env.VITE_GRAFANA_PATH ?? "dashboards").trim();
   let url = path ? `${base}/${path.replace(/^\//, "")}` : `${base}/`;
   const params = new URLSearchParams();
   params.set("orgId", "1");

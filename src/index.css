@@ -1855,43 +1855,13 @@ textarea.generator-output {
 }
 
 .grafana-page {
-  display: flex;
   width: 100%;
   height: 100dvh;
   min-height: 480px;
   background: #0b0c0e;
 }
 
-.grafana-page__sidebar {
-  flex: 0 0 240px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: #151a26;
-  border-right: 1px solid var(--border-subtle);
-}
-
-.grafana-page__sidebar-title {
-  flex: 0 0 auto;
-  padding: 14px 16px 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.grafana-page__menu {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  border-inline-end: none !important;
-  background: transparent !important;
-}
-
 .grafana-page__frame {
-  flex: 1;
-  min-width: 0;
   display: block;
   width: 100%;
   height: 100%;
