@@ -1881,12 +1881,47 @@ textarea.generator-output {
   width: 100%;
   overflow: hidden;
   background: #0b0c0e;
+  isolation: isolate;
+}
+
+.grafana-shell__toolbar {
+  position: relative;
+  z-index: 20;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: #151a26;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.grafana-shell__home-btn {
+  color: var(--text) !important;
+  font-weight: 600;
+}
+
+.grafana-shell__nav {
+  flex: 1;
+  min-width: 0;
+}
+
+.grafana-shell__nav-btn {
+  background: #1c2230 !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.grafana-shell__nav-btn:hover {
+  border-color: #3d4a63 !important;
+  color: #fff !important;
 }
 
 .grafana-shell__tabs {
-  flex: 0 0 auto;
-  padding: 0 12px;
-  background: #0b0c0e;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0 !important;
 }
 
 .grafana-shell__tabs .ant-tabs-nav {
