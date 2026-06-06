@@ -12,8 +12,11 @@ export function grafanaEmbedUrl(options: GrafanaUrlOptions = {}): string {
   const base = (configured && configured.length > 0 ? configured : "/grafana").replace(/\/$/, "");
   const path = (options.path ?? import.meta.env.VITE_GRAFANA_PATH ?? "").trim();
   let url = path ? `${base}/${path.replace(/^\//, "")}` : `${base}/`;
+  const params = new URLSearchParams();
+  params.set("orgId", "1");
   if (kiosk) {
-    url += url.includes("?") ? "&kiosk" : "?kiosk";
+    params.set("kiosk", "");
   }
+  url += `${url.includes("?") ? "&" : "?"}${params.toString()}`;
   return url;
 }

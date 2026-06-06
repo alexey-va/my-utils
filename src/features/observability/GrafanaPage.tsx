@@ -2,11 +2,11 @@ import { AppstoreOutlined } from "@ant-design/icons";
 import { Button, Space, Tabs } from "antd";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { appFeatures } from "../../config/features";
+import { featureCatalog } from "../../config/featureCatalog";
 import { grafanaEmbedUrl } from "../../config/grafana";
 import { grafanaPanels } from "../../config/grafanaDashboards";
 
-const navFeatures = appFeatures.filter((f) => f.id !== "observability");
+const navFeatures = featureCatalog.filter((f) => f.id !== "observability");
 
 export default function GrafanaPage() {
   const navigate = useNavigate();
@@ -16,12 +16,12 @@ export default function GrafanaPage() {
   const activePanel = panels.find((p) => p.id === activeId) ?? panels[0];
   const embedUrl = grafanaEmbedUrl({
     path: activePanel?.path,
-    kiosk: false,
+    kiosk: true,
   });
 
   return (
     <div className="grafana-shell">
-      <div className="grafana-shell__toolbar">
+      <div className="grafana-shell__nav">
         <Button
           type="text"
           className="grafana-shell__home-btn"
@@ -30,7 +30,7 @@ export default function GrafanaPage() {
         >
           App
         </Button>
-        <Space size={4} wrap className="grafana-shell__nav">
+        <Space size={4} wrap className="grafana-shell__nav-links">
           {navFeatures.map((feature) => (
             <Button
               key={feature.id}
@@ -43,27 +43,25 @@ export default function GrafanaPage() {
             </Button>
           ))}
         </Space>
-        {panels.length > 1 ? (
-          <Tabs
-            className="grafana-shell__tabs"
-            activeKey={activeId}
-            onChange={setActiveId}
-            items={panels.map((panel) => ({
-              key: panel.id,
-              label: panel.title,
-            }))}
-          />
-        ) : null}
       </div>
-      <div className="grafana-shell__frame-wrap">
-        <iframe
-          className="grafana-shell__frame"
-          src={embedUrl}
-          title={activePanel?.title ?? "Grafana"}
-          allow="fullscreen"
-          referrerPolicy="no-referrer-when-downgrade"
+      {panels.length > 1 ? (
+        <Tabs
+          className="grafana-shell__view-tabs"
+          activeKey={activeId}
+          onChange={setActiveId}
+          items={panels.map((panel) => ({
+            key: panel.id,
+            label: panel.title,
+          }))}
         />
-      </div>
+      ) : null}
+      <iframe
+        className="grafana-shell__frame"
+        src={embedUrl}
+        title={activePanel?.title ?? "Grafana"}
+        allow="fullscreen"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { featurePath } from "./features";
+import { featurePath } from "./featureCatalog";
 
 export const PATH_HOME = featurePath("generators");
 export const PATH_JSON = featurePath("json");

@@ -8,21 +8,24 @@ export type GrafanaPanel = {
   path: string;
 };
 
+/** Live Grafana Loki datasource uid on utils.alexeyav.ru */
+const LOKI_DS_UID = "bedlw839mzuo0d";
+
 function lokiExplorePath(query: string): string {
   const panes = {
     n: {
-      datasource: "loki",
+      datasource: LOKI_DS_UID,
       queries: [
         {
           refId: "A",
           expr: query,
-          datasource: { type: "loki", uid: "loki" },
+          datasource: { type: "loki", uid: LOKI_DS_UID },
         },
       ],
       range: { from: "now-1h", to: "now" },
     },
   };
-  return `explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}&orgId=1`;
+  return `explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}`;
 }
 
 /** Default panels when VITE_GRAFANA_DASHBOARDS is not set. Add your dashboard UIDs here. */
