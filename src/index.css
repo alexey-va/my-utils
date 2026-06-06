@@ -1868,3 +1868,27 @@ textarea.generator-output {
   border: 0;
   background: #0b0c0e;
 }
+
+/* Fixed above iframe — escape when Grafana captures focus / overlays chrome */
+.grafana-page__escape {
+  position: fixed;
+  z-index: 200;
+  bottom: 108px;
+  left: 10px;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  background: #1c2230 !important;
+  border-color: #3d4a63 !important;
+  color: #eef2f7 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.grafana-page__escape:hover {
+  background: #2a3345 !important;
+  border-color: #5a6b88 !important;
+  color: #fff !important;
+}
