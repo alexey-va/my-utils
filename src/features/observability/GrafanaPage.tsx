@@ -14,10 +14,10 @@ export default function GrafanaPage() {
   });
 
   return (
-    <div className="grafana-page">
+    <div className="grafana-shell">
       {panels.length > 1 ? (
         <Tabs
-          className="grafana-page__tabs"
+          className="grafana-shell__tabs"
           activeKey={activeId}
           onChange={setActiveId}
           items={panels.map((panel) => ({
@@ -26,13 +26,15 @@ export default function GrafanaPage() {
           }))}
         />
       ) : null}
-      <iframe
-        className="grafana-page__frame"
-        src={embedUrl}
-        title={activePanel?.title ?? "Grafana"}
-        allow="fullscreen"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
+      <div className="grafana-shell__frame-wrap">
+        <iframe
+          className="grafana-shell__frame"
+          src={embedUrl}
+          title={activePanel?.title ?? "Grafana"}
+          allow="fullscreen"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      </div>
     </div>
   );
 }
