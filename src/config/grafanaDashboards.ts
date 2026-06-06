@@ -27,8 +27,12 @@ function lokiExplorePath(query: string): string {
 
 /** Default panels when VITE_GRAFANA_DASHBOARDS is not set. Add your dashboard UIDs here. */
 const DEFAULT_PANELS: GrafanaPanel[] = [
-  { id: "api-logs", title: "API logs", path: lokiExplorePath('{app="my-utils-api"}') },
-  { id: "explore", title: "Explore", path: "explore" },
+  {
+    id: "api-dashboard",
+    title: "Dashboard",
+    path: "d/myutils-api-logs/my-utils-api-logs",
+  },
+  { id: "api-logs", title: "Explore", path: lokiExplorePath('{app="my-utils-api"}') },
 ];
 
 function isPanel(value: unknown): value is GrafanaPanel {

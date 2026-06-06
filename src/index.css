@@ -1858,6 +1858,16 @@ textarea.generator-output {
   background: #0b0c0e;
 }
 
+.grafana-page__tabs {
+  flex: 0 0 auto;
+  padding: 0 12px;
+  background: #0b0c0e;
+}
+
+.grafana-page__tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
 .grafana-page__frame {
   display: block;
   flex: 1;
