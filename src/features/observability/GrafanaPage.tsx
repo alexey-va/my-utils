@@ -1,6 +1,6 @@
 import { AppstoreOutlined } from "@ant-design/icons";
-import { Button, Tooltip } from "antd";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   grafanaEmbedUrl,
@@ -39,26 +39,35 @@ export default function GrafanaPage() {
     navigate("/");
   };
 
+  const escapeButton = (
+    <button
+      type="button"
+      className="grafana-escape"
+      aria-label="Выйти в приложение"
+      onMouseDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={leaveGrafana}
+    >
+      <AppstoreOutlined className="grafana-escape__icon" />
+      <span className="grafana-escape__label">App</span>
+    </button>
+  );
+
   return (
-    <div className="grafana-page">
-      <Tooltip title="В приложение" placement="right">
-        <Button
-          type="default"
-          size="small"
-          className="grafana-page__escape"
-          icon={<AppstoreOutlined />}
-          aria-label="В приложение"
-          onClick={leaveGrafana}
+    <>
+      {createPortal(escapeButton, document.body)}
+      <div className="grafana-page">
+        <iframe
+          ref={iframeRef}
+          className="grafana-page__frame"
+          src={src}
+          title="Grafana"
+          allow="fullscreen"
+          referrerPolicy="no-referrer-when-downgrade"
         />
-      </Tooltip>
-      <iframe
-        ref={iframeRef}
-        className="grafana-page__frame"
-        src={src}
-        title="Grafana"
-        allow="fullscreen"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
-    </div>
+      </div>
+    </>
   );
 }
