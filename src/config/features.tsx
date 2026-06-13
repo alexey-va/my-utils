@@ -6,6 +6,7 @@ import AdminPage from "../features/admin/AdminPage";
 import WorkoutPage from "../features/workout/WorkoutPage";
 import PropertiesPage from "../features/properties/PropertiesPage";
 import GrafanaPage from "../features/observability/GrafanaPage";
+import TemporalPage from "../features/temporal/TemporalPage";
 
 const pagesById: Record<string, AppFeature["Page"]> = {
   generators: GeneratorsPage,
@@ -13,6 +14,7 @@ const pagesById: Record<string, AppFeature["Page"]> = {
   workout: WorkoutPage,
   properties: PropertiesPage,
   observability: GrafanaPage,
+  temporal: TemporalPage,
   dashboard: AdminPage,
 };
 

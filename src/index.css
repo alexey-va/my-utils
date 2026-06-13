@@ -1859,7 +1859,8 @@ textarea.generator-output {
 /* ═══════════════════════════════════════════════════════════════
    Grafana tab — dashboard list + iframe
    ═══════════════════════════════════════════════════════════════ */
-.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.grafana-page) {
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.grafana-page),
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.temporal-page) {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -1868,7 +1869,9 @@ textarea.generator-output {
 }
 
 .ant-layout-content:has(.grafana-page),
-.ant-layout-content:has(.grafana-page) > div {
+.ant-layout-content:has(.temporal-page),
+.ant-layout-content:has(.grafana-page) > div,
+.ant-layout-content:has(.temporal-page) > div {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1919,6 +1922,59 @@ textarea.generator-output {
 }
 
 .grafana-page__frame {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #0b0c0e;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Temporal tab — iframe
+   ═══════════════════════════════════════════════════════════════ */
+.temporal-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: #0b0c0e;
+}
+
+.temporal-page__chrome {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: #151a26;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.temporal-page__exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid #5a6b88;
+  border-radius: 8px;
+  background: #f0b429;
+  color: #141820;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.temporal-page__exit:hover {
+  background: #ffd24d;
+}
+
+.temporal-page__frame {
   flex: 1;
   min-height: 0;
   display: block;

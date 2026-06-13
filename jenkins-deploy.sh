@@ -26,6 +26,9 @@ echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-<empty — same-origin /api via ngi
 # Override only if you proxy Grafana elsewhere: VITE_GRAFANA_URL=https://...
 VITE_GRAFANA_URL="${VITE_GRAFANA_URL:-}"
 echo "VITE_GRAFANA_URL=${VITE_GRAFANA_URL:-<empty — same-origin /grafana via nginx>}"
+# Same-origin /temporal/ via nginx → localhost:18233 (Temporal Web UI).
+VITE_TEMPORAL_URL="${VITE_TEMPORAL_URL:-}"
+echo "VITE_TEMPORAL_URL=${VITE_TEMPORAL_URL:-<empty — same-origin /temporal via nginx>}"
 
 cd "${WORKSPACE}"
 
@@ -33,6 +36,8 @@ docker build \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_GRAFANA_URL=${VITE_GRAFANA_URL}" \
   --build-arg "VITE_GRAFANA_PATH=${VITE_GRAFANA_PATH:-dashboards}" \
+  --build-arg "VITE_TEMPORAL_URL=${VITE_TEMPORAL_URL}" \
+  --build-arg "VITE_TEMPORAL_PATH=${VITE_TEMPORAL_PATH:-}" \
   -t "${IMAGE_NAME}:latest" .
 
 docker stop "${CONTAINER_NAME}" || true

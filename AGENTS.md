@@ -8,6 +8,7 @@ Vite + React + **Refine v5** SPA. Sibling API: `../my-utils-api`. **Tab registry
 src/
 ├── config/features.tsx     — **single source**: tabs, paths, pages, auth
 ├── config/grafana*.ts      — Grafana iframe URLs + dashboard tabs
+├── config/temporal.ts      — Temporal iframe URL + path persistence
 ├── api/                    — apiClient, endpoints.ts
 ├── features/<name>/        — one folder per tab
 ├── layout/                 — AppRoutes, RequireAuth, sider
@@ -24,6 +25,7 @@ src/
 | workout | `/workout` | public |
 | properties | `/properties` | public |
 | observability | `/observability` | public (Grafana iframe) |
+| temporal | `/temporal` | public (Temporal iframe) |
 | dashboard | `/admin` | requires login |
 
 ## Commands
@@ -55,6 +57,12 @@ Working dir: `utils/my-utils/`.
 - Default panel: dashboard `d/myutils-api-logs/...`; second tab: Loki Explore
 - Override panels: `VITE_GRAFANA_DASHBOARDS` JSON at build time
 - Do not set cross-origin `VITE_GRAFANA_URL` in prod Jenkins
+
+## Temporal / iframe tab
+
+- `TemporalPage` embeds same-origin `/temporal/` (nginx → `127.0.0.1:18233`)
+- `temporal-ui` must set `TEMPORAL_UI_PUBLIC_PATH=/temporal`
+- Do not set cross-origin `VITE_TEMPORAL_URL` in prod Jenkins
 
 ## Conventions
 

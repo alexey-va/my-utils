@@ -2,6 +2,7 @@ import {
   CodeOutlined,
   DashboardOutlined,
   HomeOutlined,
+  ScheduleOutlined,
   SettingOutlined,
   ThunderboltOutlined,
   TrophyOutlined,
@@ -51,6 +52,12 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     path: "/observability",
     label: "Grafana",
     icon: <DashboardOutlined />,
+  },
+  {
+    id: "temporal",
+    path: "/temporal",
+    label: "Temporal",
+    icon: <ScheduleOutlined />,
   },
   {
     id: "dashboard",
