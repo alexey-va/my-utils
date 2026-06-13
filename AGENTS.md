@@ -60,8 +60,9 @@ Working dir: `utils/my-utils/`.
 
 ## Temporal / iframe tab
 
-- `TemporalPage` embeds same-origin `/temporal/` (nginx → `127.0.0.1:18233`)
+- `TemporalPage` embeds same-origin `/temporal/` (host nginx → `127.0.0.1:18233`)
 - `temporal-ui` must set `TEMPORAL_UI_PUBLIC_PATH=/temporal`
+- SPA tab path is `/workflows` (not `/temporal` — avoids iframe recursion)
 - Do not set cross-origin `VITE_TEMPORAL_URL` in prod Jenkins
 
 ## Conventions

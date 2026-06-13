@@ -1930,6 +1930,11 @@ textarea.generator-output {
   background: #0b0c0e;
 }
 
+.agent-traces-page__hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Temporal tab — iframe
    ═══════════════════════════════════════════════════════════════ */

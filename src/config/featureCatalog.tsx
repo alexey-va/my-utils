@@ -2,6 +2,7 @@ import {
   CodeOutlined,
   DashboardOutlined,
   HomeOutlined,
+  MessageOutlined,
   ScheduleOutlined,
   SettingOutlined,
   ThunderboltOutlined,
@@ -46,6 +47,12 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     path: "/properties",
     label: "Properties",
     icon: <SettingOutlined />,
+  },
+  {
+    id: "agents",
+    path: "/agents",
+    label: "Agent traces",
+    icon: <MessageOutlined />,
   },
   {
     id: "observability",
