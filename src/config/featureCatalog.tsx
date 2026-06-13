@@ -55,9 +55,10 @@ export const featureCatalog: FeatureCatalogEntry[] = [
   },
   {
     id: "temporal",
-    path: "/temporal",
+    path: "/workflows",
     label: "Temporal",
     icon: <ScheduleOutlined />,
+    aliases: ["temporal"],
   },
   {
     id: "dashboard",

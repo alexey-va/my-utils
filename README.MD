@@ -11,7 +11,7 @@ Internal utilities SPA: generators, JSON, workout diary, runtime properties, Gra
 - **Workout** (`/workout`) — training grid (API)
 - **Properties** (`/properties`) — runtime settings
 - **Logs** (`/observability`) — Grafana / Loki dashboard
-- **Temporal** (`/temporal`) — Temporal Web UI (workflows)
+- **Temporal** (`/workflows`) — Temporal Web UI (iframe → `/temporal/`)
 - **Admin** (`/admin`) — sign-in required
 
 ## Getting started

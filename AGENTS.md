@@ -25,7 +25,7 @@ src/
 | workout | `/workout` | public |
 | properties | `/properties` | public |
 | observability | `/observability` | public (Grafana iframe) |
-| temporal | `/temporal` | public (Temporal iframe) |
+| temporal | `/workflows` | public (Temporal iframe → `/temporal/`) |
 | dashboard | `/admin` | requires login |
 
 ## Commands
