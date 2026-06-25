@@ -98,7 +98,6 @@ export default function AppSider({
               expanded={expanded}
               icon={<HomeOutlined />}
               label="В приложение"
-              variant="escape"
               onClick={() => navigate(PATH_HOME)}
             />
           ) : null}

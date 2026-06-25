@@ -65,6 +65,20 @@ Working dir: `utils/my-utils/`.
 - SPA tab path is `/workflows` (not `/temporal` — avoids iframe recursion)
 - Do not set cross-origin `VITE_TEMPORAL_URL` in prod Jenkins
 
+## Design system (Linear)
+
+| File | ~size | Scope |
+|------|-------|--------|
+| `DESIGN-APP.md` | ~350 lines | **SPA / dashboard** — primary for this repo |
+| `DESIGN.md` | ~550 lines | Marketing / landing (`#010102` canvas) |
+| `design/linear-tokens.css` | CSS vars | Token → `--linear-*` variables |
+
+Sources: [awesome-design-md/linear.app](https://github.com/VoltAgent/awesome-design-md/tree/main/design-md/linear.app), [designmd.directory](https://designmd.directory/p/linear-design-md).
+
+Cursor rule: `.cursor/rules/frontend-design-linear.mdc`. Fonts: Inter + JetBrains Mono (Google Fonts CDN).
+
+Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/linear-tokens.css`. No raw hex in components.
+
 ## Conventions
 
 - Random: `shared/utils/random.ts`, not `Math.random`

@@ -1,0 +1,54 @@
+/**
+ * Linear app UI — CSS variables (sync with linearTokens.ts).
+ */
+:root {
+  color-scheme: dark;
+
+  --linear-canvas: #08090a;
+  --linear-surface-0: #08090a;
+  --linear-surface-1: #0f1011;
+  --linear-surface-2: #141516;
+  --linear-surface-3: #18191a;
+  --linear-surface-4: #191a1b;
+  --linear-surface-secondary: #1c1c1f;
+  --linear-surface-tertiary: #232326;
+  --linear-surface-quaternary: #28282c;
+
+  --linear-ink: #f7f8f8;
+  --linear-ink-secondary: #d0d6e0;
+  --linear-ink-muted: #8a8f98;
+  --linear-ink-quaternary: #62666d;
+
+  --linear-hairline: #23252a;
+  --linear-hairline-strong: #34343a;
+  --linear-hairline-tertiary: #3e3e44;
+
+  --linear-primary: #5e6ad2;
+  --linear-primary-hover: #828fff;
+  --linear-primary-focus: #5e69d1;
+  --linear-accent-tint: #18182f;
+  --linear-link: #828fff;
+  --linear-on-primary: #ffffff;
+
+  --linear-red: #eb5757;
+  --linear-orange: #fc7840;
+  --linear-yellow: #f0bf00;
+  --linear-green: #27a644;
+  --linear-blue: #4ea7fc;
+  --linear-teal: #00b8cc;
+
+  --linear-radius-sm: 6px;
+  --linear-radius-md: 8px;
+  --linear-radius-lg: 12px;
+  --linear-sider-rail: 56px;
+  --linear-header-height: 56px;
+
+  /* App aliases */
+  --page-bg: var(--linear-canvas);
+  --card-bg: var(--linear-surface-1);
+  --card-bg-top: var(--linear-surface-2);
+  --border: var(--linear-hairline);
+  --border-subtle: var(--linear-hairline);
+  --text: var(--linear-ink);
+  --text-muted: var(--linear-ink-muted);
+}

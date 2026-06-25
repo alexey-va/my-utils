@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import type { ExerciseProgress, ProgressMetric } from "../../api/types";
+import { linearTokens } from "../../design/linearTokens";
 import WorkoutCompareChartTooltip from "./WorkoutCompareChartTooltip";
 import {
   type CompareSeries,
@@ -208,14 +209,14 @@ function WorkoutProgressPanel({
                 data={chartData}
                 margin={{ top: 14, right: 12, left: 2, bottom: 14 }}
               >
-                <CartesianGrid stroke="#2a3142" strokeDasharray="3 3" />
+                <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#8b93a1", fontSize: 11 }}
+                  tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                   tickMargin={6}
                 />
                 <YAxis
-                  tick={{ fill: "#8b93a1", fontSize: 11 }}
+                  tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                   width={44}
                   tickMargin={4}
                   allowDecimals={metric !== "maxReps"}

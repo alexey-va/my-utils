@@ -1,15 +1,9 @@
+@import "./design/linear-tokens.css";
+
 :root {
-  color-scheme: dark;
-  --page-bg: #121621;
-  --card-bg: #181d29;
-  --card-bg-top: #1c2333;
-  --border: #2a3142;
-  --border-subtle: #232a3a;
-  --text: #eef2f7;
-  --text-muted: #8b93a1;
   --page-pad-x: 24px;
   --page-pad-y: 24px;
-  --sider-rail-width: 56px;
+  --sider-rail-width: var(--linear-sider-rail, 56px);
 }
 
 html,
@@ -21,6 +15,9 @@ body,
 body {
   margin: 0;
   background: var(--page-bg);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--linear-ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 .ant-layout {
@@ -51,9 +48,9 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #222838;
+  background: var(--linear-surface-3);
   border: 1px solid var(--border);
-  color: #b7c0cc;
+  color: var(--linear-ink-secondary);
   font-size: 17px;
   line-height: 0;
 }
@@ -86,7 +83,7 @@ body {
 
 /* Sider title strip — match app chrome */
 .ant-layout-sider > .ant-layout-sider-children > div:first-child {
-  background: #151a26 !important;
+  background: var(--linear-surface-1) !important;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -99,7 +96,7 @@ body {
   z-index: 100;
   height: 100vh;
   max-height: 100vh;
-  background: #151a26 !important;
+  background: var(--linear-surface-1) !important;
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   transition:
@@ -138,7 +135,7 @@ body {
   min-height: 56px;
   padding: 0;
   border-bottom: 1px solid var(--border-subtle);
-  background: #151a26;
+  background: var(--linear-surface-1);
 }
 
 .app-sider__menu {
@@ -194,7 +191,7 @@ body {
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: #b7c0cc;
+  color: var(--linear-ink-secondary);
   transition: color 0.2s ease !important;
 }
 
@@ -226,15 +223,15 @@ body {
 }
 
 .app-sider__menu .ant-menu-item-selected {
-  background: #222838 !important;
+  background: var(--linear-surface-3) !important;
 }
 
 .app-sider__menu .ant-menu-item:not(.ant-menu-item-selected):hover {
-  background: #1c2230 !important;
+  background: var(--linear-surface-2) !important;
 }
 
 .app-sider__menu .ant-menu-item-selected .ant-menu-item-icon {
-  color: #eef2f7;
+  color: var(--linear-ink);
 }
 
 .app-sider__brand-hit {
@@ -250,7 +247,7 @@ body {
   margin-top: auto;
   padding: 8px 0 12px;
   border-top: 1px solid var(--border-subtle);
-  background: #151a26;
+  background: var(--linear-surface-1);
 }
 
 .app-sider__footer-btn {
@@ -262,7 +259,7 @@ body {
   padding: 0;
   border: none;
   background: transparent;
-  color: #b7c0cc;
+  color: var(--linear-ink-secondary);
   border-radius: 8px;
   cursor: pointer;
   font: inherit;
@@ -270,18 +267,13 @@ body {
 }
 
 .app-sider__footer-btn:hover {
-  color: #eef2f7;
-  background: #1c2230;
+  color: var(--linear-ink);
+  background: var(--linear-surface-2);
 }
 
-.app-sider__footer-btn--escape {
-  color: #141820;
-  background: #f0b429;
-}
-
-.app-sider__footer-btn--escape:hover {
-  color: #141820;
-  background: #ffd24d;
+.app-sider__footer-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--linear-primary-focus) 50%, transparent);
+  outline-offset: 2px;
 }
 
 .app-sider__footer-btn-icon {
@@ -410,10 +402,10 @@ body {
 
 /* Content panels */
 .app-panel.ant-card {
-  background: linear-gradient(165deg, var(--card-bg-top) 0%, var(--card-bg) 48%);
+  background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .app-panel .ant-card-head {
@@ -433,7 +425,7 @@ body {
 
 .app-panel__text {
   margin: 0 !important;
-  color: #c7cfdb;
+  color: var(--linear-ink-secondary);
 }
 
 /* JSON tool */
@@ -528,10 +520,10 @@ body {
 .generator-card.ant-card {
   width: 100%;
   height: 100%;
-  background: linear-gradient(165deg, var(--card-bg-top) 0%, var(--card-bg) 48%);
+  background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
 }
@@ -545,7 +537,7 @@ body {
 .generator-card .ant-card-head-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #e5eaf1;
+  color: var(--linear-ink);
 }
 
 .generator-card .ant-card-body {
@@ -608,7 +600,7 @@ body {
 }
 
 .generator-checkboxes .ant-checkbox-wrapper {
-  color: #c7cfdb;
+  color: var(--linear-ink-secondary);
   margin-inline-start: 0;
 }
 
@@ -617,7 +609,7 @@ textarea.generator-output {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 0.8125rem;
   line-height: 1.5;
-  background: #141a26 !important;
+  background: var(--linear-surface-1) !important;
   border-color: var(--border) !important;
 }
 
@@ -730,7 +722,7 @@ textarea.generator-output {
   padding: 1px 5px;
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
-  background: #1a2233;
+  background: var(--linear-surface-2);
   font-family: inherit;
   font-size: 0.625rem;
   line-height: 1.4;
@@ -775,7 +767,7 @@ textarea.generator-output {
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #141a26;
+  background: var(--linear-surface-1);
   overflow-x: auto;
   overflow-y: visible;
   overscroll-behavior-x: contain;
@@ -789,7 +781,7 @@ textarea.generator-output {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(20 26 38 / 55%);
+  background: color-mix(in srgb, var(--linear-surface-1) 55%, transparent);
   border-radius: 8px;
 }
 
@@ -804,7 +796,7 @@ textarea.generator-output {
   min-width: var(--matrix-width);
   table-layout: fixed;
   border-collapse: collapse;
-  background: #141a26;
+  background: var(--linear-surface-1);
 }
 
 .workout-matrix__grid col.workout-matrix__exercise-col {
@@ -832,7 +824,7 @@ textarea.generator-output {
   flex-direction: column;
   min-height: 0;
   padding: 14px 16px;
-  background: #141a26;
+  background: var(--linear-surface-1);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-sizing: border-box;
@@ -867,7 +859,7 @@ textarea.generator-output {
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.25;
-  color: #6b9fff;
+  color: var(--linear-primary-hover);
 }
 
 .workout-progress__compare-tag--placeholder {
@@ -955,16 +947,16 @@ textarea.generator-output {
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: rgb(20 26 38 / 75%);
+  background: color-mix(in srgb, var(--linear-surface-1) 75%, transparent);
   pointer-events: none;
 }
 
 .workout-chart-tooltip {
   min-width: 140px;
   padding: 8px 10px;
-  border: 1px solid #2a3142;
+  border: 1px solid var(--linear-hairline);
   border-radius: 8px;
-  background: #1c2333;
+  background: var(--linear-surface-2);
   box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
 }
 
@@ -972,7 +964,7 @@ textarea.generator-output {
   margin: 0 0 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #eef2f7;
+  color: var(--linear-ink);
 }
 
 .workout-chart-tooltip__list {
@@ -1001,23 +993,23 @@ textarea.generator-output {
 }
 
 .workout-chart-tooltip__name {
-  color: #c5cdd8;
+  color: var(--linear-ink-secondary);
 }
 
 .workout-chart-tooltip__value {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #eef2f7;
+  color: var(--linear-ink);
 }
 
 .workout-chart-tooltip__value--carried {
-  color: #8b93a1;
+  color: var(--linear-ink-muted);
 }
 
 .workout-chart-tooltip__carried {
   font-weight: 400;
   font-size: 0.6875rem;
-  color: #6d7685;
+  color: var(--linear-ink-quaternary);
 }
 
 .workout-weekly {
@@ -1026,7 +1018,7 @@ textarea.generator-output {
   gap: 8px 12px;
   margin-bottom: 12px;
   padding: 10px 12px;
-  background: #1a2233;
+  background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
 }
@@ -1037,7 +1029,7 @@ textarea.generator-output {
   gap: 6px;
   margin-bottom: 12px;
   padding: 10px 12px;
-  background: #1a2233;
+  background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
 }
@@ -1058,14 +1050,14 @@ textarea.generator-output {
   height: 6px;
   overflow: hidden;
   border-radius: 3px;
-  background: #252d3d;
+  background: var(--linear-surface-tertiary);
 }
 
 .workout-muscle-groups__bar-fill {
   display: block;
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #4a7fd4, #6b9fff);
+  background: var(--linear-primary);
 }
 
 .workout-muscle-groups__value {
@@ -1077,7 +1069,7 @@ textarea.generator-output {
 .workout-weekly__delta {
   margin-left: 6px;
   font-size: 0.75rem;
-  color: #52c41a;
+  color: var(--linear-green);
 }
 
 .workout-progress__stats {
@@ -1112,7 +1104,7 @@ textarea.generator-output {
 }
 
 .workout-progress__trend--up {
-  color: #52c41a;
+  color: var(--linear-green);
 }
 
 .workout-progress__period {
@@ -1165,7 +1157,7 @@ textarea.generator-output {
   flex: none;
   min-width: 0;
   padding: 14px 16px;
-  background: #141a26;
+  background: var(--linear-surface-1);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-sizing: border-box;
@@ -1286,7 +1278,7 @@ textarea.generator-output {
   flex: none;
   min-width: 0;
   padding: 14px 16px;
-  background: #141a26;
+  background: var(--linear-surface-1);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-sizing: border-box;
@@ -1378,7 +1370,7 @@ textarea.generator-output {
   position: sticky;
   top: 0;
   z-index: 3;
-  background: #1a2233;
+  background: var(--linear-surface-2);
   font-weight: 600;
   text-align: center;
   border-bottom: 1px solid var(--border);
@@ -1405,7 +1397,7 @@ textarea.generator-output {
   min-width: 216px;
   max-width: 216px;
   text-align: left !important;
-  background: #1a2233 !important;
+  background: var(--linear-surface-2) !important;
   cursor: pointer;
 }
 
@@ -1414,8 +1406,8 @@ textarea.generator-output {
 }
 
 .workout-matrix__exercise-col--active {
-  box-shadow: inset 3px 0 0 #8b93a1;
-  background: #222a3a !important;
+  box-shadow: inset 3px 0 0 var(--linear-ink-muted);
+  background: var(--linear-surface-3) !important;
 }
 
 .workout-matrix__add-zone {
@@ -1444,9 +1436,9 @@ textarea.generator-output {
 }
 
 .workout-matrix__add-zone:hover {
-  color: #6b9fff;
-  border-color: #6b9fff;
-  background: rgb(107 159 255 / 6%);
+  color: var(--linear-primary-hover);
+  border-color: var(--linear-primary-hover);
+  background: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__add-zone-icon {
@@ -1462,31 +1454,31 @@ textarea.generator-output {
 }
 
 .workout-matrix__date-col--stripe-a {
-  background: #181f2e !important;
+  background: var(--linear-surface-2) !important;
 }
 
 .workout-matrix__date-col--stripe-b {
-  background: #1f2a3d !important;
+  background: var(--linear-surface-tertiary) !important;
 }
 
 .workout-matrix__grid thead .workout-matrix__date-col--stripe-a {
-  background: #1a2233 !important;
+  background: var(--linear-surface-2) !important;
 }
 
 .workout-matrix__grid thead .workout-matrix__date-col--stripe-b {
-  background: #232f44 !important;
+  background: var(--linear-surface-tertiary) !important;
 }
 
 .workout-matrix__date-col--today.workout-matrix__date-col--stripe-a {
-  background: #1c2640 !important;
+  background: var(--linear-surface-2) !important;
 }
 
 .workout-matrix__date-col--today.workout-matrix__date-col--stripe-b {
-  background: #24324c !important;
+  background: var(--linear-surface-tertiary) !important;
 }
 
 .workout-matrix__grid thead .workout-matrix__date-col--today {
-  box-shadow: inset 0 -1px 0 rgb(107 159 255 / 45%);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__date-label {
@@ -1513,37 +1505,37 @@ textarea.generator-output {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8eb4ff;
+  color: var(--linear-primary-hover);
 }
 
 .workout-matrix__cell--active {
-  background: rgb(107 159 255 / 18%) !important;
-  box-shadow: inset 0 0 0 1px rgb(107 159 255 / 50%);
+  background: color-mix(in srgb, var(--linear-primary) 107%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__cell--focused {
-  outline: 2px solid #6b9fff;
+  outline: 2px solid var(--linear-primary-hover);
   outline-offset: -2px;
 }
 
 .workout-matrix__cell--heat-1 {
-  background-color: rgb(107 159 255 / 8%);
+  background-color: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__cell--heat-2 {
-  background-color: rgb(107 159 255 / 14%);
+  background-color: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__cell--heat-3 {
-  background-color: rgb(107 159 255 / 22%);
+  background-color: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__cell--heat-4 {
-  background-color: rgb(107 159 255 / 32%);
+  background-color: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__cell--heat-5 {
-  background-color: rgb(107 159 255 / 42%);
+  background-color: color-mix(in srgb, var(--linear-primary) 107%, transparent);
 }
 
 .workout-matrix__exercise-text {
@@ -1573,7 +1565,7 @@ textarea.generator-output {
 }
 
 .workout-matrix__row-trend--up {
-  color: #52c41a;
+  color: var(--linear-green);
 }
 
 .workout-matrix__row-trend-period {
@@ -1582,7 +1574,7 @@ textarea.generator-output {
 }
 
 .workout-matrix__viewport:focus-visible {
-  outline: 2px solid rgb(107 159 255 / 45%);
+  outline: 2px solid color-mix(in srgb, var(--linear-primary) 107%, transparent);
   outline-offset: 2px;
 }
 
@@ -1595,15 +1587,15 @@ textarea.generator-output {
 }
 
 .workout-matrix__row--primary > td.workout-matrix__exercise-col {
-  background: rgb(107 159 255 / 8%) !important;
+  background: color-mix(in srgb, var(--linear-primary) 107%, transparent) !important;
 }
 
 .workout-matrix__row--chart > td.workout-matrix__exercise-col {
-  box-shadow: inset 3px 0 0 var(--row-chart-color, #6b9fff);
+  box-shadow: inset 3px 0 0 var(--row-chart-color, var(--linear-primary));
 }
 
 .workout-matrix__row--primary.workout-matrix__row--chart > td.workout-matrix__exercise-col {
-  box-shadow: inset 3px 0 0 var(--row-chart-color, #6b9fff);
+  box-shadow: inset 3px 0 0 var(--row-chart-color, var(--linear-primary));
 }
 
 .workout-form__hint {
@@ -1642,7 +1634,7 @@ textarea.generator-output {
 .workout-sparkline {
   display: block;
   flex-shrink: 0;
-  color: #6b9fff;
+  color: var(--linear-primary-hover);
   opacity: 0.85;
 }
 
@@ -1741,7 +1733,7 @@ textarea.generator-output {
     margin: 0 -12px;
     padding: 12px;
     border-top: 1px solid var(--border);
-    background: #141a26;
+    background: var(--linear-surface-1);
     box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
   }
 
@@ -1886,7 +1878,7 @@ textarea.generator-output {
   flex: 1;
   min-height: 0;
   width: 100%;
-  background: #0b0c0e;
+  background: var(--linear-canvas);
 }
 
 .grafana-page__chrome {
@@ -1895,30 +1887,41 @@ textarea.generator-output {
   align-items: center;
   gap: 12px;
   padding: 0 12px;
-  background: #151a26;
+  background: var(--linear-surface-1);
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.grafana-page__exit {
+.grafana-page__exit,
+.temporal-page__exit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin: 0;
-  padding: 6px 14px;
-  border: 1px solid #5a6b88;
-  border-radius: 8px;
-  background: #f0b429;
-  color: #141820;
+  padding: 8px 14px;
+  border: 1px solid var(--linear-hairline);
+  border-radius: var(--linear-radius-md);
+  background: var(--linear-surface-1);
+  color: var(--linear-ink-secondary);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.grafana-page__exit:hover {
-  background: #ffd24d;
+.grafana-page__exit:hover,
+.temporal-page__exit:hover {
+  color: var(--linear-ink);
+  background: var(--linear-surface-2);
+  border-color: var(--linear-hairline-strong);
+}
+
+.grafana-page__exit:focus-visible,
+.temporal-page__exit:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--linear-primary-focus) 50%, transparent);
+  outline-offset: 2px;
 }
 
 .grafana-page__frame {
@@ -1927,7 +1930,7 @@ textarea.generator-output {
   display: block;
   width: 100%;
   border: 0;
-  background: #0b0c0e;
+  background: var(--linear-canvas);
 }
 
 .agent-traces-page__hint {
@@ -1944,7 +1947,7 @@ textarea.generator-output {
   flex: 1;
   min-height: 0;
   width: 100%;
-  background: #0b0c0e;
+  background: var(--linear-canvas);
 }
 
 .temporal-page__chrome {
@@ -1953,30 +1956,8 @@ textarea.generator-output {
   align-items: center;
   gap: 12px;
   padding: 0 12px;
-  background: #151a26;
+  background: var(--linear-surface-1);
   border-bottom: 1px solid var(--border-subtle);
-}
-
-.temporal-page__exit {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 6px 14px;
-  border: 1px solid #5a6b88;
-  border-radius: 8px;
-  background: #f0b429;
-  color: #141820;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
-.temporal-page__exit:hover {
-  background: #ffd24d;
 }
 
 .temporal-page__frame {
@@ -1985,6 +1966,6 @@ textarea.generator-output {
   display: block;
   width: 100%;
   border: 0;
-  background: #0b0c0e;
+  background: var(--linear-canvas);
 }
 

@@ -1,4 +1,5 @@
 import { Statistic } from "antd";
+import { linearTokens } from "../../design/linearTokens";
 import type { WeeklySummary } from "./workoutAnalytics";
 import { formatSignedDelta } from "./workoutAnalytics";
 
@@ -31,7 +32,12 @@ export default function WorkoutWeeklySummary({ summary }: Props) {
         title="vs last week"
         value={volumeDelta === 0 ? "—" : formatSignedDelta(volumeDelta, "kg", 0)}
         valueStyle={{
-          color: volumeDelta > 0 ? "#52c41a" : volumeDelta < 0 ? "#8b93a1" : undefined,
+          color:
+            volumeDelta > 0
+              ? linearTokens.semanticGreen
+              : volumeDelta < 0
+                ? linearTokens.inkMuted
+                : undefined,
           fontSize: "1rem",
         }}
       />
