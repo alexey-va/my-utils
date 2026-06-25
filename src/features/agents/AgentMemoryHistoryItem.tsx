@@ -81,6 +81,32 @@ function ChatMeta({
   );
 }
 
+function DialogTextBody({
+  row,
+  text,
+  showRaw,
+}: {
+  row: AgentMemoryMessage;
+  text: string | undefined;
+  showRaw: boolean;
+}) {
+  return (
+    <>
+      {text ? (
+        <div className="agent-memory__chat-bubble">
+          <p className="agent-memory__chat-text">{text}</p>
+        </div>
+      ) : null}
+      {showRaw ? (
+        <div className="agent-memory__tool-section">
+          <span className="agent-memory__tool-label">Raw</span>
+          <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function SimpleMessageBody({
   row,
   formatTime,
@@ -135,30 +161,16 @@ function SimpleMessageBody({
   const rowClass = isUser
     ? `agent-memory__chat-row agent-memory__chat-row--user${modifierClasses}`
     : `agent-memory__chat-row agent-memory__chat-row--assistant${modifierClasses}`;
+  const label = isUser ? "You" : "Assistant";
 
   if (isUser) {
     return (
       <li className={rowClass}>
-        <div className="agent-memory__user-bundle">
+        <div className="agent-memory__chat-bundle agent-memory__chat-bundle--user">
           <ChatAvatar kind="user" />
           <div className="agent-memory__chat-body">
-            {text ? (
-              <div className="agent-memory__chat-bubble agent-memory__chat-bubble--user">
-                <p className="agent-memory__chat-text">{text}</p>
-                <time className="agent-memory__chat-bubble-time">{time}</time>
-              </div>
-            ) : null}
-            {showRaw ? (
-              <div className="agent-memory__tool-section">
-                <span className="agent-memory__tool-label">Raw</span>
-                <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
-              </div>
-            ) : null}
-            {isCompactedMessage(row) ? (
-              <div className="agent-memory__chat-meta agent-memory__chat-meta--user">
-                <CompactedTag row={row} />
-              </div>
-            ) : null}
+            <ChatMeta label={label} time={time} row={row} />
+            <DialogTextBody row={row} text={text} showRaw={!!showRaw} />
           </div>
         </div>
         <AgentMemoryMessageActions
@@ -175,18 +187,8 @@ function SimpleMessageBody({
     <li className={rowClass}>
       <ChatAvatar kind="assistant" />
       <div className="agent-memory__chat-body">
-        <ChatMeta label="Assistant" time={time} row={row} />
-        {text ? (
-          <div className="agent-memory__chat-bubble">
-            <p className="agent-memory__chat-text">{text}</p>
-          </div>
-        ) : null}
-        {showRaw ? (
-          <div className="agent-memory__tool-section">
-            <span className="agent-memory__tool-label">Raw</span>
-            <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
-          </div>
-        ) : null}
+        <ChatMeta label={label} time={time} row={row} />
+        <DialogTextBody row={row} text={text} showRaw={!!showRaw} />
       </div>
       <AgentMemoryMessageActions
         row={row}
