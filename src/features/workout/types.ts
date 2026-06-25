@@ -1,5 +1,5 @@
 import type { MuscleGroup } from "./workoutMuscleGroups";
-import type { ProgressPoint } from "../../api/types";
+import type { ProgressPoint, WorkoutCell } from "../../api/types";
 
 export type WorkoutEntryDraft = {
   key: string;
@@ -45,5 +45,23 @@ export function entryDraftFromPoint(
     setCount: point.setCount,
     repsPerSet: point.repsPerSet,
     maxReps: point.maxReps,
+  };
+}
+
+export function entryDraftFromCell(
+  exerciseId: string,
+  exerciseName: string,
+  date: string,
+  cell: WorkoutCell,
+): WorkoutEntryDraft {
+  return {
+    key: `${exerciseId}-${date}`,
+    exerciseId,
+    exerciseName,
+    performedOn: date,
+    weightKg: cell.weightKg,
+    setCount: cell.setCount,
+    repsPerSet: cell.repsPerSet,
+    maxReps: cell.maxReps,
   };
 }

@@ -76,7 +76,7 @@ export default function WorkoutExerciseBar({
           disabled={!exercises.length || !onToggleAllExercises}
           onClick={onToggleAllExercises}
         >
-          All exercises
+          Training grid
         </Button>
         <Button
           icon={<EditOutlined />}

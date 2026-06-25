@@ -20,6 +20,17 @@ export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
   other: "Other",
 };
 
+/** Accent colors for grid rows and muscle-group hints (readable on dark UI). */
+export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
+  chest: "#60a5fa",
+  back: "#a78bfa",
+  legs: "#34d399",
+  shoulders: "#f472b6",
+  arms: "#fb923c",
+  core: "#facc15",
+  other: "#94a3b8",
+};
+
 export function normalizeMuscleGroup(value: string | undefined | null): MuscleGroup {
   const v = (value ?? "other").trim().toLowerCase();
   return (MUSCLE_GROUPS as readonly string[]).includes(v) ? (v as MuscleGroup) : "other";

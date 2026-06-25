@@ -1311,103 +1311,242 @@ textarea.generator-output {
   color: var(--text-muted);
 }
 
-.workout-exercises {
+.workout-exercises__muted {
+  color: var(--text-muted);
+}
+
+.workout-grid {
   flex: none;
   height: 420px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.workout-exercises__head {
+.workout-grid__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
   margin-bottom: 8px;
 }
 
-.workout-exercises__title {
+.workout-grid__title {
   margin: 0;
 }
 
-.workout-exercises__subtitle {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.workout-exercises__table-wrap {
-  height: 380px;
-  overflow: hidden;
-}
-
-.workout-exercises__table-wrap .ant-table-wrapper {
-  height: 100%;
-}
-
-.workout-exercises__table-wrap .ant-spin-nested-loading,
-.workout-exercises__table-wrap .ant-spin-container {
-  height: 100%;
-}
-
-.workout-exercises__table-wrap .ant-table {
-  height: 100%;
-}
-
-.workout-exercises__table-wrap .ant-table-container {
-  height: 100%;
+.workout-grid__legend {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-.workout-exercises__table-wrap .ant-table-header {
-  flex: none;
+.workout-grid__legend-label {
+  margin-right: 4px;
+  font-weight: 600;
+  color: var(--linear-ink-secondary);
 }
 
-.workout-exercises__table-wrap .ant-table-body {
+.workout-grid__legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+}
+
+.workout-grid__legend-hint {
+  margin-left: 4px;
+}
+
+.workout-grid__legend-pr {
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+  border-radius: 3px;
+  border: 2px solid #fbbf24;
+  background: color-mix(in srgb, #fbbf24 18%, transparent);
+}
+
+.workout-grid__scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto !important;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--linear-surface-1);
 }
 
-.workout-exercises__table table {
-  table-layout: fixed;
-  width: 100%;
+.workout-grid__table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-size: 12px;
 }
 
-.workout-exercises__table .ant-table-thead > tr > th,
-.workout-exercises__table .ant-table-tbody > tr > td {
+.workout-grid__th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 6px;
+  background: var(--linear-surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  font-weight: 600;
+  color: var(--linear-ink-secondary);
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.workout-grid__th--exercise {
+  left: 0;
+  z-index: 4;
+  min-width: 168px;
+  max-width: 200px;
+  text-align: left;
+  padding-left: 12px;
+}
+
+.workout-grid__th--date {
+  min-width: 72px;
+  max-width: 88px;
+}
+
+.workout-grid__th--active {
+  background: color-mix(in srgb, #38bdf8 14%, var(--linear-surface-2));
+  color: #7dd3fc;
+}
+
+.workout-grid__th-date {
+  display: block;
+  line-height: 1.25;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.workout-exercises__table .ant-table-tbody > tr > td {
+.workout-grid__exercise {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 168px;
+  max-width: 200px;
+  padding: 0;
+  background: var(--linear-surface-1);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-subtle);
   vertical-align: middle;
 }
 
-.workout-exercises__table .ant-table-tbody > tr.workout-exercises__row--selected > td {
-  background: color-mix(in srgb, #3b82f6 10%, transparent);
+.workout-grid__row--selected .workout-grid__exercise {
+  background: color-mix(in srgb, #3b82f6 8%, var(--linear-surface-1));
 }
 
-.workout-exercises__table-wrap .ant-table-placeholder .ant-table-cell {
-  border-bottom: none;
+.workout-grid__exercise-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
 }
 
-.workout-exercises .ant-table-pagination {
-  margin: 8px 0 0 !important;
-  flex-shrink: 0;
+.workout-grid__exercise-btn:hover {
+  background: color-mix(in srgb, var(--linear-surface-2) 70%, transparent);
 }
 
-.workout-exercises__name {
-  display: block;
+.workout-grid__exercise-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--linear-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.workout-exercises__muted {
+.workout-grid__exercise-group {
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.workout-grid__cell {
+  padding: 0;
+  min-width: 72px;
+  max-width: 88px;
+  height: 36px;
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 65%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 65%, transparent);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.workout-grid__cell-btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workout-grid__cell--empty {
+  background: color-mix(in srgb, var(--linear-surface-2) 35%, var(--linear-surface-1));
+}
+
+.workout-grid__cell--level-0 {
+  background: color-mix(in srgb, var(--linear-surface-2) 35%, var(--linear-surface-1));
+}
+
+.workout-grid__cell--level-1 {
+  background: color-mix(in srgb, #22c55e 22%, var(--linear-surface-2));
+  color: #bbf7d0;
+}
+
+.workout-grid__cell--level-2 {
+  background: color-mix(in srgb, #22c55e 34%, var(--linear-surface-2));
+  color: #86efac;
+}
+
+.workout-grid__cell--level-3 {
+  background: color-mix(in srgb, #16a34a 42%, var(--linear-surface-2));
+  color: #4ade80;
+}
+
+.workout-grid__cell--level-4 {
+  background: color-mix(in srgb, #15803d 52%, var(--linear-surface-2));
+  color: #dcfce7;
+}
+
+.workout-grid__cell--level-5 {
+  background: color-mix(in srgb, #166534 62%, var(--linear-surface-2));
+  color: #ecfccb;
+}
+
+.workout-grid__cell--pr {
+  box-shadow: inset 0 0 0 2px #fbbf24;
+}
+
+.workout-grid__cell-btn:hover {
+  filter: brightness(1.08);
 }
 
 .workout-progress__empty {

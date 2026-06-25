@@ -16,7 +16,7 @@ import WorkoutMuscleGroupSummary from "./WorkoutMuscleGroupSummary";
 import { normalizeMuscleGroup } from "./workoutMuscleGroups";
 import { useWorkoutShortcuts } from "./useWorkoutShortcuts";
 import WorkoutSessionList from "./WorkoutSessionList";
-import WorkoutExerciseTable from "./WorkoutExerciseTable";
+import WorkoutGridTable from "./WorkoutGridTable";
 import WorkoutWeeklySummary from "./WorkoutWeeklySummary";
 import { exportWorkoutGridCsv } from "./exportWorkoutGridCsv";
 import WorkoutEntryForm from "./WorkoutEntryForm";
@@ -26,6 +26,7 @@ import WorkoutProgressPanel from "./WorkoutProgressPanel";
 import {
   exerciseDraftFromExercise,
   exerciseDraftNew,
+  entryDraftFromCell,
   entryDraftFromPoint,
   type ExerciseDraft,
   type WorkoutEntryDraft,
@@ -220,17 +221,18 @@ export default function WorkoutPage() {
             />
 
             {showAllExercises ? (
-              <WorkoutExerciseTable
+              <WorkoutGridTable
                 exercises={exercises}
                 grid={grid}
                 selectedExerciseId={selectedExerciseId}
                 loading={loading}
-                onSelect={(exerciseId) => {
-                  selectExercise(exerciseId);
-                  setShowAllExercises(false);
+                onSelectExercise={selectExercise}
+                onEditCell={(exerciseId, exerciseName, date, cell) => {
+                  setEntryModal({
+                    isEdit: true,
+                    draft: entryDraftFromCell(exerciseId, exerciseName, date, cell),
+                  });
                 }}
-                onEdit={openEditExercise}
-                onDelete={deleteExercise}
               />
             ) : (
               <WorkoutSessionList
