@@ -59,8 +59,11 @@ export default function AgentMemoryPage() {
   const [editingFactId, setEditingFactId] = useState<string | null>(null);
   const [editingFactContent, setEditingFactContent] = useState("");
 
+  const [apiError, setApiError] = useState<string | null>(null);
+
   const loadChats = useCallback(async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const rows = await fetchAgentMemoryChats();
       setChats(rows);
@@ -68,7 +71,9 @@ export default function AgentMemoryPage() {
         setSelectedChatId(rows[0].chatId);
       }
     } catch (error) {
-      message.error(error instanceof ApiError ? error.message : "Failed to load chats");
+      const msg = error instanceof ApiError ? `${error.status}: ${error.message}` : "Failed to load chats";
+      setApiError(msg);
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -188,6 +193,11 @@ export default function AgentMemoryPage() {
     <div className="agent-memory">
       <aside className="agent-memory__sidebar">
         <Typography.Text className="agent-memory__sidebar-title">Chats</Typography.Text>
+        {apiError ? (
+          <Typography.Text type="danger" className="agent-memory__api-error">
+            {apiError}
+          </Typography.Text>
+        ) : null}
         <List
           loading={loading}
           dataSource={chats}
