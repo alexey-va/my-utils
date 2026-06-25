@@ -2549,12 +2549,18 @@ textarea.generator-output {
 
 .agent-memory__message-compose {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.agent-memory__message-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .agent-memory__message-compose-role {
@@ -2563,8 +2569,7 @@ textarea.generator-output {
 }
 
 .agent-memory__message-compose-input {
-  flex: 1;
-  min-width: 160px;
+  width: 100%;
 }
 
 .agent-memory__fact-add {

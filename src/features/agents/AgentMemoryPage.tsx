@@ -18,6 +18,7 @@ import {
 } from "@ant-design/icons";
 import {
   appendAgentMessage,
+  simulateAgentChat,
   compactAgentMemory,
   clearAgentDialog,
   createAgentFact,
@@ -109,6 +110,7 @@ export default function AgentMemoryPage() {
   const [messageDraft, setMessageDraft] = useState("");
   const [messageRole, setMessageRole] = useState<"user" | "assistant" | "system">("user");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatting, setChatting] = useState(false);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -301,40 +303,66 @@ export default function AgentMemoryPage() {
     }
   };
 
-  const onSendMessage = async () => {
-    if (selectedChatId == null || !messageDraft.trim() || sendingMessage) return;
+  const applyNewMessages = (newMessages: AgentMemoryMessage[]) => {
+    if (newMessages.length === 0 || selectedChatId == null) return;
+    const ordered = [...newMessages].reverse();
+    setHistory((prev) => [...ordered, ...prev]);
+    const contextDelta = newMessages.filter((m) => !m.isCompacted && !m.excludedFromContext).length;
+    setDetail((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        recentContextMessageCount: prev.recentContextMessageCount + contextDelta,
+        compaction: {
+          ...prev.compaction,
+          compactableCount: prev.compaction.compactableCount + contextDelta,
+        },
+      };
+    });
+    const last = newMessages[newMessages.length - 1];
+    setChats((prev) =>
+      prev.map((c) =>
+        c.chatId === selectedChatId
+          ? {
+              ...c,
+              messageCount: c.messageCount + newMessages.length,
+              lastActivityAt: last.createdAt,
+            }
+          : c,
+      ),
+    );
+  };
+
+  const onManualAppend = async () => {
+    if (selectedChatId == null || !messageDraft.trim() || sendingMessage || chatting) return;
     setSendingMessage(true);
     const text = messageDraft.trim();
     try {
       const created = await appendAgentMessage(selectedChatId, messageRole, text);
       setMessageDraft("");
-      setHistory((prev) => [created, ...prev]);
-      setDetail((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          recentContextMessageCount: prev.recentContextMessageCount + 1,
-          compaction: {
-            ...prev.compaction,
-            compactableCount: prev.compaction.compactableCount + 1,
-          },
-        };
-      });
-      setChats((prev) =>
-        prev.map((c) =>
-          c.chatId === selectedChatId
-            ? {
-                ...c,
-                messageCount: c.messageCount + 1,
-                lastActivityAt: created.createdAt,
-              }
-            : c,
-        ),
-      );
+      applyNewMessages([created]);
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Failed to send message");
     } finally {
       setSendingMessage(false);
+    }
+  };
+
+  const onChatWithAgent = async () => {
+    if (selectedChatId == null || !messageDraft.trim() || chatting || sendingMessage) return;
+    setChatting(true);
+    const text = messageDraft.trim();
+    try {
+      const result = await simulateAgentChat(selectedChatId, text);
+      setMessageDraft("");
+      applyNewMessages(result.messages);
+      fetchAgentMemoryChat(selectedChatId)
+        .then((chatDetail) => setDetail(chatDetail))
+        .catch(() => undefined);
+    } catch (error) {
+      message.error(error instanceof ApiError ? error.displayMessage() : "Agent chat failed");
+    } finally {
+      setChatting(false);
     }
   };
 
@@ -527,39 +555,55 @@ export default function AgentMemoryPage() {
                     </Button>
                   ) : null}
                   <div className="agent-memory__message-compose">
-                    <Select
-                      className="agent-memory__message-compose-role"
-                      size="small"
-                      value={messageRole}
-                      onChange={(value) => setMessageRole(value)}
-                      options={[
-                        { value: "user", label: "User" },
-                        { value: "assistant", label: "Assistant" },
-                        { value: "system", label: "System" },
-                      ]}
-                    />
                     <Input.TextArea
                       className="agent-memory__message-compose-input"
-                      placeholder="Добавить в память (Telegram не отправляется)…"
+                      placeholder="Написать в чат с агентом (без Telegram)…"
                       value={messageDraft}
-                      autoSize={{ minRows: 1, maxRows: 4 }}
+                      autoSize={{ minRows: 2, maxRows: 6 }}
+                      disabled={chatting || sendingMessage}
                       onChange={(e) => setMessageDraft(e.target.value)}
                       onPressEnter={(e) => {
                         if (!e.shiftKey) {
                           e.preventDefault();
-                          onSendMessage();
+                          onChatWithAgent();
                         }
                       }}
                     />
-                    <Button
-                      type="primary"
-                      size="small"
-                      loading={sendingMessage}
-                      disabled={!messageDraft.trim()}
-                      onClick={onSendMessage}
-                    >
-                      Добавить
-                    </Button>
+                    <div className="agent-memory__message-compose-actions">
+                      <Button
+                        type="primary"
+                        size="small"
+                        loading={chatting}
+                        disabled={
+                          !messageDraft.trim()
+                          || sendingMessage
+                          || !detail.compaction.compactionAvailable
+                        }
+                        onClick={onChatWithAgent}
+                      >
+                        Отправить
+                      </Button>
+                      <Select
+                        className="agent-memory__message-compose-role"
+                        size="small"
+                        value={messageRole}
+                        disabled={chatting || sendingMessage}
+                        onChange={(value) => setMessageRole(value)}
+                        options={[
+                          { value: "user", label: "User" },
+                          { value: "assistant", label: "Assistant" },
+                          { value: "system", label: "System" },
+                        ]}
+                      />
+                      <Button
+                        size="small"
+                        loading={sendingMessage}
+                        disabled={!messageDraft.trim() || chatting}
+                        onClick={onManualAppend}
+                      >
+                        Добавить вручную
+                      </Button>
+                    </div>
                   </div>
                 </MemorySection>
               </div>

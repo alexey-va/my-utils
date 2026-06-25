@@ -70,6 +70,11 @@ export type AgentMemoryCompactResult = {
   reason?: string | null;
 };
 
+export type AgentMemoryChatTurnResult = {
+  reply: string;
+  messages: AgentMemoryMessage[];
+};
+
 const BASE = "/api/admin/agent-memory";
 
 export async function fetchAgentMemoryChats(): Promise<AgentMemoryChatSummary[]> {
@@ -103,6 +108,17 @@ export async function appendAgentMessage(
   return apiClient.post<AgentMemoryMessage>(
     `${BASE}/chats/${chatId}/messages`,
     { role, content },
+    { skipAuth: true },
+  );
+}
+
+export async function simulateAgentChat(
+  chatId: number,
+  content: string,
+): Promise<AgentMemoryChatTurnResult> {
+  return apiClient.post<AgentMemoryChatTurnResult>(
+    `${BASE}/chats/${chatId}/chat`,
+    { content },
     { skipAuth: true },
   );
 }
