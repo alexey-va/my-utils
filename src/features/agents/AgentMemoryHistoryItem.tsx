@@ -67,15 +67,29 @@ function ChatMeta({
   label,
   time,
   row,
+  labelFirst = true,
 }: {
   label: string;
   time: string;
   row: AgentMemoryMessage;
+  labelFirst?: boolean;
 }) {
+  const labelEl = <span className="agent-memory__chat-label">{label}</span>;
+  const timeEl = <time className="agent-memory__chat-time-inline">{time}</time>;
+
   return (
     <div className="agent-memory__chat-meta">
-      <span className="agent-memory__chat-label">{label}</span>
-      <time className="agent-memory__chat-time-inline">{time}</time>
+      {labelFirst ? (
+        <>
+          {labelEl}
+          {timeEl}
+        </>
+      ) : (
+        <>
+          {timeEl}
+          {labelEl}
+        </>
+      )}
       <CompactedTag row={row} />
     </div>
   );
@@ -169,7 +183,7 @@ function SimpleMessageBody({
         <div className="agent-memory__chat-bundle agent-memory__chat-bundle--user">
           <ChatAvatar kind="user" />
           <div className="agent-memory__chat-body">
-            <ChatMeta label={label} time={time} row={row} />
+            <ChatMeta label={label} time={time} row={row} labelFirst={false} />
             <DialogTextBody row={row} text={text} showRaw={!!showRaw} />
           </div>
         </div>
