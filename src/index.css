@@ -2572,6 +2572,61 @@ textarea.generator-output {
   width: 100%;
 }
 
+.agent-memory__system-collapse {
+  margin-bottom: 12px;
+}
+
+.agent-memory__system-collapse .ant-collapse-header {
+  padding: 8px 12px !important;
+  font-size: 13px;
+  color: var(--linear-text-secondary);
+}
+
+.agent-memory__system-collapse .ant-collapse-content-box {
+  padding: 8px 12px 12px !important;
+}
+
+.agent-memory__system-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-memory__system-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--linear-surface-1);
+  border-left: 3px solid #8b5cf6;
+}
+
+.agent-memory__system-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.agent-memory__system-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.agent-memory__system-item-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--linear-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .agent-memory__fact-add {
   display: flex;
   gap: 8px;

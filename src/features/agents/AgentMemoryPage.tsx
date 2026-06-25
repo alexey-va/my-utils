@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   Button,
+  Collapse,
   Empty,
   Input,
   InputNumber,
@@ -36,6 +37,7 @@ import {
 } from "../../api/agentMemory";
 import { ApiError } from "../../api/errors";
 import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
+import AgentMemorySystemItem from "./AgentMemorySystemItem";
 import { compactSkipReasonMessage, compactableAfterKeep, compactionHint } from "./agentMemoryCompaction";
 import { groupHistoryMessages } from "./agentMemoryFormat";
 
@@ -108,7 +110,7 @@ export default function AgentMemoryPage() {
   const [compactKeepRecent, setCompactKeepRecent] = useState(0);
   const [deletingSummaryId, setDeletingSummaryId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
-  const [messageRole, setMessageRole] = useState<"user" | "assistant" | "system">("user");
+  const [messageRole, setMessageRole] = useState<"user" | "assistant">("user");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatting, setChatting] = useState(false);
 
@@ -420,7 +422,9 @@ export default function AgentMemoryPage() {
     setNextBeforeId(page.nextBeforeId);
   };
 
-  const historyItems = groupHistoryMessages(history);
+  const systemMessages = history.filter((row) => row.role === "system");
+  const dialogHistory = history.filter((row) => row.role !== "system");
+  const historyItems = groupHistoryMessages(dialogHistory);
   const compactableCount = detail?.compaction.compactableCount ?? 0;
   const compactableNow = compactableAfterKeep(compactableCount, compactKeepRecent);
 
@@ -528,8 +532,34 @@ export default function AgentMemoryPage() {
 
             <div className="agent-memory__grid">
               <div className="agent-memory__column agent-memory__column--thread">
-                <MemorySection title="History" meta={`${history.length} shown`}>
-                  {history.length === 0 ? (
+                {systemMessages.length > 0 ? (
+                  <Collapse
+                    className="agent-memory__system-collapse"
+                    defaultActiveKey={[]}
+                    items={[
+                      {
+                        key: "system",
+                        label: `System (${systemMessages.length})`,
+                        children: (
+                          <ul className="agent-memory__system-list">
+                            {systemMessages.map((row) => (
+                              <AgentMemorySystemItem
+                                key={row.id}
+                                row={row}
+                                formatTime={formatTime}
+                                togglingMessageId={togglingMessageId}
+                                onToggleExcluded={onToggleExcluded}
+                                onDeleteMessage={onDeleteMessage}
+                              />
+                            ))}
+                          </ul>
+                        ),
+                      },
+                    ]}
+                  />
+                ) : null}
+                <MemorySection title="History" meta={`${dialogHistory.length} shown`}>
+                  {dialogHistory.length === 0 ? (
                     <Typography.Text type="secondary">No messages yet.</Typography.Text>
                   ) : (
                     <ul className="agent-memory__thread">
@@ -592,7 +622,6 @@ export default function AgentMemoryPage() {
                         options={[
                           { value: "user", label: "User" },
                           { value: "assistant", label: "Assistant" },
-                          { value: "system", label: "System" },
                         ]}
                       />
                       <Button
