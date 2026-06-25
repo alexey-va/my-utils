@@ -70,7 +70,7 @@ export default function WorkoutPage() {
     isEdit: boolean;
   } | null>(null);
   const [exerciseModal, setExerciseModal] = useState<ExerciseDraft | null>(null);
-  const [showAllExercises, setShowAllExercises] = useState(false);
+  const [showAllExercises, setShowAllExercises] = useState(true);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
   const exerciseSelectRef = useRef<RefSelectProps>(null);
 

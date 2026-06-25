@@ -10,7 +10,9 @@ import {
 import {
   MUSCLE_GROUP_COLORS,
   MUSCLE_GROUP_LABELS,
+  MUSCLE_GROUPS,
   normalizeMuscleGroup,
+  type MuscleGroup,
 } from "./workoutMuscleGroups";
 
 type Props = {
@@ -35,6 +37,24 @@ function columnHasActivity(rows: WorkoutGridRow[], date: string): boolean {
   return rows.some((row) => row.cells[date] != null);
 }
 
+const MUSCLE_GROUP_ORDER = new Map<MuscleGroup, number>(
+  MUSCLE_GROUPS.map((group, index) => [group, index]),
+);
+
+function sortRowsByMuscleGroup<T extends { muscleGroup: MuscleGroup; row: WorkoutGridRow }>(
+  rows: T[],
+): T[] {
+  return [...rows].sort((a, b) => {
+    const groupDelta =
+      (MUSCLE_GROUP_ORDER.get(a.muscleGroup) ?? MUSCLE_GROUPS.length)
+      - (MUSCLE_GROUP_ORDER.get(b.muscleGroup) ?? MUSCLE_GROUPS.length);
+    if (groupDelta !== 0) {
+      return groupDelta;
+    }
+    return a.row.exerciseName.localeCompare(b.row.exerciseName, undefined, { sensitivity: "base" });
+  });
+}
+
 function WorkoutGridTable({
   exercises,
   grid,
@@ -56,12 +76,14 @@ function WorkoutGridTable({
 
   const rowMeta = useMemo(
     () =>
-      grid.rows.map((row) => {
-        const records = computeRowRecords(row);
-        const range = rowVolumeRange(row);
-        const muscleGroup = muscleByExerciseId.get(row.exerciseId) ?? "other";
-        return { row, records, range, muscleGroup };
-      }),
+      sortRowsByMuscleGroup(
+        grid.rows.map((row) => {
+          const records = computeRowRecords(row);
+          const range = rowVolumeRange(row);
+          const muscleGroup = muscleByExerciseId.get(row.exerciseId) ?? "other";
+          return { row, records, range, muscleGroup };
+        }),
+      ),
     [grid.rows, muscleByExerciseId],
   );
 

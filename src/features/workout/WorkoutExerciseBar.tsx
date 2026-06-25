@@ -6,6 +6,7 @@ import {
   DownloadOutlined,
   EditOutlined,
   PlusOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import type { Exercise } from "../../api/types";
 
@@ -71,12 +72,11 @@ export default function WorkoutExerciseBar({
           Add exercise
         </Button>
         <Button
-          icon={<AppstoreOutlined />}
-          type={showAllExercises ? "primary" : "default"}
+          icon={showAllExercises ? <UnorderedListOutlined /> : <AppstoreOutlined />}
           disabled={!exercises.length || !onToggleAllExercises}
           onClick={onToggleAllExercises}
         >
-          Training grid
+          {showAllExercises ? "Sessions" : "Training grid"}
         </Button>
         <Button
           icon={<EditOutlined />}
