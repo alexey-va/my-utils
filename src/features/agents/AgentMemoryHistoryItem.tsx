@@ -1,7 +1,8 @@
-import { Button, Switch, Tag, Tooltip } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Tag } from "antd";
+import { RobotOutlined, ToolOutlined, UserOutlined } from "@ant-design/icons";
 import type { AgentMemoryMessage } from "../../api/agentMemory";
 import AgentMemoryJsonBlock from "./AgentMemoryJsonBlock";
+import AgentMemoryMessageActions from "./AgentMemoryMessageActions";
 import {
   type HistoryItem,
   parseStoredMessage,
@@ -16,54 +17,17 @@ type Props = {
   onDeleteMessage: (messageId: number) => void;
 };
 
-function MessageActions({
-  row,
-  togglingMessageId,
-  onToggleExcluded,
-  onDeleteMessage,
-}: {
-  row: AgentMemoryMessage;
-  togglingMessageId: number | null;
-  onToggleExcluded: (row: AgentMemoryMessage, excluded: boolean) => void;
-  onDeleteMessage: (messageId: number) => void;
-}) {
-  return (
-    <div className="agent-memory__message-actions">
-      <Tooltip title={row.excludedFromContext ? "Excluded from context" : "Included in context"}>
-        <Switch
-          size="small"
-          checked={row.excludedFromContext}
-          loading={togglingMessageId === row.id}
-          onChange={(checked) => onToggleExcluded(row, checked)}
-          checkedChildren="skip"
-          unCheckedChildren="ctx"
-        />
-      </Tooltip>
-      <Tooltip title="Delete message">
-        <Button
-          type="text"
-          size="small"
-          danger
-          icon={<DeleteOutlined />}
-          aria-label="Delete message"
-          onClick={() => onDeleteMessage(row.id)}
-        />
-      </Tooltip>
-    </div>
-  );
-}
-
 function isCompactedMessage(row: AgentMemoryMessage): boolean {
   return row.isCompacted || row.compactedIntoSummaryId != null;
 }
 
-function messageModifierClasses(row: AgentMemoryMessage): string {
+function rowModifierClasses(row: AgentMemoryMessage): string {
   let classes = "";
   if (row.excludedFromContext) {
-    classes += " agent-memory__message--excluded";
+    classes += " agent-memory__chat-row--excluded";
   }
   if (isCompactedMessage(row)) {
-    classes += " agent-memory__message--compacted";
+    classes += " agent-memory__chat-row--compacted";
   }
   return classes;
 }
@@ -71,9 +35,49 @@ function messageModifierClasses(row: AgentMemoryMessage): string {
 function CompactedTag({ row }: { row: AgentMemoryMessage }) {
   if (!isCompactedMessage(row)) return null;
   return (
-    <Tag className="agent-memory__message-tag" color="purple">
+    <Tag className="agent-memory__chat-tag" color="purple">
       compacted
     </Tag>
+  );
+}
+
+function ChatAvatar({ kind }: { kind: "user" | "assistant" | "tool" }) {
+  if (kind === "user") {
+    return (
+      <div className="agent-memory__chat-avatar agent-memory__chat-avatar--user" aria-hidden>
+        <UserOutlined />
+      </div>
+    );
+  }
+  if (kind === "tool") {
+    return (
+      <div className="agent-memory__chat-avatar agent-memory__chat-avatar--tool" aria-hidden>
+        <ToolOutlined />
+      </div>
+    );
+  }
+  return (
+    <div className="agent-memory__chat-avatar agent-memory__chat-avatar--assistant" aria-hidden>
+      <RobotOutlined />
+    </div>
+  );
+}
+
+function ChatMeta({
+  label,
+  time,
+  row,
+}: {
+  label: string;
+  time: string;
+  row: AgentMemoryMessage;
+}) {
+  return (
+    <div className="agent-memory__chat-meta">
+      <span className="agent-memory__chat-label">{label}</span>
+      <time className="agent-memory__chat-time-inline">{time}</time>
+      <CompactedTag row={row} />
+    </div>
   );
 }
 
@@ -91,31 +95,33 @@ function SimpleMessageBody({
   onDeleteMessage: (messageId: number) => void;
 }) {
   const parsed = parseStoredMessage(row);
-  const roleClass = `agent-memory__message--${row.role}`;
-  const modifierClasses = messageModifierClasses(row);
+  const modifierClasses = rowModifierClasses(row);
+  const time = formatTime(row.createdAt);
+  const loading = togglingMessageId === row.id;
 
   if (row.role === "tool") {
     const toolName = parsed.toolName ?? "tool";
     const resultSource = parsed.content ?? row.rawJson;
 
     return (
-      <li className={`agent-memory__message ${roleClass}${modifierClasses}`}>
-        <div className="agent-memory__message-head">
-          <span className="agent-memory__role agent-memory__role--tool">Tool result</span>
-          <span className="agent-memory__tool-name-inline">{toolName}</span>
-          {parsed.toolCallId ? (
-            <span className="agent-memory__tool-id-inline">{shortToolCallId(parsed.toolCallId)}</span>
-          ) : null}
-          <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
-          <CompactedTag row={row} />
+      <li className={`agent-memory__chat-row agent-memory__chat-row--tool${modifierClasses}`}>
+        <ChatAvatar kind="tool" />
+        <div className="agent-memory__chat-body">
+          <ChatMeta label="Tool result" time={time} row={row} />
+          <div className="agent-memory__chat-tool-inline">
+            <span className="agent-memory__tool-name-inline">{toolName}</span>
+            {parsed.toolCallId ? (
+              <span className="agent-memory__tool-id-inline">{shortToolCallId(parsed.toolCallId)}</span>
+            ) : null}
+          </div>
+          <div className="agent-memory__tool-section">
+            <span className="agent-memory__tool-label">Output</span>
+            <AgentMemoryJsonBlock source={resultSource} />
+          </div>
         </div>
-        <div className="agent-memory__tool-section">
-          <span className="agent-memory__tool-label">Output</span>
-          <AgentMemoryJsonBlock source={resultSource} />
-        </div>
-        <MessageActions
+        <AgentMemoryMessageActions
           row={row}
-          togglingMessageId={togglingMessageId}
+          loading={loading}
           onToggleExcluded={onToggleExcluded}
           onDeleteMessage={onDeleteMessage}
         />
@@ -125,42 +131,36 @@ function SimpleMessageBody({
 
   const text = parsed.content?.trim();
   const showRaw = !text && row.rawJson;
+  const isUser = row.role === "user";
+  const rowClass = isUser
+    ? `agent-memory__chat-row agent-memory__chat-row--user${modifierClasses}`
+    : `agent-memory__chat-row agent-memory__chat-row--assistant${modifierClasses}`;
 
   return (
-    <li className={`agent-memory__message ${roleClass}${modifierClasses}`}>
-      <div className="agent-memory__message-head">
-        <span className="agent-memory__role">{roleLabel(row.role)}</span>
-        <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
-        <CompactedTag row={row} />
+    <li className={rowClass}>
+      <ChatAvatar kind={isUser ? "user" : "assistant"} />
+      <div className="agent-memory__chat-body">
+        <ChatMeta label={isUser ? "You" : "Assistant"} time={time} row={row} />
+        {text ? (
+          <div className={isUser ? "agent-memory__chat-bubble agent-memory__chat-bubble--user" : "agent-memory__chat-bubble"}>
+            <p className="agent-memory__chat-text">{text}</p>
+          </div>
+        ) : null}
+        {showRaw ? (
+          <div className="agent-memory__tool-section">
+            <span className="agent-memory__tool-label">Raw</span>
+            <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
+          </div>
+        ) : null}
       </div>
-      {text ? <p className="agent-memory__message-text">{text}</p> : null}
-      {showRaw ? (
-        <div className="agent-memory__tool-section">
-          <span className="agent-memory__tool-label">Raw</span>
-          <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
-        </div>
-      ) : null}
-      <MessageActions
+      <AgentMemoryMessageActions
         row={row}
-        togglingMessageId={togglingMessageId}
+        loading={loading}
         onToggleExcluded={onToggleExcluded}
         onDeleteMessage={onDeleteMessage}
       />
     </li>
   );
-}
-
-function roleLabel(role: string): string {
-  switch (role) {
-    case "user":
-      return "User";
-    case "assistant":
-      return "Assistant";
-    case "system":
-      return "System";
-    default:
-      return role;
-  }
 }
 
 export default function AgentMemoryHistoryItem({
@@ -195,99 +195,119 @@ export default function AgentMemoryHistoryItem({
     }
   }
 
-  const modifierClasses = messageModifierClasses(assistant);
+  const modifierClasses = rowModifierClasses(assistant);
   const assistantText = parsed.content?.trim();
+  const assistantLoading = togglingMessageId === assistant.id;
+  const time = formatTime(assistant.createdAt);
 
   return (
-    <li className={`agent-memory__tool-round${modifierClasses}`}>
-      <div className="agent-memory__tool-round-head">
-        <span className="agent-memory__role">Assistant</span>
-        <Tag className="agent-memory__tool-round-badge" color="orange">
-          {parsed.toolCalls.length} tool{parsed.toolCalls.length === 1 ? "" : "s"}
-        </Tag>
-        <time className="agent-memory__message-time">{formatTime(assistant.createdAt)}</time>
-        <CompactedTag row={assistant} />
-      </div>
+    <li className={`agent-memory__chat-row agent-memory__chat-row--assistant agent-memory__chat-row--tools${modifierClasses}`}>
+      <ChatAvatar kind="assistant" />
+      <div className="agent-memory__chat-body">
+        <ChatMeta label="Assistant" time={time} row={assistant} />
+        {parsed.toolCalls.length > 0 ? (
+          <Tag className="agent-memory__chat-tag agent-memory__chat-tag--tools" color="orange">
+            {parsed.toolCalls.length} tool{parsed.toolCalls.length === 1 ? "" : "s"}
+          </Tag>
+        ) : null}
 
-      {assistantText ? (
-        <>
-          <p className="agent-memory__message-text agent-memory__tool-round-preamble">{assistantText}</p>
-          <MessageActions
+        {assistantText ? (
+          <div className="agent-memory__chat-bubble">
+            <p className="agent-memory__chat-text">{assistantText}</p>
+          </div>
+        ) : null}
+
+        {assistantText ? (
+          <AgentMemoryMessageActions
             row={assistant}
-            togglingMessageId={togglingMessageId}
+            loading={assistantLoading}
             onToggleExcluded={onToggleExcluded}
             onDeleteMessage={onDeleteMessage}
+            className="agent-memory__chat-actions--inline"
           />
-        </>
-      ) : null}
+        ) : null}
 
-      <ul className="agent-memory__tool-calls">
-        {parsed.toolCalls.map((call) => {
-          const toolRow = toolByCallId.get(call.id);
-          if (toolRow) {
-            matchedToolIds.add(toolRow.id);
-          }
-          const resultSource = toolRow
-            ? (parseStoredMessage(toolRow).content ?? toolRow.rawJson)
-            : "";
+        <ul className="agent-memory__tool-calls">
+          {parsed.toolCalls.map((call) => {
+            const toolRow = toolByCallId.get(call.id);
+            if (toolRow) {
+              matchedToolIds.add(toolRow.id);
+            }
+            const resultSource = toolRow
+              ? (parseStoredMessage(toolRow).content ?? toolRow.rawJson)
+              : "";
+            const toolLoading = toolRow != null && togglingMessageId === toolRow.id;
 
-          return (
-            <li key={call.id} className="agent-memory__tool-call">
-              <div className="agent-memory__tool-call-head">
-                <span className="agent-memory__tool-name">{call.name}</span>
-                <span className="agent-memory__tool-id">{shortToolCallId(call.id)}</span>
-              </div>
-              <div className="agent-memory__tool-section">
-                <span className="agent-memory__tool-label">Arguments</span>
-                <AgentMemoryJsonBlock source={call.arguments} maxLines={8} />
-              </div>
-              {toolRow ? (
-                <div className="agent-memory__tool-section">
-                  <span className="agent-memory__tool-label">Result</span>
-                  <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
-                </div>
-              ) : (
-                <p className="agent-memory__tool-missing">No result stored for this call.</p>
-              )}
-              {toolRow ? (
-                <MessageActions
-                  row={toolRow}
-                  togglingMessageId={togglingMessageId}
-                  onToggleExcluded={onToggleExcluded}
-                  onDeleteMessage={onDeleteMessage}
-                />
-              ) : null}
-            </li>
-          );
-        })}
-        {tools
-          .filter((toolRow) => !matchedToolIds.has(toolRow.id))
-          .map((toolRow) => {
-            const toolParsed = parseStoredMessage(toolRow);
-            const resultSource = toolParsed.content ?? toolRow.rawJson;
             return (
-              <li key={toolRow.id} className="agent-memory__tool-call agent-memory__tool-call--orphan">
+              <li key={call.id} className="agent-memory__tool-call">
                 <div className="agent-memory__tool-call-head">
-                  <span className="agent-memory__tool-name">{toolParsed.toolName ?? "tool"}</span>
-                  {toolParsed.toolCallId ? (
-                    <span className="agent-memory__tool-id">{shortToolCallId(toolParsed.toolCallId)}</span>
-                  ) : null}
-                  <span className="agent-memory__tool-orphan-label">orphan result</span>
+                  <span className="agent-memory__tool-name">{call.name}</span>
+                  <span className="agent-memory__tool-id">{shortToolCallId(call.id)}</span>
                 </div>
                 <div className="agent-memory__tool-section">
-                  <span className="agent-memory__tool-label">Output</span>
-                  <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
+                  <span className="agent-memory__tool-label">Arguments</span>
+                  <AgentMemoryJsonBlock source={call.arguments} maxLines={8} />
                 </div>
-                <MessageActions
-                  row={toolRow}
-                  togglingMessageId={togglingMessageId}
-                  onToggleExcluded={onToggleExcluded}
-                  onDeleteMessage={onDeleteMessage}
-                />
+                {toolRow ? (
+                  <div className="agent-memory__tool-section">
+                    <span className="agent-memory__tool-label">Result</span>
+                    <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
+                  </div>
+                ) : (
+                  <p className="agent-memory__tool-missing">No result stored for this call.</p>
+                )}
+                {toolRow ? (
+                  <AgentMemoryMessageActions
+                    row={toolRow}
+                    loading={toolLoading}
+                    onToggleExcluded={onToggleExcluded}
+                    onDeleteMessage={onDeleteMessage}
+                    className="agent-memory__chat-actions--inline"
+                  />
+                ) : null}
               </li>
             );
           })}
-      </ul>
+          {tools
+            .filter((toolRow) => !matchedToolIds.has(toolRow.id))
+            .map((toolRow) => {
+              const toolParsed = parseStoredMessage(toolRow);
+              const resultSource = toolParsed.content ?? toolRow.rawJson;
+              const toolLoading = togglingMessageId === toolRow.id;
+
+              return (
+                <li key={toolRow.id} className="agent-memory__tool-call agent-memory__tool-call--orphan">
+                  <div className="agent-memory__tool-call-head">
+                    <span className="agent-memory__tool-name">{toolParsed.toolName ?? "tool"}</span>
+                    {toolParsed.toolCallId ? (
+                      <span className="agent-memory__tool-id">{shortToolCallId(toolParsed.toolCallId)}</span>
+                    ) : null}
+                    <span className="agent-memory__tool-orphan-label">orphan result</span>
+                  </div>
+                  <div className="agent-memory__tool-section">
+                    <span className="agent-memory__tool-label">Output</span>
+                    <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
+                  </div>
+                  <AgentMemoryMessageActions
+                    row={toolRow}
+                    loading={toolLoading}
+                    onToggleExcluded={onToggleExcluded}
+                    onDeleteMessage={onDeleteMessage}
+                    className="agent-memory__chat-actions--inline"
+                  />
+                </li>
+              );
+            })}
+        </ul>
+      </div>
+      {!assistantText ? (
+        <AgentMemoryMessageActions
+          row={assistant}
+          loading={assistantLoading}
+          onToggleExcluded={onToggleExcluded}
+          onDeleteMessage={onDeleteMessage}
+        />
+      ) : null}
     </li>
   );
 }

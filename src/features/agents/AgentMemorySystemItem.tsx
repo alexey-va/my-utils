@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Button, Tag, Tooltip } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Tag } from "antd";
 import type { AgentMemoryMessage } from "../../api/agentMemory";
+import AgentMemoryMessageActions from "./AgentMemoryMessageActions";
 import { parseStoredMessage } from "./agentMemoryFormat";
 
 type Props = {
@@ -26,41 +26,25 @@ export default function AgentMemorySystemItem({
   const text = parsed.content?.trim() ?? "";
   const collapsible = text.length > PREVIEW_CHARS;
   const preview = collapsible && !expanded ? `${text.slice(0, PREVIEW_CHARS)}…` : text;
-  const excludedClass = row.excludedFromContext ? " agent-memory__message--excluded" : "";
-  const compactedClass =
-    row.isCompacted || row.compactedIntoSummaryId
-      ? " agent-memory__message--compacted"
-      : "";
+  const modifierClasses = [
+    row.excludedFromContext ? " agent-memory__system-item--excluded" : "",
+    row.isCompacted || row.compactedIntoSummaryId ? " agent-memory__system-item--compacted" : "",
+  ].join("");
 
   return (
-    <li className={`agent-memory__system-item${excludedClass}${compactedClass}`}>
+    <li className={`agent-memory__system-item${modifierClasses}`}>
       <div className="agent-memory__system-item-head">
-        <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
+        <time className="agent-memory__chat-time-inline">{formatTime(row.createdAt)}</time>
         {row.compactedIntoSummaryId || row.isCompacted ? (
-          <Tag className="agent-memory__message-tag" color="purple">compacted</Tag>
+          <Tag className="agent-memory__chat-tag" color="purple">compacted</Tag>
         ) : null}
-        <div className="agent-memory__system-item-actions">
-          <Tooltip title={row.excludedFromContext ? "Excluded from context" : "Included in context"}>
-            <Button
-              type="text"
-              size="small"
-              loading={togglingMessageId === row.id}
-              onClick={() => onToggleExcluded(row, !row.excludedFromContext)}
-            >
-              {row.excludedFromContext ? "skip" : "ctx"}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Delete message">
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              aria-label="Delete system message"
-              onClick={() => onDeleteMessage(row.id)}
-            />
-          </Tooltip>
-        </div>
+        <AgentMemoryMessageActions
+          row={row}
+          loading={togglingMessageId === row.id}
+          onToggleExcluded={onToggleExcluded}
+          onDeleteMessage={onDeleteMessage}
+          className="agent-memory__chat-actions--inline"
+        />
       </div>
       {text ? <p className="agent-memory__system-item-text">{preview}</p> : null}
       {collapsible ? (

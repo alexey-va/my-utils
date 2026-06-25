@@ -532,59 +532,72 @@ export default function AgentMemoryPage() {
 
             <div className="agent-memory__grid">
               <div className="agent-memory__column agent-memory__column--thread">
-                {systemMessages.length > 0 ? (
-                  <Collapse
-                    className="agent-memory__system-collapse"
-                    defaultActiveKey={[]}
-                    items={[
-                      {
-                        key: "system",
-                        label: `System (${systemMessages.length})`,
-                        children: (
-                          <ul className="agent-memory__system-list">
-                            {systemMessages.map((row) => (
-                              <AgentMemorySystemItem
-                                key={row.id}
-                                row={row}
-                                formatTime={formatTime}
-                                togglingMessageId={togglingMessageId}
-                                onToggleExcluded={onToggleExcluded}
-                                onDeleteMessage={onDeleteMessage}
-                              />
-                            ))}
-                          </ul>
-                        ),
-                      },
-                    ]}
-                  />
-                ) : null}
-                <MemorySection title="History" meta={`${dialogHistory.length} shown`}>
-                  {dialogHistory.length === 0 ? (
-                    <Typography.Text type="secondary">No messages yet.</Typography.Text>
-                  ) : (
-                    <ul className="agent-memory__thread">
-                      {historyItems.map((item) => (
-                        <AgentMemoryHistoryItem
-                          key={
-                            item.kind === "message"
-                              ? `m-${item.message.id}`
-                              : `tr-${item.assistant.id}`
-                          }
-                          item={item}
-                          formatTime={formatTime}
-                          togglingMessageId={togglingMessageId}
-                          onToggleExcluded={onToggleExcluded}
-                          onDeleteMessage={onDeleteMessage}
+                <section className="agent-memory__section agent-memory__section--chat">
+                  <header className="agent-memory__section-head">
+                    <h3 className="agent-memory__section-title">History</h3>
+                    <span className="agent-memory__section-meta">{dialogHistory.length} shown</span>
+                  </header>
+                  <div className="agent-memory__chat-panel">
+                    <div className="agent-memory__chat-scroll">
+                      {systemMessages.length > 0 ? (
+                        <Collapse
+                          className="agent-memory__system-collapse"
+                          defaultActiveKey={[]}
+                          items={[
+                            {
+                              key: "system",
+                              label: `System (${systemMessages.length})`,
+                              children: (
+                                <ul className="agent-memory__system-list">
+                                  {systemMessages.map((row) => (
+                                    <AgentMemorySystemItem
+                                      key={row.id}
+                                      row={row}
+                                      formatTime={formatTime}
+                                      togglingMessageId={togglingMessageId}
+                                      onToggleExcluded={onToggleExcluded}
+                                      onDeleteMessage={onDeleteMessage}
+                                    />
+                                  ))}
+                                </ul>
+                              ),
+                            },
+                          ]}
                         />
-                      ))}
-                    </ul>
-                  )}
-                  {nextBeforeId != null ? (
-                    <Button className="agent-memory__load-more" onClick={loadMoreHistory} block>
-                      Load older
-                    </Button>
-                  ) : null}
-                  <div className="agent-memory__message-compose">
+                      ) : null}
+                      {dialogHistory.length === 0 ? (
+                        <Typography.Text type="secondary" className="agent-memory__chat-empty">
+                          No messages yet.
+                        </Typography.Text>
+                      ) : (
+                        <ul className="agent-memory__thread">
+                          {historyItems.map((item) => (
+                            <AgentMemoryHistoryItem
+                              key={
+                                item.kind === "message"
+                                  ? `m-${item.message.id}`
+                                  : `tr-${item.assistant.id}`
+                              }
+                              item={item}
+                              formatTime={formatTime}
+                              togglingMessageId={togglingMessageId}
+                              onToggleExcluded={onToggleExcluded}
+                              onDeleteMessage={onDeleteMessage}
+                            />
+                          ))}
+                        </ul>
+                      )}
+                      {nextBeforeId != null ? (
+                        <Button
+                          className="agent-memory__load-more"
+                          onClick={loadMoreHistory}
+                          block
+                        >
+                          Load older
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="agent-memory__message-compose">
                     <Input.TextArea
                       className="agent-memory__message-compose-input"
                       placeholder="Написать в чат с агентом (без Telegram)…"
@@ -634,7 +647,8 @@ export default function AgentMemoryPage() {
                       </Button>
                     </div>
                   </div>
-                </MemorySection>
+                </div>
+                </section>
               </div>
 
               <div className="agent-memory__column agent-memory__column--side">
