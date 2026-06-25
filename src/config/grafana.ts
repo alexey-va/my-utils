@@ -1,51 +1,9 @@
-export const GRAFANA_EMBED_PATH_KEY = "grafana.embed.path";
-
-const GRAFANA_PREFIX = "/grafana/";
-
-/** Last iframe path under /grafana/ (path + query), e.g. d/uid/slug?orgId=1 */
-export function readSavedGrafanaEmbedPath(): string | null {
-  try {
-    const raw = sessionStorage.getItem(GRAFANA_EMBED_PATH_KEY)?.trim();
-    if (!raw || raw.startsWith("login")) {
-      return null;
-    }
-    return raw;
-  } catch {
-    return null;
-  }
-}
-
-export function writeSavedGrafanaEmbedPath(relativePath: string): void {
-  const trimmed = relativePath.trim().replace(/^\//, "");
-  if (!trimmed || trimmed.startsWith("login")) {
-    return;
-  }
-  try {
-    sessionStorage.setItem(GRAFANA_EMBED_PATH_KEY, trimmed);
-  } catch {
-    // private mode / quota
-  }
-}
-
-/** Read same-origin iframe location and persist for reload. */
-export function persistGrafanaIframePath(iframe: HTMLIFrameElement): void {
-  try {
-    const loc = iframe.contentWindow?.location;
-    if (!loc) {
-      return;
-    }
-    const full = `${loc.pathname}${loc.search}`;
-    if (!full.startsWith(GRAFANA_PREFIX)) {
-      return;
-    }
-    writeSavedGrafanaEmbedPath(full.slice(GRAFANA_PREFIX.length));
-  } catch {
-    // cross-origin — cannot read iframe URL
-  }
-}
+/** Default embed path when opening the Grafana tab (not last visited). */
+export const DEFAULT_GRAFANA_EMBED_PATH =
+  import.meta.env.VITE_GRAFANA_PATH?.trim() || "d/myutils-api-logs/my-utils-api-logs";
 
 type GrafanaUrlOptions = {
-  /** Path under /grafana/ (e.g. dashboards, d/uid/slug). Falls back to VITE_GRAFANA_PATH. */
+  /** Path under /grafana/ (e.g. d/uid/slug). Falls back to DEFAULT_GRAFANA_EMBED_PATH. */
   path?: string;
   /** Hide Grafana chrome (sidebar/top nav). Default false — full browse UI. */
   kiosk?: boolean;
@@ -56,7 +14,7 @@ export function grafanaEmbedUrl(options: GrafanaUrlOptions = {}): string {
   const kiosk = options.kiosk ?? false;
   const configured = import.meta.env.VITE_GRAFANA_URL?.trim();
   const base = (configured && configured.length > 0 ? configured : "/grafana").replace(/\/$/, "");
-  const path = (options.path ?? import.meta.env.VITE_GRAFANA_PATH ?? "dashboards").trim();
+  const path = (options.path ?? DEFAULT_GRAFANA_EMBED_PATH).trim();
   let url = path ? `${base}/${path.replace(/^\//, "")}` : `${base}/`;
   const params = new URLSearchParams();
   params.set("orgId", "1");

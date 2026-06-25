@@ -35,7 +35,7 @@ cd "${WORKSPACE}"
 docker build \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_GRAFANA_URL=${VITE_GRAFANA_URL}" \
-  --build-arg "VITE_GRAFANA_PATH=${VITE_GRAFANA_PATH:-dashboards}" \
+  --build-arg "VITE_GRAFANA_PATH=${VITE_GRAFANA_PATH:-d/myutils-api-logs/my-utils-api-logs}" \
   --build-arg "VITE_TEMPORAL_URL=${VITE_TEMPORAL_URL}" \
   --build-arg "VITE_TEMPORAL_PATH=${VITE_TEMPORAL_PATH:-}" \
   -t "${IMAGE_NAME}:latest" .
