@@ -1976,23 +1976,106 @@ textarea.generator-output {
 
 .agent-traces-page__hint {
   font-size: 13px;
+  line-height: 1.35;
   color: var(--text-muted);
 }
 
 .agent-traces-embed {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 520px;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.agent-traces-embed__chrome {
+  flex: 0 0 auto;
+  padding: 0 4px 10px;
 }
 
 .agent-traces-embed__frame {
   flex: 1;
-  min-height: 480px;
+  min-height: 0;
   width: 100%;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--linear-radius-md);
   background: var(--linear-canvas);
+}
+
+/* Agents → Traces: fill viewport below page header (same idea as Grafana tab) */
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.agents-page--traces-fill) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.ant-layout-content:has(.agents-page--traces-fill),
+.ant-layout-content:has(.agents-page--traces-fill) > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.agents-page--traces-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.agents-page--traces-fill .app-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 12px;
+  overflow: hidden;
+}
+
+.agents-page--traces-fill .app-page__header {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.agents-page--traces-fill .app-page__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.agents-page--traces-fill .agents-page__tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.agents-page--traces-fill .agents-page__tabs .ant-tabs-nav {
+  flex-shrink: 0;
+}
+
+.agents-page--traces-fill .agents-page__tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agents-page--traces-fill .agents-page__tabs .ant-tabs-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.agents-page--traces-fill .agents-page__tabs .ant-tabs-tabpane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .agents-page__tabs .ant-tabs-content {

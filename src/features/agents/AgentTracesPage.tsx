@@ -12,9 +12,11 @@ export default function AgentTracesPage({ embedded = false }: AgentTracesPagePro
   if (embedded) {
     return (
       <div className="agent-traces-embed">
-        <p className="agent-traces-page__hint">
-          OpenTelemetry gen_ai → Tempo. «All agent traces» shows recent activity; filter by Telegram chatId below.
-        </p>
+        <div className="agent-traces-embed__chrome">
+          <span className="agent-traces-page__hint">
+            gen_ai → Tempo. «All agent traces» — recent activity; Conversation ID — Telegram chatId.
+          </span>
+        </div>
         <iframe
           className="agent-traces-embed__frame"
           src={src}
