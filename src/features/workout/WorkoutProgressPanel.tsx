@@ -39,7 +39,6 @@ const METRIC_OPTIONS: { label: string; value: ProgressMetric }[] = [
 
 type Props = {
   series: CompareSeries[];
-  compareCount: number;
   primary: ExerciseProgress | null;
   loading: boolean;
   metric: ProgressMetric;
@@ -63,7 +62,6 @@ function trendSuffix(delta: number | null, unit: string): ReactNode {
 
 function WorkoutProgressPanel({
   series,
-  compareCount,
   primary,
   loading,
   metric,
@@ -72,7 +70,6 @@ function WorkoutProgressPanel({
   onPeriodChange,
   onDelete,
 }: Props) {
-  const comparing = compareCount > 1;
   const chartData = buildCompareChartData(series, period, metric);
   const hasChart = chartData.length > 0 && series.length > 0;
   const showChartSpinner = loading && series.length === 0;
@@ -86,7 +83,7 @@ function WorkoutProgressPanel({
       <div className="workout-progress workout-progress--placeholder">
         <Empty
           className="workout-progress__empty"
-          description="Click an exercise row to see progress · ⌘/Ctrl+click to compare"
+          description="Select an exercise below to see progress"
         />
       </div>
     );
@@ -99,20 +96,7 @@ function WorkoutProgressPanel({
       <div className="workout-progress__header">
         <div className="workout-progress__header-text">
           <h2 className="workout-progress__title">{title}</h2>
-          {comparing ? (
-            <p className="workout-progress__compare-tag">
-              Comparing {compareCount} exercises
-            </p>
-          ) : (
-            <p className="workout-progress__compare-tag workout-progress__compare-tag--placeholder" aria-hidden>
-              &nbsp;
-            </p>
-          )}
-          <p className="workout-progress__hint">
-            {comparing
-              ? "⌘/Ctrl+click exercise names to add or remove lines"
-              : "⌘/Ctrl+click more rows to overlay on the chart"}
-          </p>
+          <p className="workout-progress__hint">Chart uses the period filter below</p>
         </div>
         {primary ? (
           <Popconfirm
@@ -242,7 +226,7 @@ function WorkoutProgressPanel({
                     name={`s_${s.exerciseId}`}
                     stroke={s.color}
                     strokeWidth={2}
-                    dot={{ r: comparing ? 3 : 4, fill: s.color, strokeWidth: 0 }}
+                    dot={{ r: 4, fill: s.color, strokeWidth: 0 }}
                     activeDot={{ r: 5, strokeWidth: 0 }}
                     connectNulls
                     isAnimationActive={false}

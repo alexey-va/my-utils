@@ -1,11 +1,5 @@
 import type { MuscleGroup } from "./workoutMuscleGroups";
-import type { WorkoutCell } from "../../api/types";
-
-export type WorkoutCellTarget = {
-  exerciseId: string;
-  date: string;
-  cell?: WorkoutCell;
-};
+import type { ProgressPoint } from "../../api/types";
 
 export type WorkoutEntryDraft = {
   key: string;
@@ -37,25 +31,19 @@ export function exerciseDraftFromExercise(
   return { key: `exercise-${exerciseId}`, exerciseId, name, muscleGroup };
 }
 
-export type FooterEditor =
-  | { kind: "entry"; draft: WorkoutEntryDraft }
-  | { kind: "exercise"; draft: ExerciseDraft };
-
-export function entryDraftFromCell(
-  target: WorkoutCellTarget,
+export function entryDraftFromPoint(
+  exerciseId: string,
   exerciseName: string,
-  lastSession?: WorkoutCell,
+  point: ProgressPoint,
 ): WorkoutEntryDraft {
-  const cell = target.cell;
-  const template = cell ?? lastSession;
   return {
-    key: `${target.exerciseId}-${target.date}`,
-    exerciseId: target.exerciseId,
+    key: `${exerciseId}-${point.date}`,
+    exerciseId,
     exerciseName,
-    performedOn: target.date,
-    weightKg: template?.weightKg ?? 20,
-    setCount: template?.setCount ?? 3,
-    repsPerSet: template?.repsPerSet ?? 10,
-    maxReps: template?.maxReps ?? 10,
+    performedOn: point.date,
+    weightKg: point.weightKg,
+    setCount: point.setCount,
+    repsPerSet: point.repsPerSet,
+    maxReps: point.maxReps,
   };
 }

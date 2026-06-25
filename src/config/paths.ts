@@ -1,7 +1,6 @@
 import { featurePath } from "./featureCatalog";
 
-export const PATH_HOME = featurePath("generators");
-export const PATH_JSON = featurePath("json");
+export const PATH_HOME = featurePath("workout");
 export const PATH_ADMIN = featurePath("dashboard");
 
 /** Auth-only route — not a sidebar feature. */

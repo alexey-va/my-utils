@@ -1,11 +1,9 @@
 import {
-  CodeOutlined,
   DashboardOutlined,
   HomeOutlined,
   MessageOutlined,
   ScheduleOutlined,
   SettingOutlined,
-  ThunderboltOutlined,
   TrophyOutlined,
 } from "@ant-design/icons";
 import type { ReactNode } from "react";
@@ -23,24 +21,12 @@ export type FeatureCatalogEntry = {
 
 export const featureCatalog: FeatureCatalogEntry[] = [
   {
-    id: "generators",
-    path: "/",
-    label: "Generators",
-    icon: <ThunderboltOutlined />,
-    index: true,
-    aliases: ["generators"],
-  },
-  {
-    id: "json",
-    path: "/json",
-    label: "JSON Prettify",
-    icon: <CodeOutlined />,
-  },
-  {
     id: "workout",
-    path: "/workout",
+    path: "/",
     label: "Workout",
     icon: <TrophyOutlined />,
+    index: true,
+    aliases: ["workout", "generators", "json"],
   },
   {
     id: "properties",

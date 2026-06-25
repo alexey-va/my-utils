@@ -20,9 +20,7 @@ src/
 
 | id | path | auth |
 |----|------|------|
-| generators | `/` | public |
-| json | `/json` | public |
-| workout | `/workout` | public |
+| workout | `/` | public |
 | properties | `/properties` | public |
 | observability | `/observability` | public (Grafana iframe) |
 | temporal | `/workflows` | public (Temporal iframe → `/temporal/`) |

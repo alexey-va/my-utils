@@ -1,7 +1,5 @@
 import type { AppFeature } from "../types/feature";
 import { featureCatalog } from "./featureCatalog";
-import GeneratorsPage from "../features/generators/GeneratorsPage";
-import JsonPage from "../features/json/JsonPage";
 import AdminPage from "../features/admin/AdminPage";
 import WorkoutPage from "../features/workout/WorkoutPage";
 import PropertiesPage from "../features/properties/PropertiesPage";
@@ -10,8 +8,6 @@ import TemporalPage from "../features/temporal/TemporalPage";
 import AgentsPage from "../features/agents/AgentTracesPage";
 
 const pagesById: Record<string, AppFeature["Page"]> = {
-  generators: GeneratorsPage,
-  json: JsonPage,
   workout: WorkoutPage,
   properties: PropertiesPage,
   agents: AgentsPage,
