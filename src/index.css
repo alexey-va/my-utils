@@ -2547,6 +2547,26 @@ textarea.generator-output {
   margin-top: 12px;
 }
 
+.agent-memory__message-compose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.agent-memory__message-compose-role {
+  width: 108px;
+  flex-shrink: 0;
+}
+
+.agent-memory__message-compose-input {
+  flex: 1;
+  min-width: 160px;
+}
+
 .agent-memory__fact-add {
   display: flex;
   gap: 8px;

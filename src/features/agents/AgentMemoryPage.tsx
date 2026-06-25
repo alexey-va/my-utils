@@ -5,6 +5,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Select,
   Tag,
   Tooltip,
   Typography,
@@ -16,6 +17,7 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import {
+  appendAgentMessage,
   compactAgentMemory,
   clearAgentDialog,
   createAgentFact,
@@ -104,6 +106,9 @@ export default function AgentMemoryPage() {
   const [compacting, setCompacting] = useState(false);
   const [compactKeepRecent, setCompactKeepRecent] = useState(0);
   const [deletingSummaryId, setDeletingSummaryId] = useState<string | null>(null);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [messageRole, setMessageRole] = useState<"user" | "assistant" | "system">("user");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -296,6 +301,43 @@ export default function AgentMemoryPage() {
     }
   };
 
+  const onSendMessage = async () => {
+    if (selectedChatId == null || !messageDraft.trim() || sendingMessage) return;
+    setSendingMessage(true);
+    const text = messageDraft.trim();
+    try {
+      const created = await appendAgentMessage(selectedChatId, messageRole, text);
+      setMessageDraft("");
+      setHistory((prev) => [created, ...prev]);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recentContextMessageCount: prev.recentContextMessageCount + 1,
+          compaction: {
+            ...prev.compaction,
+            compactableCount: prev.compaction.compactableCount + 1,
+          },
+        };
+      });
+      setChats((prev) =>
+        prev.map((c) =>
+          c.chatId === selectedChatId
+            ? {
+                ...c,
+                messageCount: c.messageCount + 1,
+                lastActivityAt: created.createdAt,
+              }
+            : c,
+        ),
+      );
+    } catch (error) {
+      message.error(error instanceof ApiError ? error.message : "Failed to send message");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   const onDeleteSummary = async (summaryId: string) => {
     if (deletingSummaryId != null) return;
     setDeletingSummaryId(summaryId);
@@ -484,6 +526,41 @@ export default function AgentMemoryPage() {
                       Load older
                     </Button>
                   ) : null}
+                  <div className="agent-memory__message-compose">
+                    <Select
+                      className="agent-memory__message-compose-role"
+                      size="small"
+                      value={messageRole}
+                      onChange={(value) => setMessageRole(value)}
+                      options={[
+                        { value: "user", label: "User" },
+                        { value: "assistant", label: "Assistant" },
+                        { value: "system", label: "System" },
+                      ]}
+                    />
+                    <Input.TextArea
+                      className="agent-memory__message-compose-input"
+                      placeholder="Добавить в память (Telegram не отправляется)…"
+                      value={messageDraft}
+                      autoSize={{ minRows: 1, maxRows: 4 }}
+                      onChange={(e) => setMessageDraft(e.target.value)}
+                      onPressEnter={(e) => {
+                        if (!e.shiftKey) {
+                          e.preventDefault();
+                          onSendMessage();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={sendingMessage}
+                      disabled={!messageDraft.trim()}
+                      onClick={onSendMessage}
+                    >
+                      Добавить
+                    </Button>
+                  </div>
                 </MemorySection>
               </div>
 

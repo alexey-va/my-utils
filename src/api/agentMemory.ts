@@ -95,6 +95,18 @@ export async function fetchAgentMemoryMessages(
   );
 }
 
+export async function appendAgentMessage(
+  chatId: number,
+  role: "user" | "assistant" | "system",
+  content: string,
+): Promise<AgentMemoryMessage> {
+  return apiClient.post<AgentMemoryMessage>(
+    `${BASE}/chats/${chatId}/messages`,
+    { role, content },
+    { skipAuth: true },
+  );
+}
+
 export async function createAgentFact(
   chatId: number,
   content: string,
