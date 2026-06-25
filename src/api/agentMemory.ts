@@ -39,6 +39,7 @@ export type AgentMemoryMessage = {
   toolName: string | null;
   excludedFromContext: boolean;
   compactedIntoSummaryId: string | null;
+  isCompacted: boolean;
   createdAt: string;
   rawJson: string;
 };

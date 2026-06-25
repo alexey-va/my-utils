@@ -103,6 +103,7 @@ export default function AgentMemoryPage() {
   const [togglingMessageId, setTogglingMessageId] = useState<number | null>(null);
   const [compacting, setCompacting] = useState(false);
   const [compactKeepRecent, setCompactKeepRecent] = useState(0);
+  const [deletingSummaryId, setDeletingSummaryId] = useState<string | null>(null);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -276,7 +277,7 @@ export default function AgentMemoryPage() {
           c.chatId === selectedChatId ? { ...c, messageCount: Math.max(0, c.messageCount - 1) } : c,
         ),
       );
-      if (!removed.excludedFromContext && !removed.compactedIntoSummaryId) {
+      if (!removed.excludedFromContext && !removed.isCompacted) {
         setDetail((prev) =>
           prev
             ? {
@@ -296,29 +297,13 @@ export default function AgentMemoryPage() {
   };
 
   const onDeleteSummary = async (summaryId: string) => {
-    const contextDelta = history.filter(
-      (m) => m.compactedIntoSummaryId === summaryId && !m.excludedFromContext,
-    ).length;
-
-    setHistory((prev) =>
-      prev.map((m) =>
-        m.compactedIntoSummaryId === summaryId
-          ? { ...m, compactedIntoSummaryId: null }
-          : m,
-      ),
+    if (deletingSummaryId != null) return;
+    setDeletingSummaryId(summaryId);
+    const previousDetail = detail;
+    const previousChats = chats;
+    setDetail((prev) =>
+      prev ? { ...prev, summaries: prev.summaries.filter((s) => s.id !== summaryId) } : prev,
     );
-    setDetail((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        summaries: prev.summaries.filter((s) => s.id !== summaryId),
-        recentContextMessageCount: prev.recentContextMessageCount + contextDelta,
-        compaction: {
-          ...prev.compaction,
-          compactableCount: prev.compaction.compactableCount + contextDelta,
-        },
-      };
-    });
     if (selectedChatId != null) {
       setChats((prev) =>
         prev.map((c) =>
@@ -331,8 +316,11 @@ export default function AgentMemoryPage() {
     try {
       await deleteAgentSummary(summaryId);
     } catch (error) {
-      await refreshChat();
+      setDetail(previousDetail);
+      setChats(previousChats);
       message.error(error instanceof ApiError ? error.message : "Failed to delete summary");
+    } finally {
+      setDeletingSummaryId(null);
     }
   };
 
@@ -594,13 +582,15 @@ export default function AgentMemoryPage() {
                               </span>
                             </div>
                             <div className="agent-memory__summary-actions">
-                              <Tooltip title="Удалить summary (сырые сообщения снова в контексте)">
+                              <Tooltip title="Удалить текст summary из контекста; сообщения остаются сжатыми">
                                 <Button
                                   type="text"
                                   size="small"
                                   danger
                                   icon={<DeleteOutlined />}
                                   aria-label="Delete summary"
+                                  loading={deletingSummaryId === summary.id}
+                                  disabled={deletingSummaryId != null}
                                   onClick={() => onDeleteSummary(summary.id)}
                                 />
                               </Tooltip>

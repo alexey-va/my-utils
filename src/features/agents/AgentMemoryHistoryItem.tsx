@@ -53,19 +53,23 @@ function MessageActions({
   );
 }
 
+function isCompactedMessage(row: AgentMemoryMessage): boolean {
+  return row.isCompacted || row.compactedIntoSummaryId != null;
+}
+
 function messageModifierClasses(row: AgentMemoryMessage): string {
   let classes = "";
   if (row.excludedFromContext) {
     classes += " agent-memory__message--excluded";
   }
-  if (row.compactedIntoSummaryId) {
+  if (isCompactedMessage(row)) {
     classes += " agent-memory__message--compacted";
   }
   return classes;
 }
 
 function CompactedTag({ row }: { row: AgentMemoryMessage }) {
-  if (!row.compactedIntoSummaryId) return null;
+  if (!isCompactedMessage(row)) return null;
   return (
     <Tag className="agent-memory__message-tag" color="purple">
       compacted
