@@ -90,24 +90,27 @@ export default function AgentMemoryPage() {
   const [editingFactContent, setEditingFactContent] = useState("");
 
   const [apiError, setApiError] = useState<string | null>(null);
+  const [togglingMessageId, setTogglingMessageId] = useState<number | null>(null);
 
-  const loadChats = useCallback(async () => {
-    setLoading(true);
+  const loadChats = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setApiError(null);
     try {
       const rows = await fetchAgentMemoryChats();
       setChats(rows);
-      if (rows.length > 0 && selectedChatId == null) {
-        setSelectedChatId(rows[0].chatId);
-      }
+      setSelectedChatId((current) => current ?? rows[0]?.chatId ?? null);
     } catch (error) {
       const msg = error instanceof ApiError ? `${error.status}: ${error.message}` : "Failed to load chats";
       setApiError(msg);
       message.error(msg);
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
-  }, [selectedChatId]);
+  }, []);
 
   const loadChat = useCallback(async (chatId: number) => {
     try {
@@ -131,11 +134,15 @@ export default function AgentMemoryPage() {
     }
   }, [selectedChatId, loadChat]);
 
-  const refresh = async () => {
-    await loadChats();
+  const refreshChat = async () => {
     if (selectedChatId != null) {
       await loadChat(selectedChatId);
     }
+  };
+
+  const refreshAll = async () => {
+    await loadChats({ silent: true });
+    await refreshChat();
   };
 
   const onCompact = async (force = false) => {
@@ -147,7 +154,7 @@ export default function AgentMemoryPage() {
           ? `Compacted ${result.messageCount} messages`
           : "Nothing to compact",
       );
-      await refresh();
+      await refreshAll();
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Compact failed");
     }
@@ -161,7 +168,7 @@ export default function AgentMemoryPage() {
       onOk: async () => {
         const removed = await resetAgentCompaction(selectedChatId);
         message.success(`Removed ${removed} summaries`);
-        await refresh();
+        await refreshAll();
       },
     });
   };
@@ -175,7 +182,7 @@ export default function AgentMemoryPage() {
       onOk: async () => {
         await clearAgentDialog(selectedChatId);
         message.success("Dialog cleared");
-        await refresh();
+        await refreshAll();
       },
     });
   };
@@ -183,9 +190,14 @@ export default function AgentMemoryPage() {
   const onAddFact = async () => {
     if (selectedChatId == null || !factDraft.trim()) return;
     try {
-      await createAgentFact(selectedChatId, factDraft.trim());
+      const fact = await createAgentFact(selectedChatId, factDraft.trim());
       setFactDraft("");
-      await refresh();
+      setDetail((prev) => (prev ? { ...prev, facts: [...prev.facts, fact] } : prev));
+      setChats((prev) =>
+        prev.map((c) =>
+          c.chatId === selectedChatId ? { ...c, factCount: c.factCount + 1 } : c,
+        ),
+      );
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Failed to add fact");
     }
@@ -194,21 +206,106 @@ export default function AgentMemoryPage() {
   const onSaveFact = async () => {
     if (!editingFactId || !editingFactContent.trim()) return;
     try {
-      await updateAgentFact(editingFactId, editingFactContent.trim());
+      const updated = await updateAgentFact(editingFactId, editingFactContent.trim());
       setEditingFactId(null);
       setEditingFactContent("");
-      await refresh();
+      setDetail((prev) =>
+        prev
+          ? { ...prev, facts: prev.facts.map((f) => (f.id === updated.id ? updated : f)) }
+          : prev,
+      );
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Failed to update fact");
     }
   };
 
+  const contextCountDelta = (wasExcluded: boolean, excluded: boolean): number => {
+    if (wasExcluded === excluded) return 0;
+    return excluded ? -1 : 1;
+  };
+
   const onToggleExcluded = async (row: AgentMemoryMessage, excluded: boolean) => {
+    const wasExcluded = row.excludedFromContext;
+    if (wasExcluded === excluded || togglingMessageId === row.id) return;
+
+    setTogglingMessageId(row.id);
+    setHistory((prev) =>
+      prev.map((m) => (m.id === row.id ? { ...m, excludedFromContext: excluded } : m)),
+    );
+    setDetail((prev) => {
+      if (!prev) return prev;
+      const delta = contextCountDelta(wasExcluded, excluded);
+      return {
+        ...prev,
+        recentContextMessageCount: Math.max(0, prev.recentContextMessageCount + delta),
+      };
+    });
+
     try {
-      await updateMessageExcluded(row.id, excluded);
-      await refresh();
+      const updated = await updateMessageExcluded(row.id, excluded);
+      setHistory((prev) => prev.map((m) => (m.id === row.id ? updated : m)));
     } catch (error) {
+      setHistory((prev) =>
+        prev.map((m) => (m.id === row.id ? { ...m, excludedFromContext: wasExcluded } : m)),
+      );
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const delta = contextCountDelta(excluded, wasExcluded);
+        return {
+          ...prev,
+          recentContextMessageCount: Math.max(0, prev.recentContextMessageCount + delta),
+        };
+      });
       message.error(error instanceof ApiError ? error.message : "Failed to update message");
+    } finally {
+      setTogglingMessageId(null);
+    }
+  };
+
+  const onDeleteMessage = async (messageId: number) => {
+    const removed = history.find((m) => m.id === messageId);
+    setHistory((prev) => prev.filter((m) => m.id !== messageId));
+    if (removed && selectedChatId != null) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.chatId === selectedChatId ? { ...c, messageCount: Math.max(0, c.messageCount - 1) } : c,
+        ),
+      );
+      if (!removed.excludedFromContext && !removed.compactedIntoSummaryId) {
+        setDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                recentContextMessageCount: Math.max(0, prev.recentContextMessageCount - 1),
+              }
+            : prev,
+        );
+      }
+    }
+    try {
+      await deleteAgentMessage(messageId);
+    } catch (error) {
+      await refreshChat();
+      message.error(error instanceof ApiError ? error.message : "Failed to delete message");
+    }
+  };
+
+  const onDeleteFact = async (factId: string) => {
+    setDetail((prev) =>
+      prev ? { ...prev, facts: prev.facts.filter((f) => f.id !== factId) } : prev,
+    );
+    if (selectedChatId != null) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.chatId === selectedChatId ? { ...c, factCount: Math.max(0, c.factCount - 1) } : c,
+        ),
+      );
+    }
+    try {
+      await deleteAgentFact(factId);
+    } catch (error) {
+      await refreshChat();
+      message.error(error instanceof ApiError ? error.message : "Failed to delete fact");
     }
   };
 
@@ -323,6 +420,7 @@ export default function AgentMemoryPage() {
                               <Switch
                                 size="small"
                                 checked={row.excludedFromContext}
+                                loading={togglingMessageId === row.id}
                                 onChange={(checked) => onToggleExcluded(row, checked)}
                                 checkedChildren="skip"
                                 unCheckedChildren="ctx"
@@ -335,10 +433,7 @@ export default function AgentMemoryPage() {
                                 danger
                                 icon={<DeleteOutlined />}
                                 aria-label="Delete message"
-                                onClick={async () => {
-                                  await deleteAgentMessage(row.id);
-                                  await refresh();
-                                }}
+                                onClick={() => onDeleteMessage(row.id)}
                               />
                             </Tooltip>
                           </div>
@@ -397,10 +492,7 @@ export default function AgentMemoryPage() {
                                 danger
                                 icon={<DeleteOutlined />}
                                 aria-label="Delete fact"
-                                onClick={async () => {
-                                  await deleteAgentFact(fact.id);
-                                  await refresh();
-                                }}
+                                onClick={() => onDeleteFact(fact.id)}
                               />
                             </Tooltip>
                           </div>
