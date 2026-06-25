@@ -53,6 +53,17 @@ function MessageActions({
   );
 }
 
+function messageModifierClasses(row: AgentMemoryMessage): string {
+  let classes = "";
+  if (row.excludedFromContext) {
+    classes += " agent-memory__message--excluded";
+  }
+  if (row.compactedIntoSummaryId) {
+    classes += " agent-memory__message--compacted";
+  }
+  return classes;
+}
+
 function CompactedTag({ row }: { row: AgentMemoryMessage }) {
   if (!row.compactedIntoSummaryId) return null;
   return (
@@ -77,14 +88,14 @@ function SimpleMessageBody({
 }) {
   const parsed = parseStoredMessage(row);
   const roleClass = `agent-memory__message--${row.role}`;
-  const excludedClass = row.excludedFromContext ? " agent-memory__message--excluded" : "";
+  const modifierClasses = messageModifierClasses(row);
 
   if (row.role === "tool") {
     const toolName = parsed.toolName ?? "tool";
     const resultSource = parsed.content ?? row.rawJson;
 
     return (
-      <li className={`agent-memory__message ${roleClass}${excludedClass}`}>
+      <li className={`agent-memory__message ${roleClass}${modifierClasses}`}>
         <div className="agent-memory__message-head">
           <span className="agent-memory__role agent-memory__role--tool">Tool result</span>
           <span className="agent-memory__tool-name-inline">{toolName}</span>
@@ -112,7 +123,7 @@ function SimpleMessageBody({
   const showRaw = !text && row.rawJson;
 
   return (
-    <li className={`agent-memory__message ${roleClass}${excludedClass}`}>
+    <li className={`agent-memory__message ${roleClass}${modifierClasses}`}>
       <div className="agent-memory__message-head">
         <span className="agent-memory__role">{roleLabel(row.role)}</span>
         <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
@@ -180,11 +191,11 @@ export default function AgentMemoryHistoryItem({
     }
   }
 
-  const excludedClass = assistant.excludedFromContext ? " agent-memory__message--excluded" : "";
+  const modifierClasses = messageModifierClasses(assistant);
   const assistantText = parsed.content?.trim();
 
   return (
-    <li className={`agent-memory__tool-round${excludedClass}`}>
+    <li className={`agent-memory__tool-round${modifierClasses}`}>
       <div className="agent-memory__tool-round-head">
         <span className="agent-memory__role">Assistant</span>
         <Tag className="agent-memory__tool-round-badge" color="orange">

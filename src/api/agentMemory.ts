@@ -122,6 +122,10 @@ export async function deleteAgentFact(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/facts/${id}`, { skipAuth: true });
 }
 
+export async function deleteAgentSummary(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/summaries/${id}`, { skipAuth: true });
+}
+
 export async function updateMessageExcluded(
   id: number,
   excludedFromContext: boolean,

@@ -21,6 +21,7 @@ import {
   createAgentFact,
   deleteAgentFact,
   deleteAgentMessage,
+  deleteAgentSummary,
   fetchAgentMemoryChat,
   fetchAgentMemoryChats,
   fetchAgentMemoryMessages,
@@ -294,6 +295,47 @@ export default function AgentMemoryPage() {
     }
   };
 
+  const onDeleteSummary = async (summaryId: string) => {
+    const contextDelta = history.filter(
+      (m) => m.compactedIntoSummaryId === summaryId && !m.excludedFromContext,
+    ).length;
+
+    setHistory((prev) =>
+      prev.map((m) =>
+        m.compactedIntoSummaryId === summaryId
+          ? { ...m, compactedIntoSummaryId: null }
+          : m,
+      ),
+    );
+    setDetail((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        summaries: prev.summaries.filter((s) => s.id !== summaryId),
+        recentContextMessageCount: prev.recentContextMessageCount + contextDelta,
+        compaction: {
+          ...prev.compaction,
+          compactableCount: prev.compaction.compactableCount + contextDelta,
+        },
+      };
+    });
+    if (selectedChatId != null) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.chatId === selectedChatId
+            ? { ...c, summaryCount: Math.max(0, c.summaryCount - 1) }
+            : c,
+        ),
+      );
+    }
+    try {
+      await deleteAgentSummary(summaryId);
+    } catch (error) {
+      await refreshChat();
+      message.error(error instanceof ApiError ? error.message : "Failed to delete summary");
+    }
+  };
+
   const onDeleteFact = async (factId: string) => {
     setDetail((prev) =>
       prev ? { ...prev, facts: prev.facts.filter((f) => f.id !== factId) } : prev,
@@ -545,10 +587,24 @@ export default function AgentMemoryPage() {
                       {detail.summaries.map((summary) => (
                         <li key={summary.id} className="agent-memory__summary">
                           <div className="agent-memory__summary-head">
-                            <Tag color="purple">#{summary.sequence}</Tag>
-                            <span className="agent-memory__summary-meta">
-                              ids {summary.coversMessageIdFrom}–{summary.coversMessageIdTo} ({summary.sourceMessageCount})
-                            </span>
+                            <div className="agent-memory__summary-title">
+                              <Tag color="purple">#{summary.sequence}</Tag>
+                              <span className="agent-memory__summary-meta">
+                                ids {summary.coversMessageIdFrom}–{summary.coversMessageIdTo} ({summary.sourceMessageCount})
+                              </span>
+                            </div>
+                            <div className="agent-memory__summary-actions">
+                              <Tooltip title="Удалить summary (сырые сообщения снова в контексте)">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  aria-label="Delete summary"
+                                  onClick={() => onDeleteSummary(summary.id)}
+                                />
+                              </Tooltip>
+                            </div>
                           </div>
                           <p className="agent-memory__summary-text">{summary.summaryText}</p>
                         </li>

@@ -2305,6 +2305,20 @@ textarea.generator-output {
   opacity: 0.6;
 }
 
+.agent-memory__message--compacted {
+  opacity: 0.42;
+  background: color-mix(in srgb, var(--linear-surface-1) 55%, #000);
+}
+
+.agent-memory__tool-round.agent-memory__message--compacted {
+  opacity: 0.42;
+  background: color-mix(in srgb, var(--linear-surface-1) 55%, #000);
+}
+
+.agent-memory__message--excluded.agent-memory__message--compacted {
+  opacity: 0.32;
+}
+
 .agent-memory__message-head {
   display: flex;
   flex-wrap: wrap;
@@ -2655,7 +2669,22 @@ textarea.generator-output {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  justify-content: space-between;
   margin-bottom: 6px;
+}
+
+.agent-memory__summary-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agent-memory__summary-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .agent-memory__summary-meta {
