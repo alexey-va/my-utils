@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   Button,
   Empty,
   Input,
-  List,
   Modal,
-  Space,
   Switch,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import {
   compactAgentMemory,
   clearAgentDialog,
@@ -28,24 +32,50 @@ import {
   type AgentMemoryMessage,
 } from "../../api/agentMemory";
 import { ApiError } from "../../api/errors";
-import AppPanel from "../../shared/components/AppPanel";
 
 function formatTime(value: string | null): string {
   if (!value) return "—";
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function roleColor(role: string): string {
+function roleLabel(role: string): string {
   switch (role) {
     case "user":
-      return "blue";
+      return "User";
     case "assistant":
-      return "green";
+      return "Assistant";
     case "tool":
-      return "orange";
+      return "Tool";
     default:
-      return "default";
+      return role;
   }
+}
+
+function MemorySection({
+  title,
+  meta,
+  children,
+  className,
+}: {
+  title: string;
+  meta?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={className ? `agent-memory__section ${className}` : "agent-memory__section"}>
+      <header className="agent-memory__section-head">
+        <h3 className="agent-memory__section-title">{title}</h3>
+        {meta ? <span className="agent-memory__section-meta">{meta}</span> : null}
+      </header>
+      <div className="agent-memory__section-body">{children}</div>
+    </section>
+  );
 }
 
 export default function AgentMemoryPage() {
@@ -192,37 +222,52 @@ export default function AgentMemoryPage() {
   return (
     <div className="agent-memory">
       <aside className="agent-memory__sidebar">
-        <Typography.Text className="agent-memory__sidebar-title">Chats</Typography.Text>
+        <div className="agent-memory__sidebar-head">
+          <Typography.Text className="agent-memory__sidebar-title">Chats</Typography.Text>
+          <Tooltip title="Refresh list">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => loadChats()}
+              aria-label="Refresh chats"
+            />
+          </Tooltip>
+        </div>
         {apiError ? (
           <Typography.Text type="danger" className="agent-memory__api-error">
             {apiError}
           </Typography.Text>
         ) : null}
-        <List
-          loading={loading}
-          dataSource={chats}
-          locale={{ emptyText: <Empty description="No agent chats yet" /> }}
-          renderItem={(chat) => (
-            <List.Item
-              className={
-                chat.chatId === selectedChatId ? "agent-memory__chat agent-memory__chat--active" : "agent-memory__chat"
-              }
-              onClick={() => setSelectedChatId(chat.chatId)}
-            >
-              <div>
-                <Typography.Text strong>chatId {chat.chatId}</Typography.Text>
-                <div className="agent-memory__chat-meta">
-                  <Tag>{chat.messageCount} msg</Tag>
-                  <Tag>{chat.factCount} facts</Tag>
-                  <Tag>{chat.summaryCount} sum</Tag>
-                </div>
-                <Typography.Text type="secondary" className="agent-memory__chat-time">
-                  {formatTime(chat.lastActivityAt)}
-                </Typography.Text>
-              </div>
-            </List.Item>
-          )}
-        />
+        {loading ? (
+          <Typography.Text type="secondary" className="agent-memory__sidebar-empty">
+            Loading…
+          </Typography.Text>
+        ) : chats.length === 0 ? (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No agent chats yet" />
+        ) : (
+          <ul className="agent-memory__chat-list">
+            {chats.map((chat) => (
+              <li key={chat.chatId}>
+                <button
+                  type="button"
+                  className={
+                    chat.chatId === selectedChatId
+                      ? "agent-memory__chat agent-memory__chat--active"
+                      : "agent-memory__chat"
+                  }
+                  onClick={() => setSelectedChatId(chat.chatId)}
+                >
+                  <span className="agent-memory__chat-id">chat {chat.chatId}</span>
+                  <span className="agent-memory__chat-stats">
+                    {chat.messageCount} msg · {chat.factCount} facts
+                  </span>
+                  <span className="agent-memory__chat-time">{formatTime(chat.lastActivityAt)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </aside>
 
       <div className="agent-memory__main">
@@ -230,131 +275,166 @@ export default function AgentMemoryPage() {
           <Empty description="Select a chat" />
         ) : (
           <>
-            <AppPanel className="agent-memory__panel">
-              <div className="agent-memory__panel-head">
-                <Typography.Title level={5}>Context controls</Typography.Title>
-                <Space wrap>
-                  <Button onClick={() => onCompact(false)}>Compact</Button>
-                  <Button onClick={() => onCompact(true)}>Force compact</Button>
-                  <Button onClick={onResetCompaction}>Reset compaction</Button>
-                  <Button danger onClick={onClearDialog}>Clear dialog</Button>
-                </Space>
+            <MemorySection
+              title="Context"
+              meta={`${detail.recentContextMessageCount} messages in LLM context`}
+            >
+              <div className="agent-memory__toolbar">
+                <div className="agent-memory__toolbar-group">
+                  <Button size="small" onClick={() => onCompact(false)}>Compact</Button>
+                  <Button size="small" onClick={() => onCompact(true)}>Force compact</Button>
+                </div>
+                <span className="agent-memory__toolbar-divider" aria-hidden />
+                <div className="agent-memory__toolbar-group">
+                  <Button size="small" onClick={onResetCompaction}>Reset compaction</Button>
+                  <Button size="small" danger onClick={onClearDialog}>Clear dialog</Button>
+                </div>
               </div>
-              <Typography.Paragraph type="secondary">
-                Recent context messages in LLM: {detail.recentContextMessageCount}
-              </Typography.Paragraph>
-            </AppPanel>
+            </MemorySection>
 
-            <AppPanel className="agent-memory__panel">
-              <Typography.Title level={5}>Summaries</Typography.Title>
-              {detail.summaries.length === 0 ? (
-                <Typography.Text type="secondary">No compaction blocks yet.</Typography.Text>
-              ) : (
-                detail.summaries.map((summary) => (
-                  <div key={summary.id} className="agent-memory__summary">
-                    <Tag color="purple">COMPACTED #{summary.sequence}</Tag>
-                    <Typography.Paragraph className="agent-memory__summary-text">
-                      {summary.summaryText}
-                    </Typography.Paragraph>
-                    <Typography.Text type="secondary">
-                      messages {summary.coversMessageIdFrom}–{summary.coversMessageIdTo} (
-                      {summary.sourceMessageCount})
-                    </Typography.Text>
+            <div className="agent-memory__grid">
+              <div className="agent-memory__column agent-memory__column--thread">
+                <MemorySection title="History" meta={`${history.length} shown`}>
+                  {history.length === 0 ? (
+                    <Typography.Text type="secondary">No messages yet.</Typography.Text>
+                  ) : (
+                    <ul className="agent-memory__thread">
+                      {history.map((row) => (
+                        <li
+                          key={row.id}
+                          className={
+                            row.excludedFromContext
+                              ? `agent-memory__message agent-memory__message--${row.role} agent-memory__message--excluded`
+                              : `agent-memory__message agent-memory__message--${row.role}`
+                          }
+                        >
+                          <div className="agent-memory__message-head">
+                            <span className="agent-memory__role">{roleLabel(row.role)}</span>
+                            <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
+                            {row.compactedIntoSummaryId ? (
+                              <Tag className="agent-memory__message-tag" color="purple">compacted</Tag>
+                            ) : null}
+                          </div>
+                          <p className="agent-memory__message-text">
+                            {row.content ?? row.rawJson}
+                          </p>
+                          <div className="agent-memory__message-actions">
+                            <Tooltip title={row.excludedFromContext ? "Excluded from context" : "Included in context"}>
+                              <Switch
+                                size="small"
+                                checked={row.excludedFromContext}
+                                onChange={(checked) => onToggleExcluded(row, checked)}
+                                checkedChildren="skip"
+                                unCheckedChildren="ctx"
+                              />
+                            </Tooltip>
+                            <Tooltip title="Delete message">
+                              <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                aria-label="Delete message"
+                                onClick={async () => {
+                                  await deleteAgentMessage(row.id);
+                                  await refresh();
+                                }}
+                              />
+                            </Tooltip>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {nextBeforeId != null ? (
+                    <Button className="agent-memory__load-more" onClick={loadMoreHistory} block>
+                      Load older
+                    </Button>
+                  ) : null}
+                </MemorySection>
+              </div>
+
+              <div className="agent-memory__column agent-memory__column--side">
+                <MemorySection
+                  title="Facts"
+                  meta={detail.facts.length > 0 ? `${detail.facts.length} stored` : undefined}
+                >
+                  <div className="agent-memory__fact-add">
+                    <Input
+                      placeholder="New fact…"
+                      value={factDraft}
+                      onChange={(e) => setFactDraft(e.target.value)}
+                      onPressEnter={onAddFact}
+                    />
+                    <Button type="primary" onClick={onAddFact} disabled={!factDraft.trim()}>
+                      Add
+                    </Button>
                   </div>
-                ))
-              )}
-            </AppPanel>
+                  {detail.facts.length === 0 ? (
+                    <Typography.Text type="secondary">No facts yet.</Typography.Text>
+                  ) : (
+                    <ul className="agent-memory__fact-list">
+                      {detail.facts.map((fact) => (
+                        <li key={fact.id} className="agent-memory__fact">
+                          <p className="agent-memory__fact-text">{fact.content}</p>
+                          <div className="agent-memory__fact-actions">
+                            <Tooltip title="Edit">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<EditOutlined />}
+                                aria-label="Edit fact"
+                                onClick={() => {
+                                  setEditingFactId(fact.id);
+                                  setEditingFactContent(fact.content);
+                                }}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                aria-label="Delete fact"
+                                onClick={async () => {
+                                  await deleteAgentFact(fact.id);
+                                  await refresh();
+                                }}
+                              />
+                            </Tooltip>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </MemorySection>
 
-            <AppPanel className="agent-memory__panel">
-              <Typography.Title level={5}>Facts</Typography.Title>
-              <Space.Compact style={{ width: "100%", marginBottom: 12 }}>
-                <Input
-                  placeholder="New fact…"
-                  value={factDraft}
-                  onChange={(e) => setFactDraft(e.target.value)}
-                  onPressEnter={onAddFact}
-                />
-                <Button type="primary" onClick={onAddFact}>Add</Button>
-              </Space.Compact>
-              <List
-                dataSource={detail.facts}
-                locale={{ emptyText: "No facts" }}
-                renderItem={(fact) => (
-                  <List.Item
-                    actions={[
-                      <Button
-                        key="edit"
-                        size="small"
-                        onClick={() => {
-                          setEditingFactId(fact.id);
-                          setEditingFactContent(fact.content);
-                        }}
-                      >
-                        Edit
-                      </Button>,
-                      <Button
-                        key="del"
-                        size="small"
-                        danger
-                        onClick={async () => {
-                          await deleteAgentFact(fact.id);
-                          await refresh();
-                        }}
-                      >
-                        Delete
-                      </Button>,
-                    ]}
-                  >
-                    <Typography.Text code>{fact.id.slice(0, 8)}…</Typography.Text>
-                    <Typography.Paragraph>{fact.content}</Typography.Paragraph>
-                  </List.Item>
-                )}
-              />
-            </AppPanel>
-
-            <AppPanel className="agent-memory__panel">
-              <Typography.Title level={5}>Full history</Typography.Title>
-              <List
-                dataSource={history}
-                renderItem={(row) => (
-                  <List.Item
-                    className={row.excludedFromContext ? "agent-memory__message--excluded" : undefined}
-                    actions={[
-                      <Switch
-                        key="ex"
-                        checked={row.excludedFromContext}
-                        onChange={(checked) => onToggleExcluded(row, checked)}
-                        checkedChildren="skip"
-                        unCheckedChildren="in ctx"
-                      />,
-                      <Button
-                        key="del"
-                        size="small"
-                        danger
-                        onClick={async () => {
-                          await deleteAgentMessage(row.id);
-                          await refresh();
-                        }}
-                      >
-                        Del
-                      </Button>,
-                    ]}
-                  >
-                    <Space direction="vertical" size={0}>
-                      <Space>
-                        <Tag color={roleColor(row.role)}>{row.role}</Tag>
-                        {row.compactedIntoSummaryId ? <Tag color="purple">compacted</Tag> : null}
-                        <Typography.Text type="secondary">{formatTime(row.createdAt)}</Typography.Text>
-                      </Space>
-                      <Typography.Text>{row.content ?? row.rawJson}</Typography.Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-              {nextBeforeId != null ? (
-                <Button onClick={loadMoreHistory} block>Load older</Button>
-              ) : null}
-            </AppPanel>
+                <MemorySection
+                  title="Summaries"
+                  meta={detail.summaries.length > 0 ? `${detail.summaries.length} blocks` : undefined}
+                  className="agent-memory__section--summaries"
+                >
+                  {detail.summaries.length === 0 ? (
+                    <Typography.Text type="secondary">No compaction blocks yet.</Typography.Text>
+                  ) : (
+                    <ul className="agent-memory__summary-list">
+                      {detail.summaries.map((summary) => (
+                        <li key={summary.id} className="agent-memory__summary">
+                          <div className="agent-memory__summary-head">
+                            <Tag color="purple">#{summary.sequence}</Tag>
+                            <span className="agent-memory__summary-meta">
+                              ids {summary.coversMessageIdFrom}–{summary.coversMessageIdTo} ({summary.sourceMessageCount})
+                            </span>
+                          </div>
+                          <p className="agent-memory__summary-text">{summary.summaryText}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </MemorySection>
+              </div>
+            </div>
           </>
         )}
       </div>
