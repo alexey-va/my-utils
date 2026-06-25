@@ -2366,16 +2366,15 @@ textarea.generator-output {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 
-.agent-memory__tool-round-title {
+.agent-memory__tool-call-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  margin-bottom: 8px;
 }
 
 .agent-memory__tool-round-badge {
@@ -2406,23 +2405,6 @@ textarea.generator-output {
 
 .agent-memory__tool-call--orphan {
   border-style: dashed;
-}
-
-.agent-memory__tool-call-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.agent-memory__tool-call-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
 }
 
 .agent-memory__tool-name {
@@ -2536,11 +2518,6 @@ textarea.generator-output {
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-}
-
-.agent-memory__message-actions--compact {
-  margin-top: 0;
-  flex-shrink: 0;
 }
 
 .agent-memory__load-more {

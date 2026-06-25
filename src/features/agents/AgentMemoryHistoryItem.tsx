@@ -21,22 +21,14 @@ function MessageActions({
   togglingMessageId,
   onToggleExcluded,
   onDeleteMessage,
-  compact = false,
 }: {
   row: AgentMemoryMessage;
   togglingMessageId: number | null;
   onToggleExcluded: (row: AgentMemoryMessage, excluded: boolean) => void;
   onDeleteMessage: (messageId: number) => void;
-  compact?: boolean;
 }) {
   return (
-    <div
-      className={
-        compact
-          ? "agent-memory__message-actions agent-memory__message-actions--compact"
-          : "agent-memory__message-actions"
-      }
-    >
+    <div className="agent-memory__message-actions">
       <Tooltip title={row.excludedFromContext ? "Excluded from context" : "Included in context"}>
         <Switch
           size="small"
@@ -177,43 +169,49 @@ export default function AgentMemoryHistoryItem({
 
   const { assistant, tools } = item;
   const parsed = parseStoredMessage(assistant);
-  const toolByCallId = new Map(
-    tools.map((toolRow) => {
-      const toolParsed = parseStoredMessage(toolRow);
-      const key = toolParsed.toolCallId ?? String(toolRow.id);
-      return [key, toolRow] as const;
-    }),
-  );
+  const matchedToolIds = new Set<number>();
+  const toolByCallId = new Map<string, AgentMemoryMessage>();
+
+  for (const toolRow of tools) {
+    const toolParsed = parseStoredMessage(toolRow);
+    const key = toolParsed.toolCallId?.trim();
+    if (key) {
+      toolByCallId.set(key, toolRow);
+    }
+  }
+
   const excludedClass = assistant.excludedFromContext ? " agent-memory__message--excluded" : "";
   const assistantText = parsed.content?.trim();
 
   return (
     <li className={`agent-memory__tool-round${excludedClass}`}>
       <div className="agent-memory__tool-round-head">
-        <div className="agent-memory__tool-round-title">
-          <span className="agent-memory__role">Assistant</span>
-          <Tag className="agent-memory__tool-round-badge" color="orange">
-            {parsed.toolCalls.length} tool{parsed.toolCalls.length === 1 ? "" : "s"}
-          </Tag>
-          <time className="agent-memory__message-time">{formatTime(assistant.createdAt)}</time>
-          <CompactedTag row={assistant} />
-        </div>
-        <MessageActions
-          row={assistant}
-          togglingMessageId={togglingMessageId}
-          onToggleExcluded={onToggleExcluded}
-          onDeleteMessage={onDeleteMessage}
-          compact
-        />
+        <span className="agent-memory__role">Assistant</span>
+        <Tag className="agent-memory__tool-round-badge" color="orange">
+          {parsed.toolCalls.length} tool{parsed.toolCalls.length === 1 ? "" : "s"}
+        </Tag>
+        <time className="agent-memory__message-time">{formatTime(assistant.createdAt)}</time>
+        <CompactedTag row={assistant} />
       </div>
 
       {assistantText ? (
-        <p className="agent-memory__message-text agent-memory__tool-round-preamble">{assistantText}</p>
+        <>
+          <p className="agent-memory__message-text agent-memory__tool-round-preamble">{assistantText}</p>
+          <MessageActions
+            row={assistant}
+            togglingMessageId={togglingMessageId}
+            onToggleExcluded={onToggleExcluded}
+            onDeleteMessage={onDeleteMessage}
+          />
+        </>
       ) : null}
 
       <ul className="agent-memory__tool-calls">
         {parsed.toolCalls.map((call) => {
           const toolRow = toolByCallId.get(call.id);
+          if (toolRow) {
+            matchedToolIds.add(toolRow.id);
+          }
           const resultSource = toolRow
             ? (parseStoredMessage(toolRow).content ?? toolRow.rawJson)
             : "";
@@ -221,19 +219,8 @@ export default function AgentMemoryHistoryItem({
           return (
             <li key={call.id} className="agent-memory__tool-call">
               <div className="agent-memory__tool-call-head">
-                <div className="agent-memory__tool-call-title">
-                  <span className="agent-memory__tool-name">{call.name}</span>
-                  <span className="agent-memory__tool-id">{shortToolCallId(call.id)}</span>
-                </div>
-                {toolRow ? (
-                  <MessageActions
-                    row={toolRow}
-                    togglingMessageId={togglingMessageId}
-                    onToggleExcluded={onToggleExcluded}
-                    onDeleteMessage={onDeleteMessage}
-                    compact
-                  />
-                ) : null}
+                <span className="agent-memory__tool-name">{call.name}</span>
+                <span className="agent-memory__tool-id">{shortToolCallId(call.id)}</span>
               </div>
               <div className="agent-memory__tool-section">
                 <span className="agent-memory__tool-label">Arguments</span>
@@ -247,39 +234,41 @@ export default function AgentMemoryHistoryItem({
               ) : (
                 <p className="agent-memory__tool-missing">No result stored for this call.</p>
               )}
+              {toolRow ? (
+                <MessageActions
+                  row={toolRow}
+                  togglingMessageId={togglingMessageId}
+                  onToggleExcluded={onToggleExcluded}
+                  onDeleteMessage={onDeleteMessage}
+                />
+              ) : null}
             </li>
           );
         })}
         {tools
-          .filter((toolRow) => {
-            const toolParsed = parseStoredMessage(toolRow);
-            return !parsed.toolCalls.some((call) => call.id === toolParsed.toolCallId);
-          })
+          .filter((toolRow) => !matchedToolIds.has(toolRow.id))
           .map((toolRow) => {
             const toolParsed = parseStoredMessage(toolRow);
             const resultSource = toolParsed.content ?? toolRow.rawJson;
             return (
               <li key={toolRow.id} className="agent-memory__tool-call agent-memory__tool-call--orphan">
                 <div className="agent-memory__tool-call-head">
-                  <div className="agent-memory__tool-call-title">
-                    <span className="agent-memory__tool-name">{toolParsed.toolName ?? "tool"}</span>
-                    {toolParsed.toolCallId ? (
-                      <span className="agent-memory__tool-id">{shortToolCallId(toolParsed.toolCallId)}</span>
-                    ) : null}
-                    <span className="agent-memory__tool-orphan-label">orphan result</span>
-                  </div>
-                  <MessageActions
-                    row={toolRow}
-                    togglingMessageId={togglingMessageId}
-                    onToggleExcluded={onToggleExcluded}
-                    onDeleteMessage={onDeleteMessage}
-                    compact
-                  />
+                  <span className="agent-memory__tool-name">{toolParsed.toolName ?? "tool"}</span>
+                  {toolParsed.toolCallId ? (
+                    <span className="agent-memory__tool-id">{shortToolCallId(toolParsed.toolCallId)}</span>
+                  ) : null}
+                  <span className="agent-memory__tool-orphan-label">orphan result</span>
                 </div>
                 <div className="agent-memory__tool-section">
                   <span className="agent-memory__tool-label">Output</span>
                   <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
                 </div>
+                <MessageActions
+                  row={toolRow}
+                  togglingMessageId={togglingMessageId}
+                  onToggleExcluded={onToggleExcluded}
+                  onDeleteMessage={onDeleteMessage}
+                />
               </li>
             );
           })}
