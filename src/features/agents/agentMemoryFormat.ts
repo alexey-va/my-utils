@@ -68,7 +68,7 @@ export function formatJsonString(source: string): { text: string; isJson: boolea
   }
 }
 
-/** Group assistant tool_calls + following tool results; preserve newest-first display order. */
+/** Group assistant tool_calls + following tool results; chronological order (oldest first). */
 export function groupHistoryMessages(messages: AgentMemoryMessage[]): HistoryItem[] {
   const asc = [...messages].sort((a, b) => a.id - b.id);
   const groups: HistoryItem[] = [];
@@ -94,7 +94,7 @@ export function groupHistoryMessages(messages: AgentMemoryMessage[]): HistoryIte
     index += 1;
   }
 
-  return groups.reverse();
+  return groups;
 }
 
 export function shortToolCallId(id: string): string {

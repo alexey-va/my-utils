@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   Button,
-  Collapse,
   Empty,
   Input,
   InputNumber,
@@ -13,6 +12,8 @@ import {
   message,
 } from "antd";
 import {
+  CaretDownOutlined,
+  CaretUpOutlined,
   DeleteOutlined,
   EditOutlined,
   ReloadOutlined,
@@ -69,6 +70,10 @@ function formatTime(value: string | null): string {
   });
 }
 
+function chronologicalPage(messages: AgentMemoryMessage[]): AgentMemoryMessage[] {
+  return [...messages].reverse();
+}
+
 function MemorySection({
   title,
   meta,
@@ -113,6 +118,11 @@ export default function AgentMemoryPage() {
   const [messageRole, setMessageRole] = useState<"user" | "assistant">("user");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatting, setChatting] = useState(false);
+  const [systemPanelOpen, setSystemPanelOpen] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const historyLenRef = useRef(0);
+  const historyHeadIdRef = useRef<number | null>(null);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -139,8 +149,9 @@ export default function AgentMemoryPage() {
       const chatDetail = await fetchAgentMemoryChat(chatId);
       setDetail(chatDetail);
       const page = await fetchAgentMemoryMessages(chatId);
-      setHistory(page.messages);
+      setHistory(chronologicalPage(page.messages));
       setNextBeforeId(page.nextBeforeId);
+      setSystemPanelOpen(false);
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Failed to load chat");
     }
@@ -155,6 +166,11 @@ export default function AgentMemoryPage() {
       loadChat(selectedChatId);
     }
   }, [selectedChatId, loadChat]);
+
+  useEffect(() => {
+    historyLenRef.current = 0;
+    historyHeadIdRef.current = null;
+  }, [selectedChatId]);
 
   const refreshChat = async () => {
     if (selectedChatId != null) {
@@ -307,8 +323,7 @@ export default function AgentMemoryPage() {
 
   const applyNewMessages = (newMessages: AgentMemoryMessage[]) => {
     if (newMessages.length === 0 || selectedChatId == null) return;
-    const ordered = [...newMessages].reverse();
-    setHistory((prev) => [...ordered, ...prev]);
+    setHistory((prev) => [...prev, ...newMessages]);
     const contextDelta = newMessages.filter((m) => !m.isCompacted && !m.excludedFromContext).length;
     setDetail((prev) => {
       if (!prev) return prev;
@@ -416,11 +431,34 @@ export default function AgentMemoryPage() {
   };
 
   const loadMoreHistory = async () => {
-    if (selectedChatId == null || nextBeforeId == null) return;
-    const page = await fetchAgentMemoryMessages(selectedChatId, nextBeforeId);
-    setHistory((prev) => [...prev, ...page.messages]);
-    setNextBeforeId(page.nextBeforeId);
+    if (selectedChatId == null || nextBeforeId == null || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const page = await fetchAgentMemoryMessages(selectedChatId, nextBeforeId);
+      const older = chronologicalPage(page.messages);
+      setHistory((prev) => [...older, ...prev]);
+      setNextBeforeId(page.nextBeforeId);
+    } finally {
+      setLoadingOlder(false);
+    }
   };
+
+  useLayoutEffect(() => {
+    const headId = history[0]?.id ?? null;
+    const grewAtBottom =
+      history.length > historyLenRef.current && headId === historyHeadIdRef.current;
+    const initialLoad = historyLenRef.current === 0 && history.length > 0;
+
+    if (!loadingOlder && (initialLoad || grewAtBottom)) {
+      const el = chatScrollRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+
+    historyLenRef.current = history.length;
+    historyHeadIdRef.current = headId;
+  }, [history, loadingOlder]);
 
   const systemMessages = history.filter((row) => row.role === "system");
   const dialogHistory = history.filter((row) => row.role !== "system");
@@ -533,37 +571,48 @@ export default function AgentMemoryPage() {
             <div className="agent-memory__grid">
               <div className="agent-memory__column agent-memory__column--thread">
                 <section className="agent-memory__section agent-memory__section--chat">
-                  <header className="agent-memory__section-head">
+                  <header className="agent-memory__section-head agent-memory__section-head--chat">
                     <h3 className="agent-memory__section-title">History</h3>
                     <span className="agent-memory__section-meta">{dialogHistory.length} shown</span>
+                    {systemMessages.length > 0 ? (
+                      <button
+                        type="button"
+                        className="agent-memory__system-trigger"
+                        aria-expanded={systemPanelOpen}
+                        onClick={() => setSystemPanelOpen((open) => !open)}
+                      >
+                        System ({systemMessages.length})
+                        {systemPanelOpen ? <CaretUpOutlined /> : <CaretDownOutlined />}
+                      </button>
+                    ) : null}
                   </header>
+                  {systemPanelOpen && systemMessages.length > 0 ? (
+                    <div className="agent-memory__system-panel">
+                      <ul className="agent-memory__system-list">
+                        {systemMessages.map((row) => (
+                          <AgentMemorySystemItem
+                            key={row.id}
+                            row={row}
+                            formatTime={formatTime}
+                            togglingMessageId={togglingMessageId}
+                            onToggleExcluded={onToggleExcluded}
+                            onDeleteMessage={onDeleteMessage}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   <div className="agent-memory__chat-panel">
-                    <div className="agent-memory__chat-scroll">
-                      {systemMessages.length > 0 ? (
-                        <Collapse
-                          className="agent-memory__system-collapse"
-                          defaultActiveKey={[]}
-                          items={[
-                            {
-                              key: "system",
-                              label: `System (${systemMessages.length})`,
-                              children: (
-                                <ul className="agent-memory__system-list">
-                                  {systemMessages.map((row) => (
-                                    <AgentMemorySystemItem
-                                      key={row.id}
-                                      row={row}
-                                      formatTime={formatTime}
-                                      togglingMessageId={togglingMessageId}
-                                      onToggleExcluded={onToggleExcluded}
-                                      onDeleteMessage={onDeleteMessage}
-                                    />
-                                  ))}
-                                </ul>
-                              ),
-                            },
-                          ]}
-                        />
+                    <div className="agent-memory__chat-scroll" ref={chatScrollRef}>
+                      {nextBeforeId != null ? (
+                        <Button
+                          className="agent-memory__load-more agent-memory__load-more--top"
+                          onClick={loadMoreHistory}
+                          loading={loadingOlder}
+                          block
+                        >
+                          Load older
+                        </Button>
                       ) : null}
                       {dialogHistory.length === 0 ? (
                         <Typography.Text type="secondary" className="agent-memory__chat-empty">
@@ -587,15 +636,6 @@ export default function AgentMemoryPage() {
                           ))}
                         </ul>
                       )}
-                      {nextBeforeId != null ? (
-                        <Button
-                          className="agent-memory__load-more"
-                          onClick={loadMoreHistory}
-                          block
-                        >
-                          Load older
-                        </Button>
-                      ) : null}
                     </div>
                     <div className="agent-memory__message-compose">
                     <Input.TextArea
