@@ -1311,6 +1311,98 @@ textarea.generator-output {
   color: var(--text-muted);
 }
 
+.workout-exercises {
+  flex: none;
+  height: 420px;
+  box-sizing: border-box;
+}
+
+.workout-exercises__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.workout-exercises__title {
+  margin: 0;
+}
+
+.workout-exercises__subtitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.workout-exercises__table-wrap {
+  height: 380px;
+  overflow: hidden;
+}
+
+.workout-exercises__table-wrap .ant-table-wrapper {
+  height: 100%;
+}
+
+.workout-exercises__table-wrap .ant-spin-nested-loading,
+.workout-exercises__table-wrap .ant-spin-container {
+  height: 100%;
+}
+
+.workout-exercises__table-wrap .ant-table {
+  height: 100%;
+}
+
+.workout-exercises__table-wrap .ant-table-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.workout-exercises__table-wrap .ant-table-header {
+  flex: none;
+}
+
+.workout-exercises__table-wrap .ant-table-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto !important;
+}
+
+.workout-exercises__table table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.workout-exercises__table .ant-table-thead > tr > th,
+.workout-exercises__table .ant-table-tbody > tr > td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workout-exercises__table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.workout-exercises__table .ant-table-tbody > tr.workout-exercises__row--selected > td {
+  background: color-mix(in srgb, #3b82f6 10%, transparent);
+}
+
+.workout-exercises__table-wrap .ant-table-placeholder .ant-table-cell {
+  border-bottom: none;
+}
+
+.workout-exercises .ant-table-pagination {
+  margin: 8px 0 0 !important;
+  flex-shrink: 0;
+}
+
+.workout-exercises__muted {
+  color: var(--text-muted);
+}
+
 .workout-progress__empty {
   margin: 0;
 }

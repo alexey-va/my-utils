@@ -4,7 +4,7 @@ import type { RefSelectProps } from "antd/es/select";
 import dayjs from "dayjs";
 import PageLayout from "../../shared/components/PageLayout";
 import AppPanel from "../../shared/components/AppPanel";
-import type { ProgressMetric, ProgressPoint } from "../../api/types";
+import type { Exercise, ProgressMetric, ProgressPoint } from "../../api/types";
 import type { ProgressPeriod } from "./workoutAnalytics";
 import {
   computeMuscleGroupVolumeThisWeek,
@@ -16,6 +16,7 @@ import WorkoutMuscleGroupSummary from "./WorkoutMuscleGroupSummary";
 import { normalizeMuscleGroup } from "./workoutMuscleGroups";
 import { useWorkoutShortcuts } from "./useWorkoutShortcuts";
 import WorkoutSessionList from "./WorkoutSessionList";
+import WorkoutExerciseTable from "./WorkoutExerciseTable";
 import WorkoutWeeklySummary from "./WorkoutWeeklySummary";
 import { exportWorkoutGridCsv } from "./exportWorkoutGridCsv";
 import WorkoutEntryForm from "./WorkoutEntryForm";
@@ -68,6 +69,7 @@ export default function WorkoutPage() {
     isEdit: boolean;
   } | null>(null);
   const [exerciseModal, setExerciseModal] = useState<ExerciseDraft | null>(null);
+  const [showAllExercises, setShowAllExercises] = useState(false);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
   const exerciseSelectRef = useRef<RefSelectProps>(null);
 
@@ -163,6 +165,16 @@ export default function WorkoutPage() {
     onFocusSearch: () => exerciseSelectRef.current?.focus(),
   });
 
+  const openEditExercise = useCallback((exercise: Exercise) => {
+    setExerciseModal(
+      exerciseDraftFromExercise(
+        exercise.id,
+        exercise.name,
+        normalizeMuscleGroup(exercise.muscleGroup),
+      ),
+    );
+  }, []);
+
   return (
     <PageLayout title="Workout log">
       <AppPanel className="workout-panel">
@@ -199,31 +211,42 @@ export default function WorkoutPage() {
                 if (!selectedExerciseId || !selectedExercise) {
                   return;
                 }
-                setExerciseModal(
-                  exerciseDraftFromExercise(
-                    selectedExerciseId,
-                    selectedExercise.name,
-                    normalizeMuscleGroup(selectedExercise.muscleGroup),
-                  ),
-                );
+                openEditExercise(selectedExercise);
               }}
               onExportCsv={() => exportWorkoutGridCsv(grid)}
               canExport={grid.rows.length > 0}
+              showAllExercises={showAllExercises}
+              onToggleAllExercises={() => setShowAllExercises((open) => !open)}
             />
 
-            <WorkoutSessionList
-              points={sessionHistoryPoints}
-              exerciseName={primary?.exercise.name ?? selectedExercise?.name}
-              loading={progressLoading}
-              onEdit={openEditSession}
-              onDelete={async (point) => {
-                if (!selectedExerciseId) {
-                  return;
-                }
-                await deleteEntry(selectedExerciseId, point.date);
-                setProgressRefreshKey((k) => k + 1);
-              }}
-            />
+            {showAllExercises ? (
+              <WorkoutExerciseTable
+                exercises={exercises}
+                grid={grid}
+                selectedExerciseId={selectedExerciseId}
+                loading={loading}
+                onSelect={(exerciseId) => {
+                  selectExercise(exerciseId);
+                  setShowAllExercises(false);
+                }}
+                onEdit={openEditExercise}
+                onDelete={deleteExercise}
+              />
+            ) : (
+              <WorkoutSessionList
+                points={sessionHistoryPoints}
+                exerciseName={primary?.exercise.name ?? selectedExercise?.name}
+                loading={progressLoading}
+                onEdit={openEditSession}
+                onDelete={async (point) => {
+                  if (!selectedExerciseId) {
+                    return;
+                  }
+                  await deleteEntry(selectedExerciseId, point.date);
+                  setProgressRefreshKey((k) => k + 1);
+                }}
+              />
+            )}
           </section>
         </div>
       </AppPanel>

@@ -2,6 +2,7 @@ import type { Ref } from "react";
 import { Button, Select, Space } from "antd";
 import type { RefSelectProps } from "antd/es/select";
 import {
+  AppstoreOutlined,
   DownloadOutlined,
   EditOutlined,
   PlusOutlined,
@@ -19,6 +20,8 @@ type Props = {
   onEditExercise: () => void;
   onExportCsv: () => void;
   canExport: boolean;
+  showAllExercises?: boolean;
+  onToggleAllExercises?: () => void;
 };
 
 export default function WorkoutExerciseBar({
@@ -32,6 +35,8 @@ export default function WorkoutExerciseBar({
   onEditExercise,
   onExportCsv,
   canExport,
+  showAllExercises = false,
+  onToggleAllExercises,
 }: Props) {
   const options = exercises.map((e) => ({
     value: e.id,
@@ -64,6 +69,14 @@ export default function WorkoutExerciseBar({
         </Button>
         <Button icon={<PlusOutlined />} onClick={onAddExercise}>
           Add exercise
+        </Button>
+        <Button
+          icon={<AppstoreOutlined />}
+          type={showAllExercises ? "primary" : "default"}
+          disabled={!exercises.length || !onToggleAllExercises}
+          onClick={onToggleAllExercises}
+        >
+          All exercises
         </Button>
         <Button
           icon={<EditOutlined />}
