@@ -2347,34 +2347,41 @@ textarea.generator-output {
 
 .agent-memory__chat-row {
   position: relative;
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 12px 14px;
-  padding: 14px 16px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
-  align-items: start;
 }
 
 .agent-memory__chat-row--user {
-  grid-template-columns: minmax(0, 1fr) 32px;
+  justify-content: flex-end;
   background: color-mix(in srgb, #3b82f6 5%, transparent);
 }
 
-.agent-memory__chat-row--user .agent-memory__chat-avatar {
-  grid-column: 2;
+.agent-memory__user-bundle {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: min(88%, 40rem);
+  min-width: 0;
 }
 
 .agent-memory__chat-row--user .agent-memory__chat-body {
-  grid-column: 1;
   align-items: flex-end;
+  min-width: 0;
 }
 
-.agent-memory__chat-row--user .agent-memory__chat-meta {
-  justify-content: flex-end;
+.agent-memory__chat-row--assistant .agent-memory__chat-body,
+.agent-memory__chat-row--tool .agent-memory__chat-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .agent-memory__chat-row--user .agent-memory__chat-actions {
-  right: 52px;
+  right: 16px;
 }
 
 .agent-memory__chat-row--assistant {
@@ -2466,21 +2473,33 @@ textarea.generator-output {
   align-self: flex-start;
 }
 
-.agent-memory__chat-bubble {
-  max-width: 100%;
-}
-
 .agent-memory__chat-bubble--user {
-  align-self: flex-end;
-  max-width: min(100%, 36rem);
-  padding: 10px 14px;
+  padding: 10px 14px 8px;
   border-radius: 18px 18px 4px 18px;
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
+  max-width: 100%;
+}
+
+.agent-memory__chat-bubble-time {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.agent-memory__chat-meta--user {
+  justify-content: flex-end;
 }
 
 .agent-memory__chat-row--assistant .agent-memory__chat-bubble {
   padding: 0;
+}
+
+.agent-memory__chat-bubble {
+  max-width: 100%;
 }
 
 .agent-memory__chat-text {

@@ -136,13 +136,48 @@ function SimpleMessageBody({
     ? `agent-memory__chat-row agent-memory__chat-row--user${modifierClasses}`
     : `agent-memory__chat-row agent-memory__chat-row--assistant${modifierClasses}`;
 
+  if (isUser) {
+    return (
+      <li className={rowClass}>
+        <div className="agent-memory__user-bundle">
+          <ChatAvatar kind="user" />
+          <div className="agent-memory__chat-body">
+            {text ? (
+              <div className="agent-memory__chat-bubble agent-memory__chat-bubble--user">
+                <p className="agent-memory__chat-text">{text}</p>
+                <time className="agent-memory__chat-bubble-time">{time}</time>
+              </div>
+            ) : null}
+            {showRaw ? (
+              <div className="agent-memory__tool-section">
+                <span className="agent-memory__tool-label">Raw</span>
+                <AgentMemoryJsonBlock source={row.rawJson} maxLines={8} />
+              </div>
+            ) : null}
+            {isCompactedMessage(row) ? (
+              <div className="agent-memory__chat-meta agent-memory__chat-meta--user">
+                <CompactedTag row={row} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <AgentMemoryMessageActions
+          row={row}
+          loading={loading}
+          onToggleExcluded={onToggleExcluded}
+          onDeleteMessage={onDeleteMessage}
+        />
+      </li>
+    );
+  }
+
   return (
     <li className={rowClass}>
-      <ChatAvatar kind={isUser ? "user" : "assistant"} />
+      <ChatAvatar kind="assistant" />
       <div className="agent-memory__chat-body">
-        <ChatMeta label={isUser ? "You" : "Assistant"} time={time} row={row} />
+        <ChatMeta label="Assistant" time={time} row={row} />
         {text ? (
-          <div className={isUser ? "agent-memory__chat-bubble agent-memory__chat-bubble--user" : "agent-memory__chat-bubble"}>
+          <div className="agent-memory__chat-bubble">
             <p className="agent-memory__chat-text">{text}</p>
           </div>
         ) : null}
