@@ -1,16 +1,7 @@
-import type { AgentMemoryCompactionPreview } from "../../api/agentMemory";
-
-export function compactSkipReasonMessage(
-  reason: string | null | undefined,
-  preview: AgentMemoryCompactionPreview | undefined,
-): string {
+export function compactSkipReasonMessage(reason: string | null | undefined): string {
   switch (reason) {
-    case "below_threshold":
-      return preview
-        ? `Мало старых сообщений для авто-сжатия (нужно >${preview.threshold}, tail ${preview.tailKeep}). Используй «Сжать вручную».`
-        : "Мало сообщений для авто-сжатия.";
-    case "too_few_messages":
-      return "Нужно минимум 2 сообщения, которые можно сжать.";
+    case "nothing_to_compact":
+      return "Нечего сжимать — все сообщения уже в summary или остаются в tail.";
     case "unavailable":
       return "Сжатие недоступно — проверь Telegram-бот и OpenRouter.";
     default:
@@ -18,22 +9,27 @@ export function compactSkipReasonMessage(
   }
 }
 
-export function compactionHint(preview: AgentMemoryCompactionPreview | undefined): string {
-  if (!preview) return "";
-  if (!preview.compactionAvailable) {
+export function compactionHint(
+  compactableCount: number,
+  keepRecent: number,
+  compactionAvailable: boolean,
+): string {
+  if (!compactionAvailable) {
     return "Сжатие недоступно (Telegram-бот / OpenRouter).";
   }
-  if (preview.compactableCount <= 1) {
-    return "Мало сообщений — сжатие возможно при ≥2 compactable.";
+  if (compactableCount === 0) {
+    return "Все сообщения уже сжаты или исключены из контекста.";
   }
-  const manual = preview.manualCompactCount;
-  const auto = preview.autoCompactCount;
-  if (manual <= 0) {
-    return `Все ${preview.compactableCount} сообщений в «tail» (${preview.tailKeep}) — нечего сжимать.`;
+  const toCompact = Math.max(0, compactableCount - keepRecent);
+  if (toCompact === 0) {
+    return `Оставить ${keepRecent} — сжимать нечего (${compactableCount} сырых).`;
   }
-  const autoPart =
-    auto > 0
-      ? `Авто-сжатие сейчас: ${auto} сообщ. (при >${preview.threshold} старых).`
-      : `Авто-сжатие ждёт >${preview.threshold} старых (tail ${preview.tailKeep}).`;
-  return `${autoPart} Вручную можно сжать ${manual} — останутся последние min(tail, n−1) сырых.`;
+  if (keepRecent === 0) {
+    return `Сжать все ${toCompact} сырых сообщений в summary; история очистится из контекста LLM.`;
+  }
+  return `Сжать ${toCompact} старых, оставить ${keepRecent} последних сырых.`;
+}
+
+export function compactableAfterKeep(compactableCount: number, keepRecent: number): number {
+  return Math.max(0, compactableCount - keepRecent);
 }

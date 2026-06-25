@@ -33,7 +33,7 @@ import {
 } from "../../api/agentMemory";
 import { ApiError } from "../../api/errors";
 import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
-import { compactSkipReasonMessage, compactionHint } from "./agentMemoryCompaction";
+import { compactSkipReasonMessage, compactableAfterKeep, compactionHint } from "./agentMemoryCompaction";
 import { groupHistoryMessages } from "./agentMemoryFormat";
 
 function formatFactDate(value: string): string {
@@ -102,6 +102,7 @@ export default function AgentMemoryPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [togglingMessageId, setTogglingMessageId] = useState<number | null>(null);
   const [compacting, setCompacting] = useState(false);
+  const [compactKeepRecent, setCompactKeepRecent] = useState(0);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -156,18 +157,17 @@ export default function AgentMemoryPage() {
     await refreshChat();
   };
 
-  const onManualCompact = async () => {
+  const onCompact = async () => {
     if (selectedChatId == null) return;
     setCompacting(true);
     try {
-      const result = await compactAgentMemory(selectedChatId, true);
+      const keepRecent = Math.max(0, compactKeepRecent);
+      const result = await compactAgentMemory(selectedChatId, keepRecent);
       if (result.compacted) {
         message.success(`Сжато ${result.messageCount} сообщений в summary`);
         await refreshAll();
       } else {
-        message.warning(
-          compactSkipReasonMessage(result.reason, detail?.compaction),
-        );
+        message.warning(compactSkipReasonMessage(result.reason));
       }
     } catch (error) {
       message.error(error instanceof ApiError ? error.displayMessage() : "Compact failed");
@@ -335,6 +335,8 @@ export default function AgentMemoryPage() {
   };
 
   const historyItems = groupHistoryMessages(history);
+  const compactableCount = detail?.compaction.compactableCount ?? 0;
+  const compactableNow = compactableAfterKeep(compactableCount, compactKeepRecent);
 
   return (
     <div className="agent-memory">
@@ -400,17 +402,29 @@ export default function AgentMemoryPage() {
                 <div className="agent-memory__toolbar-group">
                   <Button
                     size="small"
+                    type="primary"
                     loading={compacting}
                     disabled={
                       !detail.compaction.compactionAvailable
-                      || detail.compaction.manualCompactCount <= 0
+                      || compactableNow <= 0
                     }
-                    onClick={onManualCompact}
+                    onClick={onCompact}
                   >
-                    {detail.compaction.manualCompactCount > 0
-                      ? `Сжать ${detail.compaction.manualCompactCount} сообщ.`
-                      : "Сжать"}
+                    Сжать
                   </Button>
+                  <Tooltip title="0 = сжать всё; N = оставить N последних сырых сообщений">
+                    <InputNumber
+                      className="agent-memory__compact-keep"
+                      size="small"
+                      min={0}
+                      max={compactableCount}
+                      value={compactKeepRecent}
+                      onChange={(value) =>
+                        setCompactKeepRecent(typeof value === "number" ? value : 0)
+                      }
+                    />
+                  </Tooltip>
+                  <span className="agent-memory__compact-keep-label">оставить</span>
                   <Button size="small" onClick={onResetCompaction}>Сбросить сжатие</Button>
                 </div>
                 <span className="agent-memory__toolbar-divider" aria-hidden />
@@ -418,7 +432,13 @@ export default function AgentMemoryPage() {
                   <Button size="small" danger onClick={onClearDialog}>Очистить диалог</Button>
                 </div>
               </div>
-              <p className="agent-memory__compact-hint">{compactionHint(detail.compaction)}</p>
+              <p className="agent-memory__compact-hint">
+                {compactionHint(
+                  compactableCount,
+                  compactKeepRecent,
+                  detail.compaction.compactionAvailable,
+                )}
+              </p>
             </MemorySection>
 
             <div className="agent-memory__grid">

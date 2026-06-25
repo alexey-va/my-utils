@@ -46,10 +46,6 @@ export type AgentMemoryMessage = {
 export type AgentMemoryCompactionPreview = {
   compactionAvailable: boolean;
   compactableCount: number;
-  tailKeep: number;
-  threshold: number;
-  autoCompactCount: number;
-  manualCompactCount: number;
 };
 
 export type AgentMemoryChatDetail = {
@@ -143,10 +139,10 @@ export async function deleteAgentMessage(id: number): Promise<void> {
 
 export async function compactAgentMemory(
   chatId: number,
-  force = false,
+  keepRecent = 0,
 ): Promise<AgentMemoryCompactResult> {
   return apiClient.post<AgentMemoryCompactResult>(
-    `${BASE}/chats/${chatId}/compact?force=${force}`,
+    `${BASE}/chats/${chatId}/compact?keepRecent=${keepRecent}`,
     undefined,
     { skipAuth: true },
   );
