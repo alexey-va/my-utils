@@ -1399,6 +1399,13 @@ textarea.generator-output {
   flex-shrink: 0;
 }
 
+.workout-exercises__name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workout-exercises__muted {
   color: var(--text-muted);
 }

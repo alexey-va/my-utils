@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Button, Empty, Popconfirm, Space, Table } from "antd";
+import { Button, Empty, Popconfirm, Space, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { Exercise, WorkoutGrid, WorkoutGridRow } from "../../api/types";
 import { computeRowRecords, lastSessionForRow } from "./workoutAnalytics";
@@ -96,7 +96,13 @@ function WorkoutExerciseTable({
       title: "Exercise",
       dataIndex: "name",
       key: "name",
+      width: 200,
       ellipsis: true,
+      render: (name: string) => (
+        <Tooltip title={name} placement="topLeft">
+          <span className="workout-exercises__name">{name}</span>
+        </Tooltip>
+      ),
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
@@ -216,7 +222,7 @@ function WorkoutExerciseTable({
           }}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 900, y: TABLE_BODY_HEIGHT }}
+          scroll={{ y: TABLE_BODY_HEIGHT }}
           locale={{
             emptyText: (
               <Empty
