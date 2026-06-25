@@ -1979,6 +1979,106 @@ textarea.generator-output {
   color: var(--text-muted);
 }
 
+.agent-traces-embed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 520px;
+}
+
+.agent-traces-embed__frame {
+  flex: 1;
+  min-height: 480px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: var(--linear-canvas);
+}
+
+.agents-page__tabs .ant-tabs-content {
+  min-height: 0;
+}
+
+.agent-memory {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  min-height: 520px;
+}
+
+.agent-memory__sidebar {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--linear-surface-1);
+  padding: 12px;
+  overflow: auto;
+}
+
+.agent-memory__sidebar-title {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.agent-memory__chat {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 4px;
+}
+
+.agent-memory__chat--active {
+  background: var(--linear-surface-2);
+}
+
+.agent-memory__chat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.agent-memory__chat-time {
+  font-size: 12px;
+}
+
+.agent-memory__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-memory__panel {
+  margin-bottom: 0;
+}
+
+.agent-memory__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.agent-memory__summary {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--linear-surface-2);
+}
+
+.agent-memory__summary-text {
+  margin: 8px 0 4px;
+}
+
+.agent-memory__message--excluded {
+  opacity: 0.55;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Temporal tab — iframe
    ═══════════════════════════════════════════════════════════════ */

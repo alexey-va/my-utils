@@ -37,7 +37,7 @@ export const featureCatalog: FeatureCatalogEntry[] = [
   {
     id: "agents",
     path: "/agents",
-    label: "Agent traces",
+    label: "Agents",
     icon: <MessageOutlined />,
   },
   {

@@ -5,7 +5,7 @@ import WorkoutPage from "../features/workout/WorkoutPage";
 import PropertiesPage from "../features/properties/PropertiesPage";
 import GrafanaPage from "../features/observability/GrafanaPage";
 import TemporalPage from "../features/temporal/TemporalPage";
-import AgentsPage from "../features/agents/AgentTracesPage";
+import AgentsPage from "../features/agents/AgentsPage";
 
 const pagesById: Record<string, AppFeature["Page"]> = {
   workout: WorkoutPage,
