@@ -24,7 +24,6 @@ import {
   fetchAgentMemoryChat,
   fetchAgentMemoryChats,
   fetchAgentMemoryMessages,
-  resetAgentCompaction,
   updateAgentFact,
   updateMessageExcluded,
   type AgentMemoryChatDetail,
@@ -174,19 +173,6 @@ export default function AgentMemoryPage() {
     } finally {
       setCompacting(false);
     }
-  };
-
-  const onResetCompaction = async () => {
-    if (selectedChatId == null) return;
-    Modal.confirm({
-      title: "Reset compaction?",
-      content: "Summary blocks will be removed; raw messages become active again.",
-      onOk: async () => {
-        const removed = await resetAgentCompaction(selectedChatId);
-        message.success(`Removed ${removed} summaries`);
-        await refreshAll();
-      },
-    });
   };
 
   const onClearDialog = async () => {
@@ -425,7 +411,6 @@ export default function AgentMemoryPage() {
                     />
                   </Tooltip>
                   <span className="agent-memory__compact-keep-label">оставить</span>
-                  <Button size="small" onClick={onResetCompaction}>Сбросить сжатие</Button>
                 </div>
                 <span className="agent-memory__toolbar-divider" aria-hidden />
                 <div className="agent-memory__toolbar-group">

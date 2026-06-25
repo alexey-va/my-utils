@@ -148,15 +148,6 @@ export async function compactAgentMemory(
   );
 }
 
-export async function resetAgentCompaction(chatId: number): Promise<number> {
-  const result = await apiClient.post<{ removedSummaries: number }>(
-    `${BASE}/chats/${chatId}/reset-compaction`,
-    undefined,
-    { skipAuth: true },
-  );
-  return result.removedSummaries;
-}
-
 export async function clearAgentDialog(chatId: number): Promise<void> {
   await apiClient.delete(`${BASE}/chats/${chatId}/dialog`, { skipAuth: true });
 }
