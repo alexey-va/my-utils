@@ -4,7 +4,6 @@ import {
   Empty,
   Input,
   Modal,
-  Switch,
   Tag,
   Tooltip,
   Typography,
@@ -32,6 +31,8 @@ import {
   type AgentMemoryMessage,
 } from "../../api/agentMemory";
 import { ApiError } from "../../api/errors";
+import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
+import { groupHistoryMessages } from "./agentMemoryFormat";
 
 function formatTime(value: string | null): string {
   if (!value) return "—";
@@ -41,19 +42,6 @@ function formatTime(value: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function roleLabel(role: string): string {
-  switch (role) {
-    case "user":
-      return "User";
-    case "assistant":
-      return "Assistant";
-    case "tool":
-      return "Tool";
-    default:
-      return role;
-  }
 }
 
 function MemorySection({
@@ -316,6 +304,8 @@ export default function AgentMemoryPage() {
     setNextBeforeId(page.nextBeforeId);
   };
 
+  const historyItems = groupHistoryMessages(history);
+
   return (
     <div className="agent-memory">
       <aside className="agent-memory__sidebar">
@@ -396,48 +386,19 @@ export default function AgentMemoryPage() {
                     <Typography.Text type="secondary">No messages yet.</Typography.Text>
                   ) : (
                     <ul className="agent-memory__thread">
-                      {history.map((row) => (
-                        <li
-                          key={row.id}
-                          className={
-                            row.excludedFromContext
-                              ? `agent-memory__message agent-memory__message--${row.role} agent-memory__message--excluded`
-                              : `agent-memory__message agent-memory__message--${row.role}`
+                      {historyItems.map((item) => (
+                        <AgentMemoryHistoryItem
+                          key={
+                            item.kind === "message"
+                              ? `m-${item.message.id}`
+                              : `tr-${item.assistant.id}`
                           }
-                        >
-                          <div className="agent-memory__message-head">
-                            <span className="agent-memory__role">{roleLabel(row.role)}</span>
-                            <time className="agent-memory__message-time">{formatTime(row.createdAt)}</time>
-                            {row.compactedIntoSummaryId ? (
-                              <Tag className="agent-memory__message-tag" color="purple">compacted</Tag>
-                            ) : null}
-                          </div>
-                          <p className="agent-memory__message-text">
-                            {row.content ?? row.rawJson}
-                          </p>
-                          <div className="agent-memory__message-actions">
-                            <Tooltip title={row.excludedFromContext ? "Excluded from context" : "Included in context"}>
-                              <Switch
-                                size="small"
-                                checked={row.excludedFromContext}
-                                loading={togglingMessageId === row.id}
-                                onChange={(checked) => onToggleExcluded(row, checked)}
-                                checkedChildren="skip"
-                                unCheckedChildren="ctx"
-                              />
-                            </Tooltip>
-                            <Tooltip title="Delete message">
-                              <Button
-                                type="text"
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                                aria-label="Delete message"
-                                onClick={() => onDeleteMessage(row.id)}
-                              />
-                            </Tooltip>
-                          </div>
-                        </li>
+                          item={item}
+                          formatTime={formatTime}
+                          togglingMessageId={togglingMessageId}
+                          onToggleExcluded={onToggleExcluded}
+                          onDeleteMessage={onDeleteMessage}
+                        />
                       ))}
                     </ul>
                   )}

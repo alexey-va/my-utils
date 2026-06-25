@@ -1,0 +1,103 @@
+import type { AgentMemoryMessage } from "../../api/agentMemory";
+
+export type ParsedToolCall = {
+  id: string;
+  name: string;
+  arguments: string;
+};
+
+export type ParsedChatMessage = {
+  role: string;
+  content: string | null;
+  toolCalls: ParsedToolCall[];
+  toolCallId: string | null;
+  toolName: string | null;
+};
+
+export type HistoryItem =
+  | { kind: "message"; message: AgentMemoryMessage }
+  | { kind: "tool-round"; assistant: AgentMemoryMessage; tools: AgentMemoryMessage[] };
+
+export function parseStoredMessage(msg: AgentMemoryMessage): ParsedChatMessage {
+  try {
+    const raw = JSON.parse(msg.rawJson) as Record<string, unknown>;
+    return {
+      role: typeof raw.role === "string" ? raw.role : msg.role,
+      content: raw.content != null ? String(raw.content) : msg.content,
+      toolCalls: parseToolCalls(raw.tool_calls),
+      toolCallId:
+        raw.tool_call_id != null ? String(raw.tool_call_id) : msg.toolCallId,
+      toolName: raw.name != null ? String(raw.name) : msg.toolName,
+    };
+  } catch {
+    return {
+      role: msg.role,
+      content: msg.content,
+      toolCalls: [],
+      toolCallId: msg.toolCallId,
+      toolName: msg.toolName,
+    };
+  }
+}
+
+function parseToolCalls(raw: unknown): ParsedToolCall[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      const tc = entry as Record<string, unknown>;
+      const fn = tc.function as Record<string, unknown> | undefined;
+      const id = tc.id != null ? String(tc.id) : "";
+      if (!id) return null;
+      return {
+        id,
+        name: fn?.name != null ? String(fn.name) : "tool",
+        arguments: fn?.arguments != null ? String(fn.arguments) : "{}",
+      };
+    })
+    .filter((tc): tc is ParsedToolCall => tc != null);
+}
+
+export function formatJsonString(source: string): { text: string; isJson: boolean } {
+  const trimmed = source.trim();
+  if (!trimmed) return { text: "", isJson: false };
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return { text: JSON.stringify(parsed, null, 2), isJson: true };
+  } catch {
+    return { text: source, isJson: false };
+  }
+}
+
+/** Group assistant tool_calls + following tool results; preserve newest-first display order. */
+export function groupHistoryMessages(messages: AgentMemoryMessage[]): HistoryItem[] {
+  const asc = [...messages].sort((a, b) => a.id - b.id);
+  const groups: HistoryItem[] = [];
+  let index = 0;
+
+  while (index < asc.length) {
+    const msg = asc[index];
+    const parsed = parseStoredMessage(msg);
+
+    if (msg.role === "assistant" && parsed.toolCalls.length > 0) {
+      const tools: AgentMemoryMessage[] = [];
+      let next = index + 1;
+      while (next < asc.length && asc[next].role === "tool") {
+        tools.push(asc[next]);
+        next += 1;
+      }
+      groups.push({ kind: "tool-round", assistant: msg, tools });
+      index = next;
+      continue;
+    }
+
+    groups.push({ kind: "message", message: msg });
+    index += 1;
+  }
+
+  return groups.reverse();
+}
+
+export function shortToolCallId(id: string): string {
+  if (id.length <= 10) return id;
+  return `${id.slice(0, 8)}…`;
+}
