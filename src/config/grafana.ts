@@ -6,6 +6,10 @@ export const DEFAULT_GRAFANA_EMBED_PATH =
 export const DEFAULT_GRAFANA_TIME_FROM = "now-7d";
 export const DEFAULT_GRAFANA_TIME_TO = "now";
 
+/** Time range for agent traces dashboard embed. */
+export const AGENT_TRACES_GRAFANA_TIME_FROM = "now-7d";
+export const AGENT_TRACES_GRAFANA_TIME_TO = "now";
+
 type GrafanaUrlOptions = {
   /** Path under /grafana/ (e.g. d/uid/slug). Falls back to DEFAULT_GRAFANA_EMBED_PATH. */
   path?: string;
@@ -29,8 +33,21 @@ export function grafanaEmbedUrl(options: GrafanaUrlOptions = {}): string {
     params.set("kiosk", "");
   }
   const useDefaultPath = options.path === undefined;
-  const from = options.from ?? (useDefaultPath ? DEFAULT_GRAFANA_TIME_FROM : undefined);
-  const to = options.to ?? (useDefaultPath ? DEFAULT_GRAFANA_TIME_TO : undefined);
+  const tracesPath = options.path?.includes("myutils-agent-traces");
+  const from =
+    options.from ??
+    (useDefaultPath
+      ? DEFAULT_GRAFANA_TIME_FROM
+      : tracesPath
+        ? AGENT_TRACES_GRAFANA_TIME_FROM
+        : undefined);
+  const to =
+    options.to ??
+    (useDefaultPath
+      ? DEFAULT_GRAFANA_TIME_TO
+      : tracesPath
+        ? AGENT_TRACES_GRAFANA_TIME_TO
+        : undefined);
   if (from) {
     params.set("from", from);
   }

@@ -7,7 +7,7 @@ const AGENT_TRACES_DASHBOARD = "d/myutils-agent-traces";
 
 export default function AgentTracesPage() {
   const navigate = useNavigate();
-  const src = grafanaEmbedUrl({ path: AGENT_TRACES_DASHBOARD, kiosk: true });
+  const src = grafanaEmbedUrl({ path: AGENT_TRACES_DASHBOARD });
 
   const leavePage = () => {
     if (document.activeElement instanceof HTMLElement) {
