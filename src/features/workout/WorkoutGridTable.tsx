@@ -3,7 +3,6 @@ import { Empty, Tooltip } from "antd";
 import type { Exercise, WorkoutCell, WorkoutGrid, WorkoutGridRow } from "../../api/types";
 import {
   cellVolume,
-  computeRowRecords,
   heatmapLevel,
   rowVolumeRange,
 } from "./workoutAnalytics";
@@ -78,10 +77,9 @@ function WorkoutGridTable({
     () =>
       sortRowsByMuscleGroup(
         grid.rows.map((row) => {
-          const records = computeRowRecords(row);
           const range = rowVolumeRange(row);
           const muscleGroup = muscleByExerciseId.get(row.exerciseId) ?? "other";
-          return { row, records, range, muscleGroup };
+          return { row, range, muscleGroup };
         }),
       ),
     [grid.rows, muscleByExerciseId],
@@ -116,8 +114,6 @@ function WorkoutGridTable({
           <span className="workout-grid__legend-swatch workout-grid__cell--level-4" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
           <span className="workout-grid__legend-hint">low → high</span>
-          <span className="workout-grid__legend-pr" aria-hidden />
-          <span className="workout-grid__legend-hint">PR</span>
         </div>
       </div>
       <div className="workout-grid__scroll">
@@ -140,7 +136,7 @@ function WorkoutGridTable({
             </tr>
           </thead>
           <tbody>
-            {rowMeta.map(({ row, records, range, muscleGroup }) => {
+            {rowMeta.map(({ row, range, muscleGroup }) => {
               const isSelected = row.exerciseId === selectedExerciseId;
               const groupColor = MUSCLE_GROUP_COLORS[muscleGroup];
 
@@ -174,26 +170,14 @@ function WorkoutGridTable({
 
                     const volume = cellVolume(cell);
                     const level = heatmapLevel(volume, range.min, range.max);
-                    const flags = records.byDate.get(date);
-                    const isPr = flags?.isPrWeight || flags?.isPrVolume;
-                    const cellClass = [
-                      "workout-grid__cell",
-                      `workout-grid__cell--level-${level}`,
-                      isPr ? "workout-grid__cell--pr" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
+                    const cellClass = `workout-grid__cell workout-grid__cell--level-${level}`;
 
                     const tooltip = [
                       row.exerciseName,
                       formatHeaderDate(date),
                       cell.display,
                       `${volume} kg volume`,
-                      flags?.isPrWeight ? "PR weight" : null,
-                      flags?.isPrVolume ? "PR volume" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ");
+                    ].join(" · ");
 
                     return (
                       <td key={date} className={cellClass}>
