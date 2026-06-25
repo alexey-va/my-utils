@@ -12,6 +12,7 @@ export type AgentMemoryFact = {
   id: string;
   chatId: number;
   content: string;
+  confidence: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -97,12 +98,28 @@ export async function fetchAgentMemoryMessages(
   );
 }
 
-export async function createAgentFact(chatId: number, content: string): Promise<AgentMemoryFact> {
-  return apiClient.post<AgentMemoryFact>(`${BASE}/chats/${chatId}/facts`, { content }, { skipAuth: true });
+export async function createAgentFact(
+  chatId: number,
+  content: string,
+  confidence?: number,
+): Promise<AgentMemoryFact> {
+  return apiClient.post<AgentMemoryFact>(
+    `${BASE}/chats/${chatId}/facts`,
+    { content, confidence },
+    { skipAuth: true },
+  );
 }
 
-export async function updateAgentFact(id: string, content: string): Promise<AgentMemoryFact> {
-  return apiClient.put<AgentMemoryFact>(`${BASE}/facts/${id}`, { content }, { skipAuth: true });
+export async function updateAgentFact(
+  id: string,
+  content: string,
+  confidence?: number,
+): Promise<AgentMemoryFact> {
+  return apiClient.put<AgentMemoryFact>(
+    `${BASE}/facts/${id}`,
+    { content, confidence },
+    { skipAuth: true },
+  );
 }
 
 export async function deleteAgentFact(id: string): Promise<void> {

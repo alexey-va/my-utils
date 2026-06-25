@@ -3,6 +3,7 @@ import {
   Button,
   Empty,
   Input,
+  InputNumber,
   Modal,
   Tag,
   Tooltip,
@@ -34,6 +35,24 @@ import { ApiError } from "../../api/errors";
 import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
 import { compactSkipReasonMessage, compactionHint } from "./agentMemoryCompaction";
 import { groupHistoryMessages } from "./agentMemoryFormat";
+
+function formatFactDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function confidenceLevel(value: number): "high" | "mid" | "low" {
+  if (value >= 0.8) return "high";
+  if (value >= 0.5) return "mid";
+  return "low";
+}
+
+function formatConfidenceLabel(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
 
 function formatTime(value: string | null): string {
   if (!value) return "—";
@@ -75,8 +94,10 @@ export default function AgentMemoryPage() {
   const [nextBeforeId, setNextBeforeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [factDraft, setFactDraft] = useState("");
+  const [factConfidence, setFactConfidence] = useState(1);
   const [editingFactId, setEditingFactId] = useState<string | null>(null);
   const [editingFactContent, setEditingFactContent] = useState("");
+  const [editingFactConfidence, setEditingFactConfidence] = useState(1);
 
   const [apiError, setApiError] = useState<string | null>(null);
   const [togglingMessageId, setTogglingMessageId] = useState<number | null>(null);
@@ -185,8 +206,9 @@ export default function AgentMemoryPage() {
   const onAddFact = async () => {
     if (selectedChatId == null || !factDraft.trim()) return;
     try {
-      const fact = await createAgentFact(selectedChatId, factDraft.trim());
+      const fact = await createAgentFact(selectedChatId, factDraft.trim(), factConfidence);
       setFactDraft("");
+      setFactConfidence(1);
       setDetail((prev) => (prev ? { ...prev, facts: [...prev.facts, fact] } : prev));
       setChats((prev) =>
         prev.map((c) =>
@@ -201,9 +223,10 @@ export default function AgentMemoryPage() {
   const onSaveFact = async () => {
     if (!editingFactId || !editingFactContent.trim()) return;
     try {
-      const updated = await updateAgentFact(editingFactId, editingFactContent.trim());
+      const updated = await updateAgentFact(editingFactId, editingFactContent.trim(), editingFactConfidence);
       setEditingFactId(null);
       setEditingFactContent("");
+      setEditingFactConfidence(1);
       setDetail((prev) =>
         prev
           ? { ...prev, facts: prev.facts.map((f) => (f.id === updated.id ? updated : f)) }
@@ -441,6 +464,16 @@ export default function AgentMemoryPage() {
                       onChange={(e) => setFactDraft(e.target.value)}
                       onPressEnter={onAddFact}
                     />
+                    <Tooltip title="Уверенность 0–1 (1 = точно, 0.6 = гипотеза)">
+                      <InputNumber
+                        className="agent-memory__fact-confidence-input"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={factConfidence}
+                        onChange={(value) => setFactConfidence(typeof value === "number" ? value : 1)}
+                      />
+                    </Tooltip>
                     <Button type="primary" onClick={onAddFact} disabled={!factDraft.trim()}>
                       Add
                     </Button>
@@ -451,7 +484,19 @@ export default function AgentMemoryPage() {
                     <ul className="agent-memory__fact-list">
                       {detail.facts.map((fact) => (
                         <li key={fact.id} className="agent-memory__fact">
-                          <p className="agent-memory__fact-text">{fact.content}</p>
+                          <div className="agent-memory__fact-body">
+                            <p className="agent-memory__fact-text">{fact.content}</p>
+                            <div className="agent-memory__fact-meta">
+                              <time className="agent-memory__fact-date">
+                                {formatFactDate(fact.createdAt)}
+                              </time>
+                              <Tag
+                                className={`agent-memory__fact-confidence agent-memory__fact-confidence--${confidenceLevel(fact.confidence ?? 1)}`}
+                              >
+                                {formatConfidenceLabel(fact.confidence ?? 1)}
+                              </Tag>
+                            </div>
+                          </div>
                           <div className="agent-memory__fact-actions">
                             <Tooltip title="Edit">
                               <Button
@@ -462,6 +507,7 @@ export default function AgentMemoryPage() {
                                 onClick={() => {
                                   setEditingFactId(fact.id);
                                   setEditingFactContent(fact.content);
+                                  setEditingFactConfidence(fact.confidence);
                                 }}
                               />
                             </Tooltip>
@@ -518,9 +564,20 @@ export default function AgentMemoryPage() {
         onCancel={() => {
           setEditingFactId(null);
           setEditingFactContent("");
+          setEditingFactConfidence(1);
         }}
       >
         <Input.TextArea rows={4} value={editingFactContent} onChange={(e) => setEditingFactContent(e.target.value)} />
+        <div className="agent-memory__fact-edit-confidence">
+          <Typography.Text type="secondary">Уверенность (0–1)</Typography.Text>
+          <InputNumber
+            min={0}
+            max={1}
+            step={0.05}
+            value={editingFactConfidence}
+            onChange={(value) => setEditingFactConfidence(typeof value === "number" ? value : 1)}
+          />
+        </div>
       </Modal>
     </div>
   );

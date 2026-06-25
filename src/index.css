@@ -2554,6 +2554,58 @@ textarea.generator-output {
   background: var(--linear-surface-1);
 }
 
+.agent-memory__fact-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-memory__fact-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.agent-memory__fact-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.agent-memory__fact-confidence {
+  margin: 0;
+  font-size: 11px;
+  line-height: 18px;
+  border: none;
+}
+
+.agent-memory__fact-confidence--high {
+  color: #15803d;
+  background: color-mix(in srgb, #22c55e 14%, var(--linear-surface-1));
+}
+
+.agent-memory__fact-confidence--mid {
+  color: #a16207;
+  background: color-mix(in srgb, #f59e0b 14%, var(--linear-surface-1));
+}
+
+.agent-memory__fact-confidence--low {
+  color: #b45309;
+  background: color-mix(in srgb, #f97316 12%, var(--linear-surface-1));
+}
+
+.agent-memory__fact-confidence-input {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.agent-memory__fact-edit-confidence {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .agent-memory__fact-text {
   flex: 1;
   min-width: 0;
