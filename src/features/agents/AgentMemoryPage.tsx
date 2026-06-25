@@ -32,6 +32,7 @@ import {
 } from "../../api/agentMemory";
 import { ApiError } from "../../api/errors";
 import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
+import { compactSkipReasonMessage, compactionHint } from "./agentMemoryCompaction";
 import { groupHistoryMessages } from "./agentMemoryFormat";
 
 function formatTime(value: string | null): string {
@@ -79,6 +80,7 @@ export default function AgentMemoryPage() {
 
   const [apiError, setApiError] = useState<string | null>(null);
   const [togglingMessageId, setTogglingMessageId] = useState<number | null>(null);
+  const [compacting, setCompacting] = useState(false);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -133,18 +135,23 @@ export default function AgentMemoryPage() {
     await refreshChat();
   };
 
-  const onCompact = async (force = false) => {
+  const onManualCompact = async () => {
     if (selectedChatId == null) return;
+    setCompacting(true);
     try {
-      const result = await compactAgentMemory(selectedChatId, force);
-      message.success(
-        result.compacted
-          ? `Compacted ${result.messageCount} messages`
-          : "Nothing to compact",
-      );
-      await refreshAll();
+      const result = await compactAgentMemory(selectedChatId, true);
+      if (result.compacted) {
+        message.success(`Сжато ${result.messageCount} сообщений в summary`);
+        await refreshAll();
+      } else {
+        message.warning(
+          compactSkipReasonMessage(result.reason, detail?.compaction),
+        );
+      }
     } catch (error) {
-      message.error(error instanceof ApiError ? error.message : "Compact failed");
+      message.error(error instanceof ApiError ? error.displayMessage() : "Compact failed");
+    } finally {
+      setCompacting(false);
     }
   };
 
@@ -368,15 +375,27 @@ export default function AgentMemoryPage() {
             >
               <div className="agent-memory__toolbar">
                 <div className="agent-memory__toolbar-group">
-                  <Button size="small" onClick={() => onCompact(false)}>Compact</Button>
-                  <Button size="small" onClick={() => onCompact(true)}>Force compact</Button>
+                  <Button
+                    size="small"
+                    loading={compacting}
+                    disabled={
+                      !detail.compaction.compactionAvailable
+                      || detail.compaction.manualCompactCount <= 0
+                    }
+                    onClick={onManualCompact}
+                  >
+                    {detail.compaction.manualCompactCount > 0
+                      ? `Сжать ${detail.compaction.manualCompactCount} сообщ.`
+                      : "Сжать"}
+                  </Button>
+                  <Button size="small" onClick={onResetCompaction}>Сбросить сжатие</Button>
                 </div>
                 <span className="agent-memory__toolbar-divider" aria-hidden />
                 <div className="agent-memory__toolbar-group">
-                  <Button size="small" onClick={onResetCompaction}>Reset compaction</Button>
-                  <Button size="small" danger onClick={onClearDialog}>Clear dialog</Button>
+                  <Button size="small" danger onClick={onClearDialog}>Очистить диалог</Button>
                 </div>
               </div>
+              <p className="agent-memory__compact-hint">{compactionHint(detail.compaction)}</p>
             </MemorySection>
 
             <div className="agent-memory__grid">

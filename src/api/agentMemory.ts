@@ -42,12 +42,22 @@ export type AgentMemoryMessage = {
   rawJson: string;
 };
 
+export type AgentMemoryCompactionPreview = {
+  compactionAvailable: boolean;
+  compactableCount: number;
+  tailKeep: number;
+  threshold: number;
+  autoCompactCount: number;
+  manualCompactCount: number;
+};
+
 export type AgentMemoryChatDetail = {
   chatId: number;
   stats: AgentMemoryChatSummary;
   summaries: AgentMemorySummary[];
   facts: AgentMemoryFact[];
   recentContextMessageCount: number;
+  compaction: AgentMemoryCompactionPreview;
 };
 
 export type AgentMemoryMessagePage = {
@@ -59,6 +69,7 @@ export type AgentMemoryCompactResult = {
   compacted: boolean;
   messageCount: number;
   summaryId: string | null;
+  reason?: string | null;
 };
 
 const BASE = "/api/admin/agent-memory";
