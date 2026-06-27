@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Collapse,
@@ -25,6 +25,12 @@ import {
 } from "../../api/properties";
 import { ApiError } from "../../api/errors";
 import PropertyTextareaModal from "./PropertyTextareaModal";
+import {
+  parseValueForSave,
+  typeColor,
+  valueAsString,
+  valuesEqual,
+} from "./propertyValueUtils";
 
 type RowState = {
   draft: unknown;
@@ -41,31 +47,8 @@ const TAG_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-function typeColor(type: PropertyType): string {
-  switch (type) {
-    case "BOOLEAN":
-      return "blue";
-    case "INT":
-    case "LONG":
-    case "DOUBLE":
-      return "green";
-    case "STRING":
-      return "gold";
-    case "OBJECT":
-      return "purple";
-    default:
-      return "default";
-  }
-}
-
 function tagLabel(tag: string): string {
   return TAG_LABELS[tag] ?? tag;
-}
-
-function valueAsString(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value == null) return "";
-  return String(value);
 }
 
 function ValueEditor({
@@ -93,7 +76,15 @@ function ValueEditor({
         <Typography.Text type="secondary" className="properties-editor__textarea-meta">
           {lineCount} строк · {text.length.toLocaleString()} символов
         </Typography.Text>
-        <Button type="link" icon={<EditOutlined />} onClick={onOpenTextarea} className="properties-editor__edit-link">
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenTextarea();
+          }}
+          className="properties-editor__edit-link"
+        >
           Открыть редактор
         </Button>
       </div>
@@ -152,17 +143,6 @@ function ValueEditor({
   }
 }
 
-function parseValueForSave(property: RuntimeProperty, draft: unknown): unknown {
-  if (property.type === "OBJECT") {
-    const raw = typeof draft === "string" ? draft : JSON.stringify(draft);
-    return JSON.parse(raw) as unknown;
-  }
-  if (property.type === "STRING" && typeof draft === "string") {
-    return draft;
-  }
-  return draft;
-}
-
 function matchesSearch(property: RuntimeProperty, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -185,6 +165,12 @@ export default function PropertiesPage() {
   const [typeFilter, setTypeFilter] = useState<PropertyType[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [textareaKey, setTextareaKey] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+
+  const propertiesRef = useRef(properties);
+  propertiesRef.current = properties;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -237,46 +223,84 @@ export default function PropertiesPage() {
       }));
   }, [filteredProperties]);
 
+  const dirtyCount = useMemo(
+    () => Object.values(rows).filter((row) => row.dirty && !row.saving).length,
+    [rows],
+  );
+
   const setDraft = (key: string, draft: unknown) => {
+    const property = propertiesRef.current.find((p) => p.key === key);
+    const dirty = property ? !valuesEqual(property, draft, property.value) : true;
     setRows((prev) => ({
       ...prev,
-      [key]: { ...prev[key], draft, dirty: true },
+      [key]: { ...prev[key], draft, dirty, saving: prev[key]?.saving ?? false },
     }));
   };
 
-  const save = async (property: RuntimeProperty) => {
-    const row = rows[property.key];
-    if (!row) return;
+  const saveProperty = useCallback(async (key: string, draftOverride?: unknown) => {
+    const property = propertiesRef.current.find((p) => p.key === key);
+    if (!property) return false;
+
+    const row = rowsRef.current[key];
+    const draft = draftOverride ?? row?.draft;
+    if (draft === undefined) return false;
+
+    if (draftOverride == null && row && !row.dirty) {
+      return true;
+    }
 
     let parsed: unknown;
     try {
-      parsed = parseValueForSave(property, row.draft);
+      parsed = parseValueForSave(property, draft);
     } catch {
       message.error(`Невалидный JSON для ${property.key}`);
-      return;
+      return false;
+    }
+
+    if (valuesEqual(property, parsed, property.value)) {
+      setRows((prev) => ({
+        ...prev,
+        [key]: { draft: property.value, dirty: false, saving: false },
+      }));
+      return true;
     }
 
     setRows((prev) => ({
       ...prev,
-      [property.key]: { ...prev[property.key], saving: true },
+      [key]: { ...prev[key], draft, saving: true },
     }));
 
     try {
-      const updated = await updateProperty(property.key, parsed);
-      setProperties((list) =>
-        list.map((p) => (p.key === updated.key ? updated : p)),
-      );
+      const updated = await updateProperty(key, parsed);
+      setProperties((list) => list.map((p) => (p.key === updated.key ? updated : p)));
       setRows((prev) => ({
         ...prev,
-        [property.key]: { draft: updated.value, dirty: false, saving: false },
+        [key]: { draft: updated.value, dirty: false, saving: false },
       }));
       message.success(`Сохранено: ${property.key}`);
+      return true;
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : "Ошибка сохранения");
       setRows((prev) => ({
         ...prev,
-        [property.key]: { ...prev[property.key], saving: false },
+        [key]: { ...prev[key], saving: false },
       }));
+      return false;
+    }
+  }, []);
+
+  const saveAllDirty = async () => {
+    const keys = propertiesRef.current
+      .map((p) => p.key)
+      .filter((key) => rowsRef.current[key]?.dirty && !rowsRef.current[key]?.saving);
+    if (keys.length === 0) return;
+    setSavingAll(true);
+    try {
+      for (const key of keys) {
+        await saveProperty(key);
+      }
+    } finally {
+      setSavingAll(false);
     }
   };
 
@@ -343,10 +367,14 @@ export default function PropertiesPage() {
         return (
           <Button
             type="primary"
+            htmlType="button"
             icon={<SaveOutlined />}
-            disabled={!row.dirty || row.saving}
+            disabled={!row.dirty || row.saving || savingAll}
             loading={row.saving}
-            onClick={() => void save(property)}
+            onClick={(e) => {
+              e.stopPropagation();
+              void saveProperty(property.key);
+            }}
           >
             Save
           </Button>
@@ -365,9 +393,21 @@ export default function PropertiesPage() {
       title="Properties"
       subtitle="Runtime-настройки API (пока без авторизации)"
       actions={
-        <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
-          Reload
-        </Button>
+        <Space>
+          {dirtyCount > 0 ? (
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={savingAll}
+              onClick={() => void saveAllDirty()}
+            >
+              Save all ({dirtyCount})
+            </Button>
+          ) : null}
+          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+            Reload
+          </Button>
+        </Space>
       }
     >
       <AppPanel className="properties-editor">
@@ -444,11 +484,12 @@ export default function PropertiesPage() {
           title={textareaProperty.key}
           description={textareaProperty.description}
           value={valueAsString(textareaRow.draft)}
-          saving={textareaRow.saving}
+          saving={textareaRow.saving || savingAll}
           onClose={() => setTextareaKey(null)}
           onSave={(next) => {
-            setDraft(textareaProperty.key, next);
             setTextareaKey(null);
+            setDraft(textareaProperty.key, next);
+            void saveProperty(textareaProperty.key, next);
           }}
         />
       ) : null}

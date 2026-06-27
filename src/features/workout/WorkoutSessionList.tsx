@@ -68,7 +68,10 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
       width: "12%",
       align: "center",
       ellipsis: true,
-      render: (_, r) => `${r.setCount}×${r.repsPerSet}`,
+      render: (_, r) =>
+        r.setReps?.length
+          ? r.setReps.join("/")
+          : `${r.setCount}×${r.repsPerSet}`,
     },
     {
       title: "Max",

@@ -18,6 +18,7 @@ export type WorkoutCell = {
   setCount: number;
   repsPerSet: number;
   maxReps: number;
+  setReps?: number[] | null;
   display: string;
 };
 
@@ -39,6 +40,7 @@ export type UpsertWorkoutEntryRequest = {
   setCount: number;
   repsPerSet: number;
   maxReps: number;
+  setReps?: number[] | null;
 };
 
 export type ProgressPoint = {
@@ -47,6 +49,7 @@ export type ProgressPoint = {
   setCount: number;
   repsPerSet: number;
   maxReps: number;
+  setReps?: number[] | null;
   volume: number;
 };
 

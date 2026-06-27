@@ -22,6 +22,8 @@ export async function fetchProperties(): Promise<RuntimeProperty[]> {
 }
 
 export async function updateProperty(key: string, value: unknown): Promise<RuntimeProperty> {
-  const path = `/api/admin/settings/${encodeURIComponent(key)}`;
+  // Spring может «съесть» точки в @PathVariable — кодируем их явно.
+  const pathKey = key.replace(/\./g, "%2E");
+  const path = `/api/admin/settings/${pathKey}`;
   return apiClient.put<RuntimeProperty>(path, { value }, { skipAuth: true });
 }

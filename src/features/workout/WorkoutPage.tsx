@@ -45,6 +45,7 @@ function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntry
     setCount: 3,
     repsPerSet: 10,
     maxReps: 10,
+    repsPattern: "10",
   };
 }
 

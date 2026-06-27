@@ -6,6 +6,7 @@ import type {
   WorkoutGrid,
   WorkoutGridRow,
 } from "../../api/types";
+import { cellVolume as cellVolumeFromReps } from "./workoutSetReps";
 import {
   MUSCLE_GROUP_LABELS,
   type MuscleGroup,
@@ -57,7 +58,7 @@ export type WeeklySummary = {
 };
 
 export function cellVolume(cell: WorkoutCell): number {
-  return cell.weightKg * cell.setCount * cell.repsPerSet;
+  return cellVolumeFromReps(cell.weightKg, cell);
 }
 
 export function computeRowRecords(row: WorkoutGridRow): RowRecords {

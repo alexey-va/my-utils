@@ -1,15 +1,14 @@
 import { useEffect } from "react";
-import { Button, DatePicker, Form, InputNumber, Popconfirm, Space } from "antd";
+import { Button, DatePicker, Form, Input, InputNumber, Popconfirm, Space, message } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import type { UpsertWorkoutEntryRequest, WorkoutCell } from "../../api/types";
 import type { WorkoutEntryDraft } from "./types";
+import { parseRepsPattern, repsPatternFromCell } from "./workoutSetReps";
 
 type FormValues = {
   performedOn: Dayjs;
   weightKg: number;
-  setCount: number;
-  repsPerSet: number;
-  maxReps: number;
+  repsPattern: string;
 };
 
 type Props = {
@@ -25,9 +24,7 @@ function draftToFormValues(draft: WorkoutEntryDraft): FormValues {
   return {
     performedOn: dayjs(`${draft.performedOn}T12:00:00`),
     weightKg: draft.weightKg,
-    setCount: draft.setCount,
-    repsPerSet: draft.repsPerSet,
-    maxReps: draft.maxReps,
+    repsPattern: draft.repsPattern ?? String(draft.repsPerSet),
   };
 }
 
@@ -35,9 +32,7 @@ function lastSessionToFormValues(cell: WorkoutCell, performedOn: Dayjs): FormVal
   return {
     performedOn,
     weightKg: cell.weightKg,
-    setCount: cell.setCount,
-    repsPerSet: cell.repsPerSet,
-    maxReps: cell.maxReps,
+    repsPattern: repsPatternFromCell(cell),
   };
 }
 
@@ -47,6 +42,36 @@ function bumpWeight(
 ) {
   const current = form.getFieldValue("weightKg") ?? 0;
   form.setFieldValue("weightKg", Math.max(1, Math.round(current + delta)));
+}
+
+function buildUpsertPayload(
+  draft: WorkoutEntryDraft,
+  values: FormValues,
+): UpsertWorkoutEntryRequest {
+  const reps = parseRepsPattern(values.repsPattern);
+  if (!reps?.length) {
+    throw new Error("Enter reps per set, e.g. 10/10/9/9");
+  }
+  if (reps.length === 1) {
+    const repsPerSet = reps[0];
+    return {
+      exerciseId: draft.exerciseId,
+      performedOn: values.performedOn.format("YYYY-MM-DD"),
+      weightKg: Math.round(values.weightKg),
+      setCount: draft.setCount,
+      repsPerSet,
+      maxReps: repsPerSet,
+    };
+  }
+  return {
+    exerciseId: draft.exerciseId,
+    performedOn: values.performedOn.format("YYYY-MM-DD"),
+    weightKg: Math.round(values.weightKg),
+    setCount: reps.length,
+    repsPerSet: Math.min(...reps),
+    maxReps: Math.max(...reps),
+    setReps: reps,
+  };
 }
 
 export default function WorkoutEntryForm({
@@ -78,14 +103,11 @@ export default function WorkoutEntryForm({
         autoComplete="off"
         className="workout-form"
         onFinish={async (values) => {
-          await onSubmit({
-            exerciseId: draft.exerciseId,
-            performedOn: values.performedOn.format("YYYY-MM-DD"),
-            weightKg: Math.round(values.weightKg),
-            setCount: values.setCount,
-            repsPerSet: values.repsPerSet,
-            maxReps: values.maxReps,
-          });
+          try {
+            await onSubmit(buildUpsertPayload(draft, values));
+          } catch (error) {
+            message.error(error instanceof Error ? error.message : "Invalid reps pattern");
+          }
         }}
       >
         <div className="workout-form__grid">
@@ -124,25 +146,17 @@ export default function WorkoutEntryForm({
             </Space>
           </Form.Item>
           <Form.Item
-            name="setCount"
-            label="Sets"
-            rules={[{ required: true, message: "Enter sets" }]}
-          >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            name="repsPerSet"
+            name="repsPattern"
             label="Reps per set"
+            extra="Uniform: 10 · Classic: 10/10/10/12 · Variable: 10/10/9/9"
             rules={[{ required: true, message: "Enter reps" }]}
+            className="workout-form__reps-pattern"
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            name="maxReps"
-            label="Max on last set"
-            rules={[{ required: true, message: "Enter max reps" }]}
-          >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
+            <Input
+              className="workout-form__full"
+              placeholder="10/10/9/9"
+              autoComplete="off"
+            />
           </Form.Item>
         </div>
         <div className="workout-form__actions">

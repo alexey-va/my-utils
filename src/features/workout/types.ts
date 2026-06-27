@@ -1,5 +1,6 @@
 import type { MuscleGroup } from "./workoutMuscleGroups";
 import type { ProgressPoint, WorkoutCell } from "../../api/types";
+import { formatRepsPattern, repsPatternFromCell } from "./workoutSetReps";
 
 export type WorkoutEntryDraft = {
   key: string;
@@ -10,6 +11,8 @@ export type WorkoutEntryDraft = {
   setCount: number;
   repsPerSet: number;
   maxReps: number;
+  setReps?: number[] | null;
+  repsPattern?: string;
 };
 
 export type ExerciseDraft = {
@@ -45,6 +48,15 @@ export function entryDraftFromPoint(
     setCount: point.setCount,
     repsPerSet: point.repsPerSet,
     maxReps: point.maxReps,
+    setReps: point.setReps ?? null,
+    repsPattern: point.setReps?.length
+      ? formatRepsPattern(point.setReps)
+      : point.maxReps !== point.repsPerSet
+        ? formatRepsPattern([
+            ...Array.from({ length: point.setCount }, () => point.repsPerSet),
+            point.maxReps,
+          ])
+        : String(point.repsPerSet),
   };
 }
 
@@ -63,5 +75,7 @@ export function entryDraftFromCell(
     setCount: cell.setCount,
     repsPerSet: cell.repsPerSet,
     maxReps: cell.maxReps,
+    setReps: cell.setReps ?? null,
+    repsPattern: repsPatternFromCell(cell),
   };
 }
