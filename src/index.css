@@ -666,6 +666,9 @@ textarea.generator-output {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: none;
+  height: auto;
+  overflow: visible;
 }
 
 .workout-toolbar {
@@ -706,11 +709,25 @@ textarea.generator-output {
 /* Workout log */
 .app-panel.workout-panel .ant-card-body {
   padding: 16px 20px 20px;
+  height: auto;
+  overflow: visible;
+}
+
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content:has(.workout-panel) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.app-page__body > .workout-panel.ant-card {
+  flex: none;
+  height: auto;
+  overflow: visible;
 }
 
 .workout-panel {
   overflow: visible;
 }
+
 
 .workout-shell {
   display: flex;
@@ -736,7 +753,11 @@ textarea.generator-output {
 }
 
 .workout-shell__log {
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: auto;
+  overflow: visible;
 }
 
 .workout-shell__log-header {
@@ -1317,10 +1338,13 @@ textarea.generator-output {
 
 .workout-grid {
   flex: none;
+  flex-shrink: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  height: auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .workout-grid__head {
@@ -1363,9 +1387,13 @@ textarea.generator-output {
 
 .workout-grid__scroll {
   flex: none;
-  min-height: 0;
+  flex-shrink: 0;
+  height: auto;
+  max-height: none;
+  min-height: auto;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: clip;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--linear-surface-1);
