@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
-import { Empty, Tooltip } from "antd";
-import type { Exercise, WorkoutCell, WorkoutGrid, WorkoutGridRow } from "../../api/types";
+import { memo, useCallback, useMemo, useState } from "react";
+import { Empty } from "antd";
+import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid, WorkoutGridRow } from "../../api/types";
 import {
   cellVolume,
   heatmapLevel,
@@ -13,14 +13,22 @@ import {
   normalizeMuscleGroup,
   type MuscleGroup,
 } from "./workoutMuscleGroups";
+import WorkoutGridCell, { WorkoutGridEmptyCell } from "./WorkoutGridCell";
+import type { WorkoutGridDragPayload } from "./workoutGridDnD";
 
 type Props = {
   exercises: Exercise[];
   grid: WorkoutGrid;
   selectedExerciseId?: string;
   loading?: boolean;
+  saving?: boolean;
   onSelectExercise: (exerciseId: string) => void;
-  onEditCell?: (exerciseId: string, exerciseName: string, date: string, cell: WorkoutCell) => void;
+  onMoveCell: (
+    from: WorkoutGridDragPayload,
+    toExerciseId: string,
+    toDate: string,
+  ) => Promise<void>;
+  onUpdateCell: (payload: UpsertWorkoutEntryRequest) => Promise<void>;
 };
 
 function formatHeaderDate(iso: string): string {
@@ -59,9 +67,13 @@ function WorkoutGridTable({
   grid,
   selectedExerciseId,
   loading,
+  saving = false,
   onSelectExercise,
-  onEditCell,
+  onMoveCell,
+  onUpdateCell,
 }: Props) {
+  const [dragging, setDragging] = useState<WorkoutGridDragPayload | null>(null);
+
   const muscleByExerciseId = useMemo(
     () =>
       new Map(
@@ -93,6 +105,27 @@ function WorkoutGridTable({
     return map;
   }, [grid.dates, grid.rows]);
 
+  const isDropTarget = useCallback(
+    (exerciseId: string, date: string, hasCell: boolean) => {
+      if (!dragging || hasCell || saving) {
+        return false;
+      }
+      if (dragging.exerciseId === exerciseId && dragging.fromDate === date) {
+        return false;
+      }
+      return true;
+    },
+    [dragging, saving],
+  );
+
+  const handleMove = useCallback(
+    async (from: WorkoutGridDragPayload, toExerciseId: string, toDate: string) => {
+      setDragging(null);
+      await onMoveCell(from, toExerciseId, toDate);
+    },
+    [onMoveCell],
+  );
+
   if (!loading && grid.rows.length === 0) {
     return (
       <div className="workout-grid">
@@ -114,9 +147,15 @@ function WorkoutGridTable({
           <span className="workout-grid__legend-swatch workout-grid__cell--level-4" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
           <span className="workout-grid__legend-hint">low → high</span>
+          <span className="workout-grid__legend-hint workout-grid__legend-interaction">
+            · drag cell · click to edit
+          </span>
         </div>
       </div>
-      <div className="workout-grid__scroll">
+      <div
+        className="workout-grid__scroll"
+        onDragEnd={() => setDragging(null)}
+      >
         <table className="workout-grid__table">
           <thead>
             <tr>
@@ -164,7 +203,14 @@ function WorkoutGridTable({
                     const cell = row.cells[date];
                     if (!cell) {
                       return (
-                        <td key={date} className="workout-grid__cell workout-grid__cell--empty" />
+                        <WorkoutGridEmptyCell
+                          key={date}
+                          exerciseId={row.exerciseId}
+                          date={date}
+                          saving={saving}
+                          dropHighlight={isDropTarget(row.exerciseId, date, false)}
+                          onMove={handleMove}
+                        />
                       );
                     }
 
@@ -180,22 +226,22 @@ function WorkoutGridTable({
                     ].join(" · ");
 
                     return (
-                      <td key={date} className={cellClass}>
-                        <Tooltip title={tooltip} placement="top">
-                          <button
-                            type="button"
-                            className="workout-grid__cell-btn"
-                            onClick={() => {
-                              onSelectExercise(row.exerciseId);
-                              if (onEditCell) {
-                                onEditCell(row.exerciseId, row.exerciseName, date, cell);
-                              }
-                            }}
-                          >
-                            {cell.display}
-                          </button>
-                        </Tooltip>
-                      </td>
+                      <WorkoutGridCell
+                        key={date}
+                        exerciseId={row.exerciseId}
+                        date={date}
+                        cell={cell}
+                        cellClass={cellClass}
+                        tooltip={tooltip}
+                        saving={saving}
+                        dropHighlight={isDropTarget(row.exerciseId, date, true)}
+                        onSelectExercise={onSelectExercise}
+                        onMove={handleMove}
+                        onUpdate={onUpdateCell}
+                        onDragBegin={() =>
+                          setDragging({ exerciseId: row.exerciseId, fromDate: date })
+                        }
+                      />
                     );
                   })}
                 </tr>

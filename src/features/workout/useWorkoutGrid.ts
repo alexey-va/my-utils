@@ -3,6 +3,7 @@ import { message } from "antd";
 import { apiClient, ApiError } from "../../api";
 import { apiEndpoints } from "../../api/endpoints";
 import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid } from "../../api/types";
+import { upsertRequestFromCell } from "./workoutEntryPayload";
 
 export function useWorkoutGrid() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -124,6 +125,44 @@ export function useWorkoutGrid() {
     [reload],
   );
 
+  const moveEntry = useCallback(
+    async (
+      from: { exerciseId: string; fromDate: string },
+      toExerciseId: string,
+      toDate: string,
+    ) => {
+      if (from.exerciseId === toExerciseId && from.fromDate === toDate) {
+        return;
+      }
+      const sourceRow = grid.rows.find((r) => r.exerciseId === from.exerciseId);
+      const cell = sourceRow?.cells[from.fromDate];
+      if (!cell) {
+        message.error("Source session not found");
+        return;
+      }
+      const targetRow = grid.rows.find((r) => r.exerciseId === toExerciseId);
+      if (targetRow?.cells[toDate]) {
+        message.warning("Target cell already has a session — pick an empty cell");
+        return;
+      }
+      setSaving(true);
+      try {
+        const payload = upsertRequestFromCell(toExerciseId, toDate, cell);
+        await apiClient.post<void>(apiEndpoints.workouts.entries, payload);
+        await apiClient.delete(apiEndpoints.workouts.entry(from.exerciseId, from.fromDate));
+        message.success("Session moved");
+        await reload();
+      } catch (err) {
+        const text = err instanceof ApiError ? err.message : "Failed to move session";
+        message.error(text);
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [grid.rows, reload],
+  );
+
   return {
     exercises,
     grid,
@@ -136,6 +175,7 @@ export function useWorkoutGrid() {
     deleteExercise,
     saveEntry,
     deleteEntry,
+    moveEntry,
     reload,
   };
 }

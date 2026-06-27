@@ -26,7 +26,6 @@ import WorkoutProgressPanel from "./WorkoutProgressPanel";
 import {
   exerciseDraftFromExercise,
   exerciseDraftNew,
-  entryDraftFromCell,
   entryDraftFromPoint,
   type ExerciseDraft,
   type WorkoutEntryDraft,
@@ -62,6 +61,7 @@ export default function WorkoutPage() {
     deleteExercise,
     saveEntry,
     deleteEntry,
+    moveEntry,
   } = useWorkoutGrid();
 
   const [metric, setMetric] = useState<ProgressMetric>("weight");
@@ -227,12 +227,15 @@ export default function WorkoutPage() {
                 grid={grid}
                 selectedExerciseId={selectedExerciseId}
                 loading={loading}
+                saving={saving}
                 onSelectExercise={selectExercise}
-                onEditCell={(exerciseId, exerciseName, date, cell) => {
-                  setEntryModal({
-                    isEdit: true,
-                    draft: entryDraftFromCell(exerciseId, exerciseName, date, cell),
-                  });
+                onMoveCell={async (from, toExerciseId, toDate) => {
+                  await moveEntry(from, toExerciseId, toDate);
+                  setProgressRefreshKey((k) => k + 1);
+                }}
+                onUpdateCell={async (payload) => {
+                  await saveEntry(payload);
+                  setProgressRefreshKey((k) => k + 1);
                 }}
               />
             ) : (

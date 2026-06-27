@@ -1564,6 +1564,71 @@ textarea.generator-output {
   filter: brightness(1.08);
 }
 
+.workout-grid__cell-btn[draggable="true"] {
+  cursor: grab;
+}
+
+.workout-grid__cell-btn[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.workout-grid__cell--drop-target {
+  outline: 2px dashed color-mix(in srgb, #38bdf8 70%, transparent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, #38bdf8 12%, var(--linear-surface-1)) !important;
+}
+
+.workout-grid__cell--editing {
+  padding: 2px;
+  vertical-align: middle;
+}
+
+.workout-grid__cell-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  min-width: 68px;
+}
+
+.workout-grid__cell-edit-weight {
+  width: 100%;
+}
+
+.workout-grid__cell-edit-reps {
+  width: 100%;
+  font-size: 11px;
+}
+
+.workout-grid__cell-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.workout-grid__cell-edit-save,
+.workout-grid__cell-edit-cancel {
+  flex: 1;
+  padding: 2px 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--linear-surface-2);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--linear-ink-secondary);
+}
+
+.workout-grid__cell-edit-save:hover,
+.workout-grid__cell-edit-cancel:hover {
+  background: var(--linear-surface-3);
+  color: var(--linear-ink);
+}
+
+.workout-grid__legend-interaction {
+  margin-left: 8px;
+  opacity: 0.85;
+}
+
 .workout-progress__empty {
   margin: 0;
 }
