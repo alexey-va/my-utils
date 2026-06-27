@@ -232,25 +232,27 @@ export function computeWeeklySummary(grid: WorkoutGrid): WeeklySummary {
   };
 }
 
-/** Weight series in column order for mini sparkline. */
+/** Weight series in chronological order for mini sparkline. */
 export function rowWeightSeries(row: WorkoutGridRow, dates: string[]): number[] {
-  return dates
+  return [...dates]
+    .sort()
     .map((date) => row.cells[date]?.weightKg ?? 0)
     .filter((w) => w > 0);
 }
 
-/** Most recent logged session for a row (chronological `dates`). */
+/** Most recent logged session for a row (any column order). */
 export function lastSessionForRow(
   row: WorkoutGridRow,
   dates: string[],
 ): WorkoutCell | undefined {
-  for (let i = dates.length - 1; i >= 0; i--) {
-    const cell = row.cells[dates[i]];
-    if (cell) {
-      return cell;
+  let latest: { date: string; cell: WorkoutCell } | undefined;
+  for (const date of dates) {
+    const cell = row.cells[date];
+    if (cell && (!latest || date > latest.date)) {
+      latest = { date, cell };
     }
   }
-  return undefined;
+  return latest?.cell;
 }
 
 /** Previous session before `currentDate` on the same row. */
@@ -259,17 +261,14 @@ export function previousSessionCell(
   dates: string[],
   currentDate: string,
 ): WorkoutCell | undefined {
-  const idx = dates.indexOf(currentDate);
-  if (idx <= 0) {
-    return undefined;
-  }
-  for (let i = idx - 1; i >= 0; i--) {
-    const cell = row.cells[dates[i]];
-    if (cell) {
-      return cell;
+  let previous: { date: string; cell: WorkoutCell } | undefined;
+  for (const date of dates) {
+    const cell = row.cells[date];
+    if (cell && date < currentDate && (!previous || date > previous.date)) {
+      previous = { date, cell };
     }
   }
-  return undefined;
+  return previous?.cell;
 }
 
 export function formatCellTooltip(
