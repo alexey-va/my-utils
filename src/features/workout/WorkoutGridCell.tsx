@@ -14,7 +14,7 @@ export type WorkoutGridFilledCellProps = {
   suppressOpen?: boolean;
   onSelectExercise: (exerciseId: string) => void;
   onOpenEditor: (session: WorkoutGridCellEditorSession) => void;
-  onDragBegin?: (clientX: number, clientY: number) => void;
+  onDragPointerDown?: (clientX: number, clientY: number) => void;
   initialRepsPattern: string;
 };
 
@@ -30,17 +30,16 @@ export default function WorkoutGridFilledCell({
   suppressOpen,
   onSelectExercise,
   onOpenEditor,
-  onDragBegin,
+  onDragPointerDown,
   initialRepsPattern,
 }: WorkoutGridFilledCellProps) {
-  const startPointerDrag = (event: MouseEvent | TouchEvent) => {
-    event.preventDefault();
+  const queuePointerDrag = (event: MouseEvent | TouchEvent) => {
     event.stopPropagation();
     const point = "touches" in event ? event.touches[0] : event;
     if (!point) {
       return;
     }
-    onDragBegin?.(point.clientX, point.clientY);
+    onDragPointerDown?.(point.clientX, point.clientY);
   };
 
   const openEditor = () => {
@@ -76,19 +75,12 @@ export default function WorkoutGridFilledCell({
       data-empty="false"
     >
       <div className="workout-grid__cell-inner">
-        <span
-          className="workout-grid__cell-handle"
-          role="button"
-          tabIndex={-1}
-          aria-label="Drag to move"
-          title="Drag to move"
-          onMouseDown={startPointerDrag}
-          onTouchStart={startPointerDrag}
-        />
         <button
           type="button"
           className="workout-grid__cell-btn"
-          title={`${tooltip} · click to edit`}
+          title={`${tooltip} · drag to move · click to edit`}
+          onMouseDown={queuePointerDrag}
+          onTouchStart={queuePointerDrag}
           onClick={openEditor}
         >
           {cell.display}

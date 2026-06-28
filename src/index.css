@@ -1512,44 +1512,16 @@ textarea.generator-output {
 }
 
 .workout-grid__cell-inner {
-  display: flex;
-  align-items: stretch;
+  display: block;
   height: 36px;
   min-height: 36px;
-}
-
-.workout-grid__cell-handle {
-  flex: none;
-  width: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  color: color-mix(in srgb, currentColor 45%, transparent);
-  user-select: none;
-  touch-action: none;
-}
-
-.workout-grid__cell-handle::before {
-  content: "⋮";
-  font-size: 10px;
-  line-height: 1;
-  transform: rotate(90deg);
-}
-
-.workout-grid__cell-handle:hover {
-  color: color-mix(in srgb, currentColor 75%, transparent);
-}
-
-.workout-grid__cell-handle:active {
-  cursor: grabbing;
 }
 
 .workout-grid--dragging {
   user-select: none;
 }
 
-.workout-grid--dragging .workout-grid__cell-handle {
+.workout-grid--dragging .workout-grid__cell-btn {
   cursor: grabbing;
 }
 
@@ -1626,6 +1598,7 @@ textarea.generator-output {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   border-radius: 4px;
@@ -1641,12 +1614,10 @@ textarea.generator-output {
 @keyframes workout-grid-slot-in {
   from {
     opacity: 0.35;
-    transform: scale(0.94);
   }
 
   to {
     opacity: 0.72;
-    transform: scale(1);
   }
 }
 
@@ -1659,10 +1630,9 @@ textarea.generator-output {
 
 .workout-grid__cell-btn {
   display: block;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   height: 100%;
-  padding: 4px 4px 4px 0;
+  padding: 4px 6px;
   border: none;
   background: transparent;
   font-size: 11px;

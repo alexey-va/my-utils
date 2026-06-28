@@ -115,6 +115,14 @@ function WorkoutGridTable({
   const [clickSuppressed, setClickSuppressed] = useState(false);
   const dragMovedRef = useRef(false);
   const dragHoverRef = useRef<{ exerciseId: string; date: string } | null>(null);
+  const pendingDragRef = useRef<{
+    payload: WorkoutGridDragPayload;
+    display: string;
+    previewClass: string;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const [pendingDrag, setPendingDrag] = useState(false);
 
   const displayDates = useMemo(
     () => sortGridDatesNewestFirst(grid.dates),
@@ -192,17 +200,18 @@ function WorkoutGridTable({
       });
       setDragPointer({ x: clientX, y: clientY });
       setDragHoverTarget(null);
-      dragMovedRef.current = true;
+      dragMovedRef.current = false;
     },
     [],
   );
 
   const updateDragPointer = useCallback(
-    (clientX: number, clientY: number) => {
+    (clientX: number, clientY: number, payload?: WorkoutGridDragPayload) => {
       dragMovedRef.current = true;
       setDragPointer({ x: clientX, y: clientY });
 
-      if (!activeDrag) {
+      const dragPayload = payload ?? activeDrag?.payload;
+      if (!dragPayload) {
         return;
       }
 
@@ -210,7 +219,7 @@ function WorkoutGridTable({
       if (
         target
         && target.empty
-        && isValidDropTarget(activeDrag.payload, target.exerciseId, target.date, false)
+        && isValidDropTarget(dragPayload, target.exerciseId, target.date, false)
       ) {
         const nextHover = { exerciseId: target.exerciseId, date: target.date };
         setDragHoverTarget(nextHover);
@@ -223,7 +232,87 @@ function WorkoutGridTable({
     [activeDrag],
   );
 
-  const suppressEditorOpen = clickSuppressed || activeDrag != null;
+  const queueDrag = useCallback(
+    (
+      payload: WorkoutGridDragPayload,
+      display: string,
+      previewClass: string,
+      clientX: number,
+      clientY: number,
+    ) => {
+      pendingDragRef.current = {
+        payload,
+        display,
+        previewClass,
+        clientX,
+        clientY,
+      };
+      setPendingDrag(true);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!pendingDrag) {
+      return;
+    }
+
+    const startFromPending = (clientX: number, clientY: number) => {
+      const pending = pendingDragRef.current;
+      if (!pending) {
+        return;
+      }
+      pendingDragRef.current = null;
+      setPendingDrag(false);
+      beginDrag(
+        pending.payload,
+        pending.display,
+        pending.previewClass,
+        clientX,
+        clientY,
+      );
+      updateDragPointer(clientX, clientY, pending.payload);
+    };
+
+    const clearPending = () => {
+      pendingDragRef.current = null;
+      setPendingDrag(false);
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      startFromPending(event.clientX, event.clientY);
+    };
+
+    const onMouseUp = () => {
+      clearPending();
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      event.preventDefault();
+      startFromPending(touch.clientX, touch.clientY);
+    };
+
+    const onTouchEnd = () => {
+      clearPending();
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [pendingDrag, beginDrag, updateDragPointer]);
+
+  const suppressEditorOpen = clickSuppressed || activeDrag != null || pendingDrag;
 
   const handleEditorSave = useCallback(
     (session: WorkoutGridCellEditorSession, weightKg: number, repsPattern: string) => {
@@ -375,7 +464,7 @@ function WorkoutGridTable({
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
           <span className="workout-grid__legend-hint">low → high</span>
           <span className="workout-grid__legend-hint workout-grid__legend-interaction">
-            · newest ← left · grip handle to move · click to edit
+            · newest ← left · drag to move · click to edit
           </span>
         </div>
       </div>
@@ -480,8 +569,8 @@ function WorkoutGridTable({
                         initialRepsPattern={repsPatternFromCell(cell)}
                         onSelectExercise={onSelectExercise}
                         onOpenEditor={setEditorSession}
-                        onDragBegin={(clientX, clientY) =>
-                          beginDrag(
+                        onDragPointerDown={(clientX, clientY) =>
+                          queueDrag(
                             { exerciseId: row.exerciseId, fromDate: date },
                             cell.display,
                             cellClass,
