@@ -118,7 +118,7 @@ function WorkoutGridTable({
   const pendingDragRef = useRef<{
     payload: WorkoutGridDragPayload;
     display: string;
-    previewClass: string;
+    previewHeatClass: string;
     clientX: number;
     clientY: number;
   } | null>(null);
@@ -236,14 +236,14 @@ function WorkoutGridTable({
     (
       payload: WorkoutGridDragPayload,
       display: string,
-      previewClass: string,
+      previewHeatClass: string,
       clientX: number,
       clientY: number,
     ) => {
       pendingDragRef.current = {
         payload,
         display,
-        previewClass,
+        previewHeatClass,
         clientX,
         clientY,
       };
@@ -267,7 +267,7 @@ function WorkoutGridTable({
       beginDrag(
         pending.payload,
         pending.display,
-        pending.previewClass,
+        pending.previewHeatClass,
         clientX,
         clientY,
       );
@@ -541,7 +541,8 @@ function WorkoutGridTable({
 
                     const volume = cellVolume(cell);
                     const level = heatmapLevel(volume, range.min, range.max);
-                    const cellClass = `workout-grid__cell workout-grid__cell--level-${level}`;
+                    const heatClass = `workout-grid__cell--level-${level}`;
+                    const cellClass = `workout-grid__cell ${heatClass}`;
 
                     const tooltip = [
                       row.exerciseName,
@@ -573,7 +574,7 @@ function WorkoutGridTable({
                           queueDrag(
                             { exerciseId: row.exerciseId, fromDate: date },
                             cell.display,
-                            cellClass,
+                            heatClass,
                             clientX,
                             clientY,
                           )

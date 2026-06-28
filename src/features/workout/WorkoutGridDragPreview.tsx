@@ -68,7 +68,11 @@ export default function WorkoutGridDragPreview({
         </div>
       ) : null}
       <div
-        className="workout-grid__drag-ghost"
+        className={
+          hoverTarget
+            ? "workout-grid__drag-ghost workout-grid__drag-ghost--dimmed"
+            : "workout-grid__drag-ghost"
+        }
         style={{
           width: drag.cellWidth,
           height: drag.cellHeight,

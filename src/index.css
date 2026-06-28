@@ -1530,15 +1530,14 @@ textarea.generator-output {
 }
 
 .workout-grid__cell--drag-source .workout-grid__cell-inner {
-  opacity: 0.2;
+  visibility: hidden;
 }
 
 .workout-grid__cell--drag-source::after {
   content: "";
   position: absolute;
-  inset: 3px;
+  inset: 0;
   border: 1px dashed color-mix(in srgb, #38bdf8 55%, transparent);
-  border-radius: 4px;
   pointer-events: none;
 }
 
@@ -1554,16 +1553,26 @@ textarea.generator-output {
   left: 0;
   top: 0;
   z-index: 2;
+  box-sizing: border-box;
   will-change: transform;
   pointer-events: none;
+}
+
+.workout-grid__drag-ghost--dimmed {
+  opacity: 0.45;
 }
 
 .workout-grid__drag-ghost-cell {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border: none;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
@@ -1572,7 +1581,6 @@ textarea.generator-output {
   box-shadow:
     0 14px 36px rgb(0 0 0 / 42%),
     0 0 0 1px color-mix(in srgb, #38bdf8 50%, transparent);
-  transform: scale(1.05) rotate(-1.5deg);
   cursor: grabbing;
 }
 
@@ -1586,6 +1594,7 @@ textarea.generator-output {
 .workout-grid__drag-slot {
   position: fixed;
   z-index: 1;
+  box-sizing: border-box;
   pointer-events: none;
   transition:
     left 0.18s cubic-bezier(0.22, 1, 0.36, 1),
@@ -1601,13 +1610,18 @@ textarea.generator-output {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border: none;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.25;
   overflow: hidden;
-  opacity: 0.72;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, #38bdf8 75%, transparent);
+  opacity: 0.85;
+  outline: 2px solid color-mix(in srgb, #38bdf8 75%, transparent);
+  outline-offset: -2px;
   animation: workout-grid-slot-in 0.18s ease-out;
 }
 

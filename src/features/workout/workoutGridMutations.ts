@@ -5,6 +5,12 @@ export function sortGridDatesNewestFirst(dates: string[]): string[] {
   return [...dates].sort((a, b) => b.localeCompare(a));
 }
 
+function mergeGridDates(existing: string[], extra: string): string[] {
+  const merged = new Set(existing);
+  merged.add(extra);
+  return sortGridDatesNewestFirst([...merged]);
+}
+
 export function payloadToWorkoutCell(payload: UpsertWorkoutEntryRequest): WorkoutCell {
   const setReps = payload.setReps ?? null;
   let display: string;
@@ -27,7 +33,7 @@ export function payloadToWorkoutCell(payload: UpsertWorkoutEntryRequest): Workou
 
 export function applyUpsertToGrid(grid: WorkoutGrid, payload: UpsertWorkoutEntryRequest): WorkoutGrid {
   const cell = payloadToWorkoutCell(payload);
-  const dates = sortGridDatesNewestFirst([...grid.dates, payload.performedOn]);
+  const dates = mergeGridDates(grid.dates, payload.performedOn);
   const rows = grid.rows.map((row) => {
     if (row.exerciseId !== payload.exerciseId) {
       return row;
@@ -47,7 +53,7 @@ export function applyMoveToGrid(
   toDate: string,
   cell: WorkoutCell,
 ): WorkoutGrid {
-  const dates = sortGridDatesNewestFirst([...grid.dates, toDate]);
+  const dates = mergeGridDates(grid.dates, toDate);
   const rows = grid.rows.map((row) => {
     const cells = { ...row.cells };
     if (row.exerciseId === from.exerciseId) {
