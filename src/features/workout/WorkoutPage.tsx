@@ -227,14 +227,14 @@ export default function WorkoutPage() {
                 grid={grid}
                 selectedExerciseId={selectedExerciseId}
                 loading={loading}
-                saving={saving}
                 onSelectExercise={selectExercise}
-                onMoveCell={async (from, toExerciseId, toDate) => {
-                  await moveEntry(from, toExerciseId, toDate);
+                onMoveCell={moveEntry}
+                onUpdateCell={(payload) => {
+                  void saveEntry(payload);
                   setProgressRefreshKey((k) => k + 1);
                 }}
-                onUpdateCell={async (payload) => {
-                  await saveEntry(payload);
+                onDeleteCell={(exerciseId, date) => {
+                  void deleteEntry(exerciseId, date);
                   setProgressRefreshKey((k) => k + 1);
                 }}
               />

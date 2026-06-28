@@ -1,9 +1,10 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Empty } from "antd";
 import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid, WorkoutGridRow } from "../../api/types";
 import {
   cellVolume,
   heatmapLevel,
+  lastSessionForRow,
   rowVolumeRange,
 } from "./workoutAnalytics";
 import {
@@ -13,22 +14,33 @@ import {
   normalizeMuscleGroup,
   type MuscleGroup,
 } from "./workoutMuscleGroups";
-import WorkoutGridCell, { WorkoutGridEmptyCell } from "./WorkoutGridCell";
-import type { WorkoutGridDragPayload } from "./workoutGridDnD";
+import WorkoutFilledCell, { WorkoutGridEmptyCell } from "./WorkoutGridCell";
+import WorkoutGridCellEditorModal from "./WorkoutGridCellEditorModal";
+import WorkoutGridDragPreview from "./WorkoutGridDragPreview";
+import {
+  isValidDropTarget,
+  readCellClientRect,
+  type WorkoutGridActiveDrag,
+  type WorkoutGridCellEditorSession,
+  type WorkoutGridDragPayload,
+} from "./workoutGridDnD";
+import { upsertRequestFromCell, upsertRequestFromValues } from "./workoutEntryPayload";
+import { repsPatternFromCell } from "./workoutSetReps";
+import { sortGridDatesNewestFirst } from "./workoutGridMutations";
 
 type Props = {
   exercises: Exercise[];
   grid: WorkoutGrid;
   selectedExerciseId?: string;
   loading?: boolean;
-  saving?: boolean;
   onSelectExercise: (exerciseId: string) => void;
   onMoveCell: (
     from: WorkoutGridDragPayload,
     toExerciseId: string,
     toDate: string,
-  ) => Promise<void>;
-  onUpdateCell: (payload: UpsertWorkoutEntryRequest) => Promise<void>;
+  ) => void;
+  onUpdateCell: (payload: UpsertWorkoutEntryRequest) => void;
+  onDeleteCell?: (exerciseId: string, date: string) => void;
 };
 
 function formatHeaderDate(iso: string): string {
@@ -62,17 +74,52 @@ function sortRowsByMuscleGroup<T extends { muscleGroup: MuscleGroup; row: Workou
   });
 }
 
+function readDropTarget(
+  clientX: number,
+  clientY: number,
+): { exerciseId: string; date: string; empty: boolean } | null {
+  const el = document.elementFromPoint(clientX, clientY);
+  const td = el?.closest("[data-workout-grid-drop]");
+  if (!td || !(td instanceof HTMLElement)) {
+    return null;
+  }
+  const exerciseId = td.dataset.exerciseId;
+  const date = td.dataset.date;
+  if (!exerciseId || !date) {
+    return null;
+  }
+  return {
+    exerciseId,
+    date,
+    empty: td.dataset.empty === "true",
+  };
+}
+
 function WorkoutGridTable({
   exercises,
   grid,
   selectedExerciseId,
   loading,
-  saving = false,
   onSelectExercise,
   onMoveCell,
   onUpdateCell,
+  onDeleteCell,
 }: Props) {
-  const [dragging, setDragging] = useState<WorkoutGridDragPayload | null>(null);
+  const [activeDrag, setActiveDrag] = useState<WorkoutGridActiveDrag | null>(null);
+  const [dragPointer, setDragPointer] = useState({ x: 0, y: 0 });
+  const [dragHoverTarget, setDragHoverTarget] = useState<{
+    exerciseId: string;
+    date: string;
+  } | null>(null);
+  const [editorSession, setEditorSession] = useState<WorkoutGridCellEditorSession | null>(null);
+  const [clickSuppressed, setClickSuppressed] = useState(false);
+  const dragMovedRef = useRef(false);
+  const dragHoverRef = useRef<{ exerciseId: string; date: string } | null>(null);
+
+  const displayDates = useMemo(
+    () => sortGridDatesNewestFirst(grid.dates),
+    [grid.dates],
+  );
 
   const muscleByExerciseId = useMemo(
     () =>
@@ -99,32 +146,199 @@ function WorkoutGridTable({
 
   const activeDates = useMemo(() => {
     const map = new Map<string, boolean>();
-    for (const date of grid.dates) {
+    for (const date of displayDates) {
       map.set(date, columnHasActivity(grid.rows, date));
     }
     return map;
-  }, [grid.dates, grid.rows]);
+  }, [displayDates, grid.rows]);
 
-  const isDropTarget = useCallback(
-    (exerciseId: string, date: string, hasCell: boolean) => {
-      if (!dragging || hasCell || saving) {
-        return false;
-      }
-      if (dragging.exerciseId === exerciseId && dragging.fromDate === date) {
-        return false;
-      }
-      return true;
-    },
-    [dragging, saving],
-  );
+  const clearDrag = useCallback(() => {
+    setActiveDrag(null);
+    setDragHoverTarget(null);
+    dragHoverRef.current = null;
+    dragMovedRef.current = false;
+  }, []);
 
   const handleMove = useCallback(
-    async (from: WorkoutGridDragPayload, toExerciseId: string, toDate: string) => {
-      setDragging(null);
-      await onMoveCell(from, toExerciseId, toDate);
+    (from: WorkoutGridDragPayload, toExerciseId: string, toDate: string) => {
+      setClickSuppressed(true);
+      clearDrag();
+      onMoveCell(from, toExerciseId, toDate);
+      window.setTimeout(() => setClickSuppressed(false), 400);
     },
-    [onMoveCell],
+    [clearDrag, onMoveCell],
   );
+
+  const beginDrag = useCallback(
+    (
+      payload: WorkoutGridDragPayload,
+      display: string,
+      previewClass: string,
+      clientX: number,
+      clientY: number,
+    ) => {
+      const sourceRect = readCellClientRect(payload.exerciseId, payload.fromDate);
+      if (!sourceRect) {
+        return;
+      }
+      setActiveDrag({
+        payload,
+        display,
+        previewClass,
+        grabOffsetX: clientX - sourceRect.left,
+        grabOffsetY: clientY - sourceRect.top,
+        cellWidth: sourceRect.width,
+        cellHeight: sourceRect.height,
+      });
+      setDragPointer({ x: clientX, y: clientY });
+      setDragHoverTarget(null);
+      dragMovedRef.current = true;
+    },
+    [],
+  );
+
+  const updateDragPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      dragMovedRef.current = true;
+      setDragPointer({ x: clientX, y: clientY });
+
+      if (!activeDrag) {
+        return;
+      }
+
+      const target = readDropTarget(clientX, clientY);
+      if (
+        target
+        && target.empty
+        && isValidDropTarget(activeDrag.payload, target.exerciseId, target.date, false)
+      ) {
+        const nextHover = { exerciseId: target.exerciseId, date: target.date };
+        setDragHoverTarget(nextHover);
+        dragHoverRef.current = nextHover;
+      } else {
+        setDragHoverTarget(null);
+        dragHoverRef.current = null;
+      }
+    },
+    [activeDrag],
+  );
+
+  const suppressEditorOpen = clickSuppressed || activeDrag != null;
+
+  const handleEditorSave = useCallback(
+    (session: WorkoutGridCellEditorSession, weightKg: number, repsPattern: string) => {
+      if (session.mode === "edit" && session.cell) {
+        onUpdateCell(
+          upsertRequestFromCell(session.exerciseId, session.date, session.cell, {
+            weightKg,
+            repsPattern,
+          }),
+        );
+        return;
+      }
+      onUpdateCell(
+        upsertRequestFromValues(session.exerciseId, session.date, weightKg, repsPattern),
+      );
+    },
+    [onUpdateCell],
+  );
+
+  const handleEditorDelete = useCallback(
+    (session: WorkoutGridCellEditorSession) => {
+      if (onDeleteCell) {
+        onDeleteCell(session.exerciseId, session.date);
+      }
+    },
+    [onDeleteCell],
+  );
+
+  useEffect(() => {
+    if (!activeDrag) {
+      return;
+    }
+
+    let listenForRelease = false;
+    const releaseTimer = window.setTimeout(() => {
+      listenForRelease = true;
+    }, 0);
+
+    const finishPointerDrag = (clientX: number, clientY: number) => {
+      if (!dragMovedRef.current) {
+        clearDrag();
+        return;
+      }
+      const hover = dragHoverRef.current;
+      if (
+        hover
+        && isValidDropTarget(activeDrag.payload, hover.exerciseId, hover.date, false)
+      ) {
+        handleMove(activeDrag.payload, hover.exerciseId, hover.date);
+        return;
+      }
+      const target = readDropTarget(clientX, clientY);
+      if (
+        target
+        && target.empty
+        && isValidDropTarget(activeDrag.payload, target.exerciseId, target.date, false)
+      ) {
+        handleMove(activeDrag.payload, target.exerciseId, target.date);
+        return;
+      }
+      clearDrag();
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      updateDragPointer(event.clientX, event.clientY);
+    };
+
+    const onMouseUp = (event: MouseEvent) => {
+      if (!listenForRelease) {
+        return;
+      }
+      finishPointerDrag(event.clientX, event.clientY);
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      event.preventDefault();
+      updateDragPointer(touch.clientX, touch.clientY);
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      if (!listenForRelease) {
+        return;
+      }
+      const touch = event.changedTouches[0];
+      if (!touch) {
+        clearDrag();
+        return;
+      }
+      finishPointerDrag(touch.clientX, touch.clientY);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        clearDrag();
+      }
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(releaseTimer);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [activeDrag, clearDrag, handleMove, updateDragPointer]);
 
   if (!loading && grid.rows.length === 0) {
     return (
@@ -135,7 +349,20 @@ function WorkoutGridTable({
   }
 
   return (
-    <div className="workout-grid">
+    <div className={activeDrag ? "workout-grid workout-grid--dragging" : "workout-grid"}>
+      {activeDrag ? (
+        <WorkoutGridDragPreview
+          drag={activeDrag}
+          pointer={dragPointer}
+          hoverTarget={dragHoverTarget}
+        />
+      ) : null}
+      <WorkoutGridCellEditorModal
+        session={editorSession}
+        onClose={() => setEditorSession(null)}
+        onSave={handleEditorSave}
+        onDelete={onDeleteCell ? handleEditorDelete : undefined}
+      />
       <div className="workout-grid__head">
         <h3 className="workout-shell__label workout-grid__title">Training grid</h3>
         <div className="workout-grid__legend" aria-label="Volume intensity legend">
@@ -148,19 +375,16 @@ function WorkoutGridTable({
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
           <span className="workout-grid__legend-hint">low → high</span>
           <span className="workout-grid__legend-hint workout-grid__legend-interaction">
-            · drag cell · click to edit
+            · newest ← left · grip handle to move · click to edit
           </span>
         </div>
       </div>
-      <div
-        className="workout-grid__scroll"
-        onDragEnd={() => setDragging(null)}
-      >
+      <div className="workout-grid__scroll">
         <table className="workout-grid__table">
           <thead>
             <tr>
               <th className="workout-grid__th workout-grid__th--exercise">Exercise</th>
-              {grid.dates.map((date) => (
+              {displayDates.map((date) => (
                 <th
                   key={date}
                   className={
@@ -199,17 +423,29 @@ function WorkoutGridTable({
                       </span>
                     </button>
                   </th>
-                  {grid.dates.map((date) => {
+                  {displayDates.map((date) => {
                     const cell = row.cells[date];
+                    const lastSession = lastSessionForRow(row, displayDates);
+                    const defaultWeightKg = lastSession?.weightKg ?? 20;
+                    const defaultRepsPattern = lastSession
+                      ? repsPatternFromCell(lastSession)
+                      : "10";
+
+                    const dateLabel = formatHeaderDate(date);
+
                     if (!cell) {
                       return (
                         <WorkoutGridEmptyCell
                           key={date}
                           exerciseId={row.exerciseId}
                           date={date}
-                          saving={saving}
-                          dropHighlight={isDropTarget(row.exerciseId, date, false)}
-                          onMove={handleMove}
+                          exerciseName={row.exerciseName}
+                          dateLabel={dateLabel}
+                          defaultWeightKg={defaultWeightKg}
+                          defaultRepsPattern={defaultRepsPattern}
+                          suppressOpen={suppressEditorOpen}
+                          onSelectExercise={onSelectExercise}
+                          onOpenEditor={setEditorSession}
                         />
                       );
                     }
@@ -225,21 +461,33 @@ function WorkoutGridTable({
                       `${volume} kg volume`,
                     ].join(" · ");
 
+                    const isDragSource =
+                      activeDrag?.payload.exerciseId === row.exerciseId
+                      && activeDrag?.payload.fromDate === date;
+
                     return (
-                      <WorkoutGridCell
+                      <WorkoutFilledCell
                         key={date}
                         exerciseId={row.exerciseId}
                         date={date}
+                        exerciseName={row.exerciseName}
+                        dateLabel={dateLabel}
                         cell={cell}
                         cellClass={cellClass}
                         tooltip={tooltip}
-                        saving={saving}
-                        dropHighlight={isDropTarget(row.exerciseId, date, true)}
+                        isDragSource={isDragSource}
+                        suppressOpen={suppressEditorOpen}
+                        initialRepsPattern={repsPatternFromCell(cell)}
                         onSelectExercise={onSelectExercise}
-                        onMove={handleMove}
-                        onUpdate={onUpdateCell}
-                        onDragBegin={() =>
-                          setDragging({ exerciseId: row.exerciseId, fromDate: date })
+                        onOpenEditor={setEditorSession}
+                        onDragBegin={(clientX, clientY) =>
+                          beginDrag(
+                            { exerciseId: row.exerciseId, fromDate: date },
+                            cell.display,
+                            cellClass,
+                            clientX,
+                            clientY,
+                          )
                         }
                       />
                     );

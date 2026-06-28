@@ -1500,6 +1500,7 @@ textarea.generator-output {
 }
 
 .workout-grid__cell {
+  position: relative;
   padding: 0;
   min-width: 72px;
   max-width: 88px;
@@ -1510,11 +1511,158 @@ textarea.generator-output {
   vertical-align: middle;
 }
 
-.workout-grid__cell-btn {
-  display: block;
+.workout-grid__cell-inner {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  min-height: 36px;
+}
+
+.workout-grid__cell-handle {
+  flex: none;
+  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+  user-select: none;
+  touch-action: none;
+}
+
+.workout-grid__cell-handle::before {
+  content: "⋮";
+  font-size: 10px;
+  line-height: 1;
+  transform: rotate(90deg);
+}
+
+.workout-grid__cell-handle:hover {
+  color: color-mix(in srgb, currentColor 75%, transparent);
+}
+
+.workout-grid__cell-handle:active {
+  cursor: grabbing;
+}
+
+.workout-grid--dragging {
+  user-select: none;
+}
+
+.workout-grid--dragging .workout-grid__cell-handle {
+  cursor: grabbing;
+}
+
+.workout-grid__cell--drag-source {
+  background: color-mix(in srgb, var(--linear-surface-2) 40%, var(--linear-surface-1)) !important;
+}
+
+.workout-grid__cell--drag-source .workout-grid__cell-inner {
+  opacity: 0.2;
+}
+
+.workout-grid__cell--drag-source::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed color-mix(in srgb, #38bdf8 55%, transparent);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.workout-grid__drag-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.workout-grid__drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.workout-grid__drag-ghost-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  box-shadow:
+    0 14px 36px rgb(0 0 0 / 42%),
+    0 0 0 1px color-mix(in srgb, #38bdf8 50%, transparent);
+  transform: scale(1.05) rotate(-1.5deg);
+  cursor: grabbing;
+}
+
+.workout-grid__drag-ghost-label {
   padding: 4px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workout-grid__drag-slot {
+  position: fixed;
+  z-index: 1;
+  pointer-events: none;
+  transition:
+    left 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workout-grid__drag-slot-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  opacity: 0.72;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #38bdf8 75%, transparent);
+  animation: workout-grid-slot-in 0.18s ease-out;
+}
+
+@keyframes workout-grid-slot-in {
+  from {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+
+  to {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+}
+
+.workout-grid__drag-slot-label {
+  padding: 4px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workout-grid__cell-btn {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 4px 4px 4px 0;
   border: none;
   background: transparent;
   font-size: 11px;
@@ -1529,6 +1677,21 @@ textarea.generator-output {
 
 .workout-grid__cell--empty {
   background: color-mix(in srgb, var(--linear-surface-2) 35%, var(--linear-surface-1));
+}
+
+.workout-grid__cell-empty-btn {
+  display: block;
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workout-grid__cell-empty-btn:hover {
+  background: color-mix(in srgb, var(--linear-surface-2) 55%, transparent);
 }
 
 .workout-grid__cell--level-0 {
@@ -1564,64 +1727,56 @@ textarea.generator-output {
   filter: brightness(1.08);
 }
 
-.workout-grid__cell-btn[draggable="true"] {
-  cursor: grab;
+.workout-grid__cell-modal-wrap .ant-modal-mask {
+  background: rgb(0 0 0 / 28%);
 }
 
-.workout-grid__cell-btn[draggable="true"]:active {
-  cursor: grabbing;
+.workout-grid__cell-modal .ant-modal-header {
+  margin-bottom: 0;
+  padding: 14px 16px 8px;
 }
 
-.workout-grid__cell--drop-target {
-  outline: 2px dashed color-mix(in srgb, #38bdf8 70%, transparent);
-  outline-offset: -2px;
-  background: color-mix(in srgb, #38bdf8 12%, var(--linear-surface-1)) !important;
+.workout-grid__cell-modal .ant-modal-title {
+  font-size: 13px;
+  line-height: 1.35;
 }
 
-.workout-grid__cell--editing {
-  padding: 2px;
-  vertical-align: middle;
+.workout-grid__cell-modal .ant-modal-body {
+  padding: 0 16px 16px;
 }
 
-.workout-grid__cell-edit {
+.workout-grid__cell-modal .ant-modal-content {
+  padding: 0;
+  background: var(--linear-surface-1);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 38%);
+}
+
+.workout-grid__cell-popover-inner {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px;
-  min-width: 68px;
+  gap: 10px;
+  padding-top: 4px;
 }
 
-.workout-grid__cell-edit-weight {
-  width: 100%;
-}
-
-.workout-grid__cell-edit-reps {
-  width: 100%;
-  font-size: 11px;
-}
-
-.workout-grid__cell-edit-actions {
+.workout-grid__cell-popover-row {
   display: flex;
-  gap: 4px;
+  width: 100%;
 }
 
-.workout-grid__cell-edit-save,
-.workout-grid__cell-edit-cancel {
+.workout-grid__cell-popover-weight {
+  width: 88px;
+}
+
+.workout-grid__cell-popover-reps {
   flex: 1;
-  padding: 2px 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  background: var(--linear-surface-2);
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--linear-ink-secondary);
+  min-width: 0;
 }
 
-.workout-grid__cell-edit-save:hover,
-.workout-grid__cell-edit-cancel:hover {
-  background: var(--linear-surface-3);
-  color: var(--linear-ink);
+.workout-grid__cell-popover-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .workout-grid__legend-interaction {

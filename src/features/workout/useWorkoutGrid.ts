@@ -4,6 +4,12 @@ import { apiClient, ApiError } from "../../api";
 import { apiEndpoints } from "../../api/endpoints";
 import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid } from "../../api/types";
 import { upsertRequestFromCell } from "./workoutEntryPayload";
+import {
+  applyDeleteFromGrid,
+  applyMoveToGrid,
+  applyUpsertToGrid,
+  sortGridDatesNewestFirst,
+} from "./workoutGridMutations";
 
 export function useWorkoutGrid() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -12,15 +18,20 @@ export function useWorkoutGrid() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     try {
       const [exerciseList, gridData] = await Promise.all([
         apiClient.get<Exercise[]>(apiEndpoints.workouts.exercises),
         apiClient.get<WorkoutGrid>(apiEndpoints.workouts.grid),
       ]);
       setExercises(exerciseList);
-      setGrid(gridData);
+      setGrid({
+        dates: sortGridDatesNewestFirst(gridData.dates),
+        rows: gridData.rows,
+      });
       setSelectedExerciseId((current) => {
         if (current && exerciseList.some((e) => e.id === current)) {
           return current;
@@ -31,7 +42,9 @@ export function useWorkoutGrid() {
       const text = err instanceof ApiError ? err.message : "Failed to load workout data";
       message.error(text);
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -91,42 +104,40 @@ export function useWorkoutGrid() {
 
   const saveEntry = useCallback(
     async (body: UpsertWorkoutEntryRequest) => {
-      setSaving(true);
+      const snapshot = grid;
+      setGrid(applyUpsertToGrid(grid, body));
       try {
         await apiClient.post<void>(apiEndpoints.workouts.entries, body);
-        message.success("Saved");
-        await reload();
+        void reload({ silent: true });
       } catch (err) {
+        setGrid(snapshot);
         const text = err instanceof ApiError ? err.message : "Failed to save";
         message.error(text);
         throw err;
-      } finally {
-        setSaving(false);
       }
     },
-    [reload],
+    [grid, reload],
   );
 
   const deleteEntry = useCallback(
     async (exerciseId: string, performedOn: string) => {
-      setSaving(true);
+      const snapshot = grid;
+      setGrid(applyDeleteFromGrid(grid, exerciseId, performedOn));
       try {
         await apiClient.delete(apiEndpoints.workouts.entry(exerciseId, performedOn));
-        message.success("Session removed");
-        await reload();
+        void reload({ silent: true });
       } catch (err) {
+        setGrid(snapshot);
         const text = err instanceof ApiError ? err.message : "Failed to delete session";
         message.error(text);
         throw err;
-      } finally {
-        setSaving(false);
       }
     },
-    [reload],
+    [grid, reload],
   );
 
   const moveEntry = useCallback(
-    async (
+    (
       from: { exerciseId: string; fromDate: string },
       toExerciseId: string,
       toDate: string,
@@ -145,22 +156,22 @@ export function useWorkoutGrid() {
         message.warning("Target cell already has a session — pick an empty cell");
         return;
       }
-      setSaving(true);
-      try {
-        const payload = upsertRequestFromCell(toExerciseId, toDate, cell);
-        await apiClient.post<void>(apiEndpoints.workouts.entries, payload);
-        await apiClient.delete(apiEndpoints.workouts.entry(from.exerciseId, from.fromDate));
-        message.success("Session moved");
-        await reload();
-      } catch (err) {
-        const text = err instanceof ApiError ? err.message : "Failed to move session";
-        message.error(text);
-        throw err;
-      } finally {
-        setSaving(false);
-      }
+      const snapshot = grid;
+      setGrid(applyMoveToGrid(grid, from, toExerciseId, toDate, cell));
+      void (async () => {
+        try {
+          const payload = upsertRequestFromCell(toExerciseId, toDate, cell);
+          await apiClient.post<void>(apiEndpoints.workouts.entries, payload);
+          await apiClient.delete(apiEndpoints.workouts.entry(from.exerciseId, from.fromDate));
+          void reload({ silent: true });
+        } catch (err) {
+          setGrid(snapshot);
+          const text = err instanceof ApiError ? err.message : "Failed to move session";
+          message.error(text);
+        }
+      })();
     },
-    [grid.rows, reload],
+    [grid, reload],
   );
 
   return {
