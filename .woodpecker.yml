@@ -3,7 +3,7 @@ when:
     branch: main
 
 steps:
-  deploy:
+  - name: deploy
     image: docker:27-cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
