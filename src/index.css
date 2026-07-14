@@ -1128,6 +1128,64 @@ textarea.generator-output {
   white-space: nowrap;
 }
 
+.workout-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: var(--linear-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.workout-steps__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workout-steps__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workout-steps__hint {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.workout-steps__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.workout-steps__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workout-steps__chart {
+  min-height: 200px;
+}
+
+.workout-steps__chart-inner {
+  width: 100%;
+}
+
+.workout-steps__chart-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
 .workout-weekly__delta {
   margin-left: 6px;
   font-size: 0.75rem;

@@ -23,6 +23,8 @@ import WorkoutEntryForm from "./WorkoutEntryForm";
 import WorkoutExerciseForm from "./WorkoutExerciseForm";
 import WorkoutExerciseBar from "./WorkoutExerciseBar";
 import WorkoutProgressPanel from "./WorkoutProgressPanel";
+import WorkoutStepsChart, { type StepsPeriod } from "./WorkoutStepsChart";
+import { useStepsHistory } from "./useStepsHistory";
 import {
   exerciseDraftFromExercise,
   exerciseDraftNew,
@@ -73,7 +75,10 @@ export default function WorkoutPage() {
   const [exerciseModal, setExerciseModal] = useState<ExerciseDraft | null>(null);
   const [showAllExercises, setShowAllExercises] = useState(true);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
+  const [stepsPeriod, setStepsPeriod] = useState<StepsPeriod>("p31");
   const exerciseSelectRef = useRef<RefSelectProps>(null);
+
+  const { history: stepsHistory, loading: stepsLoading } = useStepsHistory(90);
 
   const chartExerciseIds = useMemo(
     () => (selectedExerciseId ? [selectedExerciseId] : []),
@@ -184,6 +189,13 @@ export default function WorkoutPage() {
           <section className="workout-shell__insights" aria-label="Progress">
             <WorkoutWeeklySummary summary={weeklySummary} />
             <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
+            <WorkoutStepsChart
+              days={stepsHistory?.days ?? []}
+              todaySteps={stepsHistory?.todaySteps ?? null}
+              loading={stepsLoading}
+              period={stepsPeriod}
+              onPeriodChange={setStepsPeriod}
+            />
             <WorkoutProgressPanel
               series={series}
               primary={primary}

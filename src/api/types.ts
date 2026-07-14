@@ -68,3 +68,13 @@ export type ExerciseProgress = {
 };
 
 export type ProgressMetric = "weight" | "maxReps" | "volume";
+
+export type HealthStepDay = {
+  date: string;
+  steps: number;
+};
+
+export type HealthStepsHistory = {
+  days: HealthStepDay[];
+  todaySteps: number | null;
+};
