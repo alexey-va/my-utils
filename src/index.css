@@ -3250,6 +3250,44 @@ textarea.generator-output {
   width: 100%;
 }
 
+.agent-memory__image-input {
+  display: none;
+}
+
+.agent-memory__compose-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-memory__compose-images-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.agent-memory__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-memory__image-link {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--linear-hairline, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-memory__image {
+  display: block;
+  max-width: min(220px, 100%);
+  max-height: 180px;
+  object-fit: cover;
+}
+
 .agent-memory__system-list {
   list-style: none;
   margin: 0;

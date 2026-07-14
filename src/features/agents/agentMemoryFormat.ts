@@ -9,6 +9,7 @@ export type ParsedToolCall = {
 export type ParsedChatMessage = {
   role: string;
   content: string | null;
+  images: string[];
   toolCalls: ParsedToolCall[];
   toolCallId: string | null;
   toolName: string | null;
@@ -21,9 +22,11 @@ export type HistoryItem =
 export function parseStoredMessage(msg: AgentMemoryMessage): ParsedChatMessage {
   try {
     const raw = JSON.parse(msg.rawJson) as Record<string, unknown>;
+    const images = parseImages(raw.images) ?? msg.images ?? [];
     return {
       role: typeof raw.role === "string" ? raw.role : msg.role,
-      content: raw.content != null ? String(raw.content) : msg.content,
+      content: extractTextContent(raw.content) ?? (raw.content != null ? String(raw.content) : msg.content),
+      images,
       toolCalls: parseToolCalls(raw.tool_calls),
       toolCallId:
         raw.tool_call_id != null ? String(raw.tool_call_id) : msg.toolCallId,
@@ -33,11 +36,47 @@ export function parseStoredMessage(msg: AgentMemoryMessage): ParsedChatMessage {
     return {
       role: msg.role,
       content: msg.content,
+      images: msg.images ?? [],
       toolCalls: [],
       toolCallId: msg.toolCallId,
       toolName: msg.toolName,
     };
   }
+}
+
+function parseImages(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const images = raw
+    .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter((entry) => entry.startsWith("data:image/"));
+  return images.length > 0 ? images : null;
+}
+
+function extractTextContent(raw: unknown): string | null {
+  if (raw == null) {
+    return null;
+  }
+  if (typeof raw === "string") {
+    return raw;
+  }
+  if (!Array.isArray(raw)) {
+    return String(raw);
+  }
+  const parts = raw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const block = entry as Record<string, unknown>;
+      if (block.type === "text" && typeof block.text === "string") {
+        return block.text;
+      }
+      return null;
+    })
+    .filter((part): part is string => part != null);
+  return parts.length > 0 ? parts.join("\n") : null;
 }
 
 function parseToolCalls(raw: unknown): ParsedToolCall[] {

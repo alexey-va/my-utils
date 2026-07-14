@@ -35,6 +35,7 @@ export type AgentMemoryMessage = {
   chatId: number;
   role: string;
   content: string | null;
+  images?: string[];
   toolCallId: string | null;
   toolName: string | null;
   excludedFromContext: boolean;
@@ -104,10 +105,11 @@ export async function appendAgentMessage(
   chatId: number,
   role: "user" | "assistant" | "system",
   content: string,
+  images?: string[],
 ): Promise<AgentMemoryMessage> {
   return apiClient.post<AgentMemoryMessage>(
     `${BASE}/chats/${chatId}/messages`,
-    { role, content },
+    { role, content, images },
     { skipAuth: true },
   );
 }
@@ -115,10 +117,11 @@ export async function appendAgentMessage(
 export async function simulateAgentChat(
   chatId: number,
   content: string,
+  images?: string[],
 ): Promise<AgentMemoryChatTurnResult> {
   return apiClient.post<AgentMemoryChatTurnResult>(
     `${BASE}/chats/${chatId}/chat`,
-    { content },
+    { content, images },
     { skipAuth: true },
   );
 }

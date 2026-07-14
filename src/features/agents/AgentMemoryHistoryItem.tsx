@@ -3,6 +3,7 @@ import { RobotOutlined, ToolOutlined, UserOutlined } from "@ant-design/icons";
 import type { AgentMemoryMessage } from "../../api/agentMemory";
 import AgentMemoryJsonBlock from "./AgentMemoryJsonBlock";
 import AgentMemoryMessageActions from "./AgentMemoryMessageActions";
+import AgentMemoryImageStrip, { messageImages } from "./AgentMemoryImageStrip";
 import {
   type HistoryItem,
   parseStoredMessage,
@@ -98,14 +99,17 @@ function ChatMeta({
 function DialogTextBody({
   row,
   text,
+  images,
   showRaw,
 }: {
   row: AgentMemoryMessage;
   text: string | undefined;
+  images: string[];
   showRaw: boolean;
 }) {
   return (
     <>
+      {images.length > 0 ? <AgentMemoryImageStrip images={images} /> : null}
       {text ? (
         <div className="agent-memory__chat-bubble">
           <p className="agent-memory__chat-text">{text}</p>
@@ -138,6 +142,7 @@ function SimpleMessageBody({
   const modifierClasses = rowModifierClasses(row);
   const time = formatTime(row.createdAt);
   const loading = togglingMessageId === row.id;
+  const images = messageImages(row, parsed.images);
 
   if (row.role === "tool") {
     const toolName = parsed.toolName ?? "tool";
@@ -170,7 +175,7 @@ function SimpleMessageBody({
   }
 
   const text = parsed.content?.trim();
-  const showRaw = !text && row.rawJson;
+  const showRaw = !text && images.length === 0 && row.rawJson;
   const isUser = row.role === "user";
   const rowClass = isUser
     ? `agent-memory__chat-row agent-memory__chat-row--user${modifierClasses}`
@@ -184,7 +189,7 @@ function SimpleMessageBody({
           <ChatAvatar kind="user" />
           <div className="agent-memory__chat-body">
             <ChatMeta label={label} time={time} row={row} labelFirst={false} />
-            <DialogTextBody row={row} text={text} showRaw={!!showRaw} />
+            <DialogTextBody row={row} text={text} images={images} showRaw={!!showRaw} />
           </div>
         </div>
         <AgentMemoryMessageActions
@@ -202,7 +207,7 @@ function SimpleMessageBody({
       <ChatAvatar kind="assistant" />
       <div className="agent-memory__chat-body">
         <ChatMeta label={label} time={time} row={row} />
-        <DialogTextBody row={row} text={text} showRaw={!!showRaw} />
+        <DialogTextBody row={row} text={text} images={images} showRaw={!!showRaw} />
       </div>
       <AgentMemoryMessageActions
         row={row}
@@ -248,6 +253,7 @@ export default function AgentMemoryHistoryItem({
 
   const modifierClasses = rowModifierClasses(assistant);
   const assistantText = parsed.content?.trim();
+  const assistantImages = messageImages(assistant, parsed.images);
   const assistantLoading = togglingMessageId === assistant.id;
   const time = formatTime(assistant.createdAt);
 
@@ -262,13 +268,18 @@ export default function AgentMemoryHistoryItem({
           </Tag>
         ) : null}
 
-        {assistantText ? (
-          <div className="agent-memory__chat-bubble">
-            <p className="agent-memory__chat-text">{assistantText}</p>
-          </div>
+        {assistantText || assistantImages.length > 0 ? (
+          <>
+            {assistantImages.length > 0 ? <AgentMemoryImageStrip images={assistantImages} /> : null}
+            {assistantText ? (
+              <div className="agent-memory__chat-bubble">
+                <p className="agent-memory__chat-text">{assistantText}</p>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
-        {assistantText ? (
+        {assistantText || assistantImages.length > 0 ? (
           <AgentMemoryMessageActions
             row={assistant}
             loading={assistantLoading}
@@ -351,7 +362,7 @@ export default function AgentMemoryHistoryItem({
             })}
         </ul>
       </div>
-      {!assistantText ? (
+      {!assistantText && assistantImages.length === 0 ? (
         <AgentMemoryMessageActions
           row={assistant}
           loading={assistantLoading}

@@ -16,6 +16,7 @@ import {
   CaretUpOutlined,
   DeleteOutlined,
   EditOutlined,
+  PictureOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
 import {
@@ -39,8 +40,14 @@ import {
 import { ApiError } from "../../api/errors";
 import AgentMemoryHistoryItem from "./AgentMemoryHistoryItem";
 import AgentMemorySystemItem from "./AgentMemorySystemItem";
+import AgentMemoryImageStrip from "./AgentMemoryImageStrip";
 import { compactSkipReasonMessage, compactableAfterKeep, compactionHint } from "./agentMemoryCompaction";
 import { groupHistoryMessages } from "./agentMemoryFormat";
+import {
+  filesToPendingImages,
+  pendingImageDataUrls,
+  type PendingAgentImage,
+} from "./agentMemoryImages";
 
 function formatFactDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, {
@@ -120,9 +127,11 @@ export default function AgentMemoryPage() {
   const [chatting, setChatting] = useState(false);
   const [systemPanelOpen, setSystemPanelOpen] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingAgentImage[]>([]);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const historyLenRef = useRef(0);
   const historyHeadIdRef = useRef<number | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const loadChats = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -351,12 +360,16 @@ export default function AgentMemoryPage() {
   };
 
   const onManualAppend = async () => {
-    if (selectedChatId == null || !messageDraft.trim() || sendingMessage || chatting) return;
-    setSendingMessage(true);
+    if (selectedChatId == null || sendingMessage || chatting) return;
     const text = messageDraft.trim();
+    const images = pendingImageDataUrls(pendingImages);
+    if (!text && images.length === 0) return;
+
+    setSendingMessage(true);
     try {
-      const created = await appendAgentMessage(selectedChatId, messageRole, text);
+      const created = await appendAgentMessage(selectedChatId, messageRole, text, images);
       setMessageDraft("");
+      setPendingImages([]);
       applyNewMessages([created]);
     } catch (error) {
       message.error(error instanceof ApiError ? error.message : "Failed to send message");
@@ -366,12 +379,16 @@ export default function AgentMemoryPage() {
   };
 
   const onChatWithAgent = async () => {
-    if (selectedChatId == null || !messageDraft.trim() || chatting || sendingMessage) return;
-    setChatting(true);
+    if (selectedChatId == null || chatting || sendingMessage) return;
     const text = messageDraft.trim();
+    const images = pendingImageDataUrls(pendingImages);
+    if (!text && images.length === 0) return;
+
+    setChatting(true);
     try {
-      const result = await simulateAgentChat(selectedChatId, text);
+      const result = await simulateAgentChat(selectedChatId, text, images);
       setMessageDraft("");
+      setPendingImages([]);
       applyNewMessages(result.messages);
       fetchAgentMemoryChat(selectedChatId)
         .then((chatDetail) => setDetail(chatDetail))
@@ -465,6 +482,23 @@ export default function AgentMemoryPage() {
   const historyItems = groupHistoryMessages(dialogHistory);
   const compactableCount = detail?.compaction.compactableCount ?? 0;
   const compactableNow = compactableAfterKeep(compactableCount, compactKeepRecent);
+  const canSendMessage = messageDraft.trim().length > 0 || pendingImages.length > 0;
+
+  const onAttachImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) {
+      return;
+    }
+    try {
+      const next = await filesToPendingImages(files);
+      setPendingImages((current) => [...current, ...next].slice(0, 4));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "Failed to read image");
+    } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+    }
+  };
 
   return (
     <div className="agent-memory">
@@ -638,6 +672,39 @@ export default function AgentMemoryPage() {
                       )}
                     </div>
                     <div className="agent-memory__message-compose">
+                    <input
+                      ref={imageInputRef}
+                      className="agent-memory__image-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      onChange={(event) => void onAttachImages(event.target.files)}
+                    />
+                    {pendingImages.length > 0 ? (
+                      <div className="agent-memory__compose-images">
+                        <AgentMemoryImageStrip
+                          images={pendingImages.map((image) => image.dataUrl)}
+                          className="agent-memory__compose-images-strip"
+                        />
+                        <div className="agent-memory__compose-images-actions">
+                          {pendingImages.map((image) => (
+                            <Button
+                              key={image.id}
+                              size="small"
+                              type="text"
+                              danger
+                              onClick={() =>
+                                setPendingImages((current) =>
+                                  current.filter((item) => item.id !== image.id),
+                                )
+                              }
+                            >
+                              Remove {image.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <Input.TextArea
                       className="agent-memory__message-compose-input"
                       placeholder="Написать в чат с агентом (без Telegram)…"
@@ -654,11 +721,19 @@ export default function AgentMemoryPage() {
                     />
                     <div className="agent-memory__message-compose-actions">
                       <Button
+                        size="small"
+                        icon={<PictureOutlined />}
+                        disabled={chatting || sendingMessage || pendingImages.length >= 4}
+                        onClick={() => imageInputRef.current?.click()}
+                      >
+                        Image
+                      </Button>
+                      <Button
                         type="primary"
                         size="small"
                         loading={chatting}
                         disabled={
-                          !messageDraft.trim()
+                          !canSendMessage
                           || sendingMessage
                           || !detail.compaction.compactionAvailable
                         }
@@ -680,7 +755,7 @@ export default function AgentMemoryPage() {
                       <Button
                         size="small"
                         loading={sendingMessage}
-                        disabled={!messageDraft.trim() || chatting}
+                        disabled={!canSendMessage || chatting}
                         onClick={onManualAppend}
                       >
                         Добавить вручную
