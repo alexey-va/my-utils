@@ -125,18 +125,11 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
 
   const renderXAxisTick = useMemo(
     () =>
-      function StepsXAxisTick({
-        x = 0,
-        y = 0,
-        index = 0,
-      }: {
-        x?: number;
-        y?: number;
-        index?: number;
-      }) {
+      function StepsXAxisTick(props: { x?: number; y?: number; index?: number }) {
+        const { x = 0, y = 0, index = 0 } = props;
         const row = chartData[index];
         if (!row) {
-          return null;
+          return <g />;
         }
         return (
           <g transform={`translate(${x},${y})`}>
