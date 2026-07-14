@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Empty } from "antd";
 import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid, WorkoutGridRow } from "../../api/types";
 import {
@@ -123,6 +123,9 @@ function WorkoutGridTable({
     clientY: number;
   } | null>(null);
   const [pendingDrag, setPendingDrag] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const didInitialScrollRef = useRef(false);
+  const prevDatesLenRef = useRef(0);
 
   const displayDates = useMemo(
     () => sortGridDatesOldestFirst(grid.dates),
@@ -159,6 +162,21 @@ function WorkoutGridTable({
     }
     return map;
   }, [displayDates, grid.rows]);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || loading || displayDates.length === 0) {
+      return;
+    }
+
+    const grew = displayDates.length > prevDatesLenRef.current;
+    const initial = !didInitialScrollRef.current;
+    if (initial || grew) {
+      el.scrollLeft = el.scrollWidth - el.clientWidth;
+      didInitialScrollRef.current = true;
+    }
+    prevDatesLenRef.current = displayDates.length;
+  }, [displayDates, loading]);
 
   const clearDrag = useCallback(() => {
     setActiveDrag(null);
@@ -468,7 +486,7 @@ function WorkoutGridTable({
           </span>
         </div>
       </div>
-      <div className="workout-grid__scroll">
+      <div className="workout-grid__scroll" ref={scrollRef}>
         <table className="workout-grid__table">
           <thead>
             <tr>
