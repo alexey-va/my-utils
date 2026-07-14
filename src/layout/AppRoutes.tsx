@@ -6,6 +6,7 @@ import { PATH_LOGIN } from "../config/paths";
 import LoginPage from "../features/auth/LoginPage";
 import AuthNotice from "./AuthNotice";
 import RequireAuth from "./RequireAuth";
+import RequireTabPassword from "./RequireTabPassword";
 
 function featureRoutePath(path: string): string | undefined {
   if (path === "/") {
@@ -14,10 +15,21 @@ function featureRoutePath(path: string): string | undefined {
   return path.replace(/^\//, "");
 }
 
-function FeatureRoute({ Page, requiresAuth }: { Page: ComponentType; requiresAuth?: boolean }) {
-  const page = <Page />;
+function FeatureRoute({
+  Page,
+  requiresAuth,
+  requiresTabPassword,
+}: {
+  Page: ComponentType;
+  requiresAuth?: boolean;
+  requiresTabPassword?: boolean;
+}) {
+  let page = <Page />;
+  if (requiresTabPassword) {
+    page = <RequireTabPassword>{page}</RequireTabPassword>;
+  }
   if (requiresAuth) {
-    return <RequireAuth>{page}</RequireAuth>;
+    page = <RequireAuth>{page}</RequireAuth>;
   }
   return page;
 }
@@ -28,18 +40,33 @@ export default function AppRoutes() {
       <AuthNotice />
       <Routes>
         {appFeatures.map((feature) => {
-          const { id, path, Page, requiresAuth, index, aliases } = feature;
+          const { id, path, Page, requiresAuth, requiresTabPassword, index, aliases } = feature;
           const routePath = featureRoutePath(path);
 
           return (
             <Route key={id}>
               {index ? (
-                <Route index element={<FeatureRoute Page={Page} requiresAuth={requiresAuth} />} />
+                <Route
+                  index
+                  element={
+                    <FeatureRoute
+                      Page={Page}
+                      requiresAuth={requiresAuth}
+                      requiresTabPassword={requiresTabPassword}
+                    />
+                  }
+                />
               ) : null}
               {routePath ? (
                 <Route
                   path={routePath}
-                  element={<FeatureRoute Page={Page} requiresAuth={requiresAuth} />}
+                  element={
+                    <FeatureRoute
+                      Page={Page}
+                      requiresAuth={requiresAuth}
+                      requiresTabPassword={requiresTabPassword}
+                    />
+                  }
                 />
               ) : null}
               {aliases?.map((alias) => (

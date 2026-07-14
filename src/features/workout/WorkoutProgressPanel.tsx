@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { Button, Empty, Popconfirm, Segmented, Spin, Statistic } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
@@ -32,9 +32,9 @@ const PERIOD_OPTIONS: { label: string; value: ProgressPeriod }[] = [
 ];
 
 const METRIC_OPTIONS: { label: string; value: ProgressMetric }[] = [
+  { label: "Volume", value: "volume" },
   { label: "Weight", value: "weight" },
   { label: "Max reps", value: "maxReps" },
-  { label: "Volume", value: "volume" },
 ];
 
 type Props = {
@@ -73,6 +73,28 @@ function WorkoutProgressPanel({
   const chartData = buildCompareChartData(series, period, metric);
   const hasChart = chartData.length > 0 && series.length > 0;
   const showChartSpinner = loading && series.length === 0;
+
+  const yDomain = useMemo((): [number, number] | undefined => {
+    if (!hasChart) {
+      return undefined;
+    }
+    const values: number[] = [];
+    for (const row of chartData) {
+      for (const s of series) {
+        const value = row[`s_${s.exerciseId}`];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          values.push(value);
+        }
+      }
+    }
+    if (values.length === 0) {
+      return undefined;
+    }
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || Math.max(min * 0.1, 1);
+    return [Math.max(0, min - span * 0.22), max + span * 0.1];
+  }, [chartData, hasChart, series]);
 
   const primaryPoints = primary?.points ?? [];
   const trends = computeProgressTrends(primaryPoints);
@@ -204,8 +226,8 @@ function WorkoutProgressPanel({
                   width={44}
                   tickMargin={4}
                   allowDecimals={metric !== "maxReps"}
-                  domain={["auto", "auto"]}
-                  padding={{ top: 12, bottom: 8 }}
+                  domain={yDomain ?? ["auto", "auto"]}
+                  padding={{ top: 8, bottom: 0 }}
                 />
                 <RechartsTooltip
                   content={(props) => (
@@ -221,7 +243,7 @@ function WorkoutProgressPanel({
                 {series.map((s) => (
                   <Line
                     key={s.exerciseId}
-                    type="monotone"
+                    type="linear"
                     dataKey={`s_${s.exerciseId}`}
                     name={`s_${s.exerciseId}`}
                     stroke={s.color}

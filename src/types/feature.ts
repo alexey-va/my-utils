@@ -10,6 +10,8 @@ export type AppFeature = {
   icon: ReactNode;
   Page: ComponentType;
   requiresAuth?: boolean;
+  /** Shared tab password (localStorage); workout stays open. */
+  requiresTabPassword?: boolean;
   /** Renders as `<Route index />` when true. */
   index?: boolean;
   /** Extra paths that redirect to `path` (no leading slash). */

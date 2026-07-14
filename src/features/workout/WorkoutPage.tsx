@@ -64,7 +64,7 @@ export default function WorkoutPage() {
     moveEntry,
   } = useWorkoutGrid();
 
-  const [metric, setMetric] = useState<ProgressMetric>("weight");
+  const [metric, setMetric] = useState<ProgressMetric>("volume");
   const [period, setPeriod] = useState<ProgressPeriod>("p12");
   const [entryModal, setEntryModal] = useState<{
     draft: WorkoutEntryDraft;

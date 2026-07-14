@@ -8,7 +8,7 @@ import {
   applyDeleteFromGrid,
   applyMoveToGrid,
   applyUpsertToGrid,
-  sortGridDatesNewestFirst,
+  sortGridDatesOldestFirst,
 } from "./workoutGridMutations";
 
 export function useWorkoutGrid() {
@@ -29,7 +29,7 @@ export function useWorkoutGrid() {
       ]);
       setExercises(exerciseList);
       setGrid({
-        dates: sortGridDatesNewestFirst(gridData.dates),
+        dates: sortGridDatesOldestFirst(gridData.dates),
         rows: gridData.rows,
       });
       setSelectedExerciseId((current) => {

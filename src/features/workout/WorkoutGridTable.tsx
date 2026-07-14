@@ -26,7 +26,7 @@ import {
 } from "./workoutGridDnD";
 import { upsertRequestFromCell, upsertRequestFromValues } from "./workoutEntryPayload";
 import { repsPatternFromCell } from "./workoutSetReps";
-import { sortGridDatesNewestFirst } from "./workoutGridMutations";
+import { sortGridDatesOldestFirst } from "./workoutGridMutations";
 
 type Props = {
   exercises: Exercise[];
@@ -125,7 +125,7 @@ function WorkoutGridTable({
   const [pendingDrag, setPendingDrag] = useState(false);
 
   const displayDates = useMemo(
-    () => sortGridDatesNewestFirst(grid.dates),
+    () => sortGridDatesOldestFirst(grid.dates),
     [grid.dates],
   );
 
@@ -464,7 +464,7 @@ function WorkoutGridTable({
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
           <span className="workout-grid__legend-hint">low → high</span>
           <span className="workout-grid__legend-hint workout-grid__legend-interaction">
-            · newest ← left · drag to move · click to edit
+            · oldest ← left · newest → right · drag to move · click to edit
           </span>
         </div>
       </div>

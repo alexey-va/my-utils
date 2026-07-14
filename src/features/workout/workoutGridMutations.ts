@@ -1,14 +1,14 @@
 import type { UpsertWorkoutEntryRequest, WorkoutCell, WorkoutGrid } from "../../api/types";
 
-/** Newest date first (left column after exercise name). */
-export function sortGridDatesNewestFirst(dates: string[]): string[] {
-  return [...dates].sort((a, b) => b.localeCompare(a));
+/** Oldest date first (left column after exercise name). */
+export function sortGridDatesOldestFirst(dates: string[]): string[] {
+  return [...dates].sort((a, b) => a.localeCompare(b));
 }
 
 function mergeGridDates(existing: string[], extra: string): string[] {
   const merged = new Set(existing);
   merged.add(extra);
-  return sortGridDatesNewestFirst([...merged]);
+  return sortGridDatesOldestFirst([...merged]);
 }
 
 export function payloadToWorkoutCell(payload: UpsertWorkoutEntryRequest): WorkoutCell {
@@ -86,7 +86,7 @@ export function applyDeleteFromGrid(
       datesStillUsed.add(date);
     }
   }
-  const dates = sortGridDatesNewestFirst(
+  const dates = sortGridDatesOldestFirst(
     grid.dates.filter((date) => datesStillUsed.has(date)),
   );
   return { dates, rows };
