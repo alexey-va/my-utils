@@ -32,7 +32,7 @@ src/
 |------|---------|
 | Dev | `npm run dev` — proxies `/api` to localhost:8080 |
 | Build | `npm run build` |
-| Prod | Jenkins **MyUtils**; **no** `VITE_API_BASE_URL` (same-origin `/api`) |
+| Prod | Woodpecker (`.woodpecker.yml`); деплой: `git push origin main`. **Не** задавай `VITE_API_BASE_URL=…/api` — пути уже с `/api/`. |
 
 Working dir: `utils/my-utils/`.
 
@@ -54,14 +54,14 @@ Working dir: `utils/my-utils/`.
 - `GrafanaPage` embeds same-origin `/grafana/` (first-party cookies)
 - Default panel: dashboard `d/myutils-api-logs/...`; second tab: Loki Explore
 - Override panels: `VITE_GRAFANA_DASHBOARDS` JSON at build time
-- Do not set cross-origin `VITE_GRAFANA_URL` in prod Jenkins
+- Do not set cross-origin `VITE_GRAFANA_URL` in prod Woodpecker build
 
 ## Temporal / iframe tab
 
 - `TemporalPage` embeds same-origin `/temporal/` (host nginx → `127.0.0.1:18233`)
 - `temporal-ui` must set `TEMPORAL_UI_PUBLIC_PATH=/temporal`
 - SPA tab path is `/workflows` (not `/temporal` — avoids iframe recursion)
-- Do not set cross-origin `VITE_TEMPORAL_URL` in prod Jenkins
+- Do not set cross-origin `VITE_TEMPORAL_URL` in prod Woodpecker build
 
 ## Design system (Linear)
 
