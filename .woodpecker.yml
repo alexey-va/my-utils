@@ -9,7 +9,7 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/freedeeml/ci:/opt/ci:ro
     environment:
-      VITE_API_BASE_URL: https://utils.alexeyav.ru/api
+      # Empty = same-origin /api via nginx (endpoints already start with /api/…)
       VITE_GRAFANA_URL: https://utils.alexeyav.ru/grafana
       # Same-origin embed: iframe from utils.alexeyav.ru cannot load temporal.alexeyav.ru (X-Frame-Options)
       VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal

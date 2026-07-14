@@ -14,7 +14,10 @@ function buildUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  let normalized = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE_URL.endsWith("/api") && normalized.startsWith("/api/")) {
+    normalized = normalized.slice(4);
+  }
   return API_BASE_URL ? `${API_BASE_URL}${normalized}` : normalized;
 }
 
