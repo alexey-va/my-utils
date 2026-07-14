@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
@@ -14,6 +15,8 @@ import { linearTokens } from "../../design/linearTokens";
 import type { HealthStepDay } from "../../api/types";
 
 const CHART_HEIGHT = 200;
+const STEPS_GOAL = 10_000;
+const STEPS_BAR_COLOR = linearTokens.semanticGreen;
 
 export type StepsPeriod = "p7" | "p14" | "p31" | "all";
 
@@ -72,10 +75,13 @@ function StepsTooltip({
   return (
     <div className="workout-chart-tooltip">
       <p className="workout-chart-tooltip__label">{dayjs(row.date).format("D MMM YYYY")}</p>
-      <p className="workout-chart-tooltip__row">
-        <span className="workout-chart-tooltip__name">Steps</span>
-        <span className="workout-chart-tooltip__value">{row.steps.toLocaleString()}</span>
-      </p>
+      <ul className="workout-chart-tooltip__list">
+        <li className="workout-chart-tooltip__row">
+          <span className="workout-chart-tooltip__swatch" style={{ background: STEPS_BAR_COLOR }} />
+          <span className="workout-chart-tooltip__name">Steps</span>
+          <span className="workout-chart-tooltip__value">{row.steps.toLocaleString()}</span>
+        </li>
+      </ul>
     </div>
   );
 }
@@ -91,6 +97,11 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
     const total = filtered.reduce((sum, day) => sum + day.steps, 0);
     return Math.round(total / filtered.length);
   }, [filtered]);
+
+  const yMax = useMemo(() => {
+    const dataMax = chartData.reduce((max, row) => Math.max(max, row.steps), 0);
+    return Math.ceil(Math.max(dataMax, STEPS_GOAL) * 1.08);
+  }, [chartData]);
 
   return (
     <div className="workout-steps">
@@ -146,11 +157,24 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
                   width={44}
                   tickMargin={4}
                   allowDecimals={false}
+                  domain={[0, yMax]}
                 />
                 <RechartsTooltip content={<StepsTooltip />} cursor={{ fill: linearTokens.accentTint }} />
+                <ReferenceLine
+                  y={STEPS_GOAL}
+                  stroke={linearTokens.inkMuted}
+                  strokeDasharray="5 4"
+                  strokeWidth={1}
+                  label={{
+                    value: "10k",
+                    position: "insideTopRight",
+                    fill: linearTokens.inkMuted,
+                    fontSize: 10,
+                  }}
+                />
                 <Bar
                   dataKey="steps"
-                  fill={linearTokens.semanticTeal}
+                  fill={STEPS_BAR_COLOR}
                   radius={[3, 3, 0, 0]}
                   isAnimationActive={false}
                 />
