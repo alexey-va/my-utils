@@ -29,6 +29,8 @@ const PERIOD_OPTIONS: { label: string; value: StepsPeriod }[] = [
 
 type ChartRow = {
   label: string;
+  weekday: string;
+  dateLabel: string;
   date: string;
   steps: number;
 };
@@ -43,11 +45,17 @@ function filterByPeriod(days: HealthStepDay[], period: StepsPeriod): HealthStepD
 }
 
 function toChartRows(days: HealthStepDay[]): ChartRow[] {
-  return days.map((day) => ({
-    date: day.date,
-    label: dayjs(day.date).format("D MMM"),
-    steps: day.steps,
-  }));
+  return days.map((day) => {
+    const d = dayjs(day.date);
+    const dateLabel = d.format("D MMM");
+    return {
+      date: day.date,
+      weekday: d.format("ddd"),
+      dateLabel,
+      label: `${d.format("ddd")} ${dateLabel}`,
+      steps: day.steps,
+    };
+  });
 }
 
 type Props = {
@@ -74,7 +82,9 @@ function StepsTooltip({
   }
   return (
     <div className="workout-chart-tooltip">
-      <p className="workout-chart-tooltip__label">{dayjs(row.date).format("D MMM YYYY")}</p>
+      <p className="workout-chart-tooltip__label">
+        {dayjs(row.date).format("ddd, D MMM YYYY")}
+      </p>
       <ul className="workout-chart-tooltip__list">
         <li className="workout-chart-tooltip__row">
           <span className="workout-chart-tooltip__swatch" style={{ background: STEPS_BAR_COLOR }} />
@@ -102,6 +112,59 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
     const dataMax = chartData.reduce((max, row) => Math.max(max, row.steps), 0);
     return Math.ceil(Math.max(dataMax, STEPS_GOAL) * 1.08);
   }, [chartData]);
+
+  const xAxisInterval = useMemo(() => {
+    if (chartData.length <= 7) {
+      return 0;
+    }
+    if (chartData.length <= 14) {
+      return 1;
+    }
+    return "preserveStartEnd" as const;
+  }, [chartData.length]);
+
+  const renderXAxisTick = useMemo(
+    () =>
+      function StepsXAxisTick({
+        x = 0,
+        y = 0,
+        index = 0,
+      }: {
+        x?: number;
+        y?: number;
+        index?: number;
+      }) {
+        const row = chartData[index];
+        if (!row) {
+          return null;
+        }
+        return (
+          <g transform={`translate(${x},${y})`}>
+            <text
+              x={0}
+              y={0}
+              dy={10}
+              textAnchor="middle"
+              fill={linearTokens.inkMuted}
+              fontSize={9}
+            >
+              {row.weekday}
+            </text>
+            <text
+              x={0}
+              y={0}
+              dy={22}
+              textAnchor="middle"
+              fill={linearTokens.inkMuted}
+              fontSize={10}
+            >
+              {row.dateLabel}
+            </text>
+          </g>
+        );
+      },
+    [chartData],
+  );
 
   return (
     <div className="workout-steps">
@@ -144,13 +207,14 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
         ) : (
           <div className="workout-steps__chart-inner">
             <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
-              <BarChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 8 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
                 <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 10 }}
-                  tickMargin={6}
-                  interval="preserveStartEnd"
+                  tick={renderXAxisTick}
+                  tickMargin={2}
+                  height={36}
+                  interval={xAxisInterval}
                 />
                 <YAxis
                   tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
