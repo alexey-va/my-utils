@@ -183,7 +183,10 @@ export default function WorkoutPage() {
   }, []);
 
   return (
-    <PageLayout title="Workout log">
+    <PageLayout
+      title="Workout log"
+      subtitle="Today’s training, progress, and activity in one focused view."
+    >
       <AppPanel className="workout-panel">
         <div className="workout-shell workout-shell--simple">
           <section className="workout-shell__insights" aria-label="Progress">

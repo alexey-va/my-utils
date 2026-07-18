@@ -753,7 +753,10 @@ textarea.generator-output {
 }
 
 .workout-shell__insights {
-  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+  gap: 12px;
 }
 
 .workout-shell__log {
@@ -892,7 +895,7 @@ textarea.generator-output {
   padding: 14px 16px;
   background: var(--linear-surface-1);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--linear-radius-lg);
   box-sizing: border-box;
 }
 
@@ -918,6 +921,15 @@ textarea.generator-output {
 .workout-progress__header-text {
   flex: 1;
   min-width: 0;
+}
+
+.workout-progress__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .workout-progress__compare-tag {
@@ -1087,13 +1099,15 @@ textarea.generator-output {
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
+  grid-column: 1 / -1;
+  margin-bottom: 0;
 }
 
 .workout-muscle-groups {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   padding: 10px 12px;
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
@@ -1136,7 +1150,7 @@ textarea.generator-output {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   padding: 12px 14px;
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
@@ -1200,6 +1214,10 @@ textarea.generator-output {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px 16px;
+}
+
+.workout-shell__insights > .workout-progress {
+  grid-column: 1 / -1;
 }
 
 .workout-progress__stat {
@@ -1498,8 +1516,8 @@ textarea.generator-output {
 }
 
 .workout-grid__th--active {
-  background: color-mix(in srgb, #38bdf8 14%, var(--linear-surface-2));
-  color: #7dd3fc;
+  background: color-mix(in srgb, var(--linear-primary) 16%, var(--linear-surface-2));
+  color: var(--linear-primary-hover);
 }
 
 .workout-grid__th-date {
@@ -1523,7 +1541,7 @@ textarea.generator-output {
 }
 
 .workout-grid__row--selected .workout-grid__exercise {
-  background: color-mix(in srgb, #3b82f6 8%, var(--linear-surface-1));
+  background: color-mix(in srgb, var(--linear-primary) 10%, var(--linear-surface-1));
 }
 
 .workout-grid__exercise-btn {
@@ -2216,6 +2234,16 @@ textarea.generator-output {
   line-height: 1.35;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 1100px) {
+  .workout-shell__insights {
+    grid-template-columns: 1fr;
+  }
+
+  .workout-shell__insights > .workout-progress {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 900px) {

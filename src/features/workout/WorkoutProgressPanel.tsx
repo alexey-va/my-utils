@@ -117,8 +117,9 @@ function WorkoutProgressPanel({
     <div className="workout-progress">
       <div className="workout-progress__header">
         <div className="workout-progress__header-text">
+          <p className="workout-progress__eyebrow">Progress</p>
           <h2 className="workout-progress__title">{title}</h2>
-          <p className="workout-progress__hint">Chart uses the period filter below</p>
+          <p className="workout-progress__hint">Choose a metric and time range to compare each session.</p>
         </div>
         {primary ? (
           <Popconfirm
