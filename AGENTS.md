@@ -6,7 +6,8 @@ Vite + React + **Refine v5** SPA. Sibling API: `../my-utils-api`. **Tab registry
 
 ```
 src/
-├── config/features.tsx     — **single source**: tabs, paths, pages, auth
+├── config/featureCatalog.tsx — **source of truth**: tabs, paths, menu metadata, auth gates
+├── config/features.tsx     — maps catalog entries to page components
 ├── config/grafana*.ts      — Grafana iframe URLs + dashboard tabs
 ├── config/temporal.ts      — Temporal iframe URL + path persistence
 ├── api/                    — apiClient, endpoints.ts
@@ -18,13 +19,14 @@ src/
 
 ## Tabs (features.tsx)
 
-| id | path | auth |
+| id | path | access |
 |----|------|------|
 | workout | `/` | public |
-| properties | `/properties` | public |
-| observability | `/observability` | public (Grafana iframe) |
-| temporal | `/workflows` | public (Temporal iframe → `/temporal/`) |
-| dashboard | `/admin` | requires login |
+| properties | `/properties` | tab password |
+| agents | `/agents` | tab password |
+| observability | `/observability` | tab password (Grafana iframe) |
+| temporal | `/workflows` | tab password (Temporal iframe → `/temporal/`) |
+| dashboard | `/admin` | tab password + login |
 
 ## Commands
 
@@ -39,9 +41,10 @@ Working dir: `utils/my-utils/`.
 ## Add a tab
 
 1. `src/features/<name>/<Name>Page.tsx`
-2. One entry in `config/features.tsx`
-3. API paths in `api/endpoints.ts` if needed
-4. Use `featurePath("id")` / `PageLayout` — no hardcoded routes in components
+2. One entry in `config/featureCatalog.tsx`
+3. Map the page in `config/features.tsx`
+4. API paths in `api/endpoints.ts` if needed
+5. Use `featurePath("id")` / `PageLayout` — no hardcoded routes in components
 
 ## API client
 

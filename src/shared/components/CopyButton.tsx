@@ -1,22 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "antd";
 import { CopyOutlined, CheckOutlined } from "@ant-design/icons";
 
 export default function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setCopied(false);
+  }, [value]);
+
   const doCopy = async () => {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
   };
+
   return (
     <Button
+      aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
+      className="copy-button"
       type={copied ? "primary" : "default"}
       icon={copied ? <CheckOutlined /> : <CopyOutlined />}
       onClick={doCopy}
-      style={{ transition: "all .25s ease", minWidth: copied ? 100 : 40 }}
     >
-      {copied ? "Copied!" : ""}
+      {copied ? "Copied" : "Copy"}
     </Button>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InputNumber } from "antd";
 import GeneratorCard from "../components/GeneratorCard";
 import GeneratorOutput from "../components/GeneratorOutput";
@@ -12,6 +12,10 @@ export default function NumberBox() {
 
   const generate = () => setValue(String(randInt(min, max)));
 
+  useEffect(() => {
+    setValue(String(randInt(min, max)));
+  }, [min, max]);
+
   return (
     <GeneratorCard
       title="Random Number"
@@ -21,11 +25,21 @@ export default function NumberBox() {
       <div className="generator-card__options generator-card__options--row">
         <label className="generator-field">
           <span className="generator-field__label">Min</span>
-          <InputNumber value={min} onChange={(n) => setMin(Number(n))} />
+          <InputNumber
+            value={min}
+            onChange={(next) => {
+              if (next !== null) setMin(next);
+            }}
+          />
         </label>
         <label className="generator-field">
           <span className="generator-field__label">Max</span>
-          <InputNumber value={max} onChange={(n) => setMax(Number(n))} />
+          <InputNumber
+            value={max}
+            onChange={(next) => {
+              if (next !== null) setMax(next);
+            }}
+          />
         </label>
       </div>
     </GeneratorCard>

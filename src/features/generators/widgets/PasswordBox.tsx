@@ -35,7 +35,14 @@ export default function PasswordBox() {
       <div className="generator-card__options">
         <label className="generator-field">
           <span className="generator-field__label">Length</span>
-          <InputNumber min={6} max={64} value={len} onChange={(n) => setLen(Number(n))} />
+          <InputNumber
+            min={6}
+            max={64}
+            value={len}
+            onChange={(next) => {
+              if (next !== null) setLen(next);
+            }}
+          />
         </label>
         <div className="generator-checkboxes">
           <Checkbox

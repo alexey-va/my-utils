@@ -9,6 +9,7 @@ export default function GeneratorOutput({ value, multiline }: Props) {
   if (multiline) {
     return (
       <Input.TextArea
+        aria-label="Generated value"
         className="generator-output"
         value={value}
         readOnly
@@ -17,5 +18,5 @@ export default function GeneratorOutput({ value, multiline }: Props) {
       />
     );
   }
-  return <Input className="generator-output" value={value} readOnly />;
+  return <Input aria-label="Generated value" className="generator-output" value={value} readOnly />;
 }

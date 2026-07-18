@@ -613,6 +613,10 @@ textarea.generator-output {
   border-color: var(--border) !important;
 }
 
+.copy-button.ant-btn {
+  min-width: 76px;
+}
+
 textarea.generator-output {
   min-height: 120px !important;
   resize: vertical;
@@ -3578,4 +3582,3 @@ textarea.generator-output {
   border: 0;
   background: var(--linear-canvas);
 }
-

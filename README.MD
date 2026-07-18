@@ -1,20 +1,23 @@
 # my-utils
 
-Internal utilities SPA: generators, JSON, workout diary, runtime properties, Grafana logs. [Refine](https://refine.dev) v5 + React + Vite.
+Internal utilities SPA for workouts and operational tools. Built with [Refine](https://refine.dev) v5, React, TypeScript, Vite, and Ant Design. The sibling service is [`../my-utils-api`](../my-utils-api).
 
-**Agent/dev guide:** [AGENTS.md](AGENTS.md) · API: [../my-utils-api/AGENTS.md](../my-utils-api/AGENTS.md)
+**Development guide:** [AGENTS.md](AGENTS.md) · **API guide:** [../my-utils-api/AGENTS.md](../my-utils-api/AGENTS.md)
 
-## Features
+## Product areas
 
-- **Generators** (`/`) — UUID, password, integer
-- **JSON** (`/json`) — prettify / minify
-- **Workout** (`/workout`) — training grid (API)
-- **Properties** (`/properties`) — runtime settings
-- **Logs** (`/observability`) — Grafana / Loki dashboard
-- **Temporal** (`/workflows`) — Temporal Web UI (iframe → `/temporal/`)
-- **Admin** (`/admin`) — sign-in required
+| Area | Route | Access | Purpose |
+| --- | --- | --- | --- |
+| Workout | `/` | Public | Training grid and progress views backed by the API. |
+| Properties | `/properties` | Tab password | Runtime application settings. |
+| Agents | `/agents` | Tab password | Agent memory and conversation history. |
+| Grafana | `/observability` | Tab password | Same-origin Grafana and Loki logs. |
+| Temporal | `/workflows` | Tab password | Embedded Temporal UI. |
+| Admin panel | `/admin` | Tab password + sign-in | Authenticated administration. |
 
-## Getting started
+Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
+
+## Local development
 
 ```bash
 cd utils/my-utils
@@ -22,25 +25,34 @@ npm install
 npm run dev
 ```
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Development server (`refine dev`) |
-| `npm run build` | Typecheck + production build |
-| `npm run start` | Serve production build |
+The development server proxies `/api` to `http://localhost:8080`. Start the API stack separately from `../my-utils-api` when working on API-backed screens.
 
-## Project layout
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the Refine/Vite development server. |
+| `npm run build` | Type-check and create a production build. |
+| `npm run start` | Serve the production build locally. |
 
-- `src/App.tsx` — Refine providers and layout
-- `src/components/AppRoutes.tsx` — routes
-- `src/components/AppSider.tsx` — collapsible sidebar
-- `src/config/resources.tsx` — sidebar menu entries
-- `src/providers/` — auth (mock), access control, data (stub)
-- `AGENTS.md` — guide for AI agents working in this repo
-- `docs/REFINE.md` — Refine framework reference for this project
+## Code map
 
-## Auth (development only)
+```text
+src/
+├── api/          HTTP client, endpoint definitions, and API types
+├── auth/         JWT session handling
+├── config/       Feature catalog, route paths, and integration settings
+├── design/       Linear design tokens
+├── features/     One folder per product area
+├── layout/       App shell, routes, sidebar, and access gates
+├── providers/    Refine auth, access-control, and data providers
+├── shared/       Reusable UI components, hooks, and utilities
+└── theme/        Ant Design theme mapped to the design tokens
+```
 
-Mock login: any non-empty email and password. Session is stored in `localStorage`. Not suitable for production.
+`src/config/featureCatalog.tsx` is the source of truth for sidebar metadata and route paths. `src/config/features.tsx` maps that metadata to page components. Use `featurePath()` instead of hard-coding internal routes.
+
+## Deployment
+
+Pushes to `main` run the Woodpecker pipeline. Do not set `VITE_API_BASE_URL` with a trailing `/api`: API endpoint definitions already begin with `/api/`, and production uses same-origin nginx routing.
 
 ## License
 
