@@ -4,6 +4,7 @@
 export const apiEndpoints = {
   health: "/api/health",
   healthSteps: "/api/health/steps",
+  healthWeight: "/api/health/weight",
   auth: {
     login: "/api/auth/login",
     logout: "/api/auth/logout",

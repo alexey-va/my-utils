@@ -754,15 +754,17 @@ textarea.generator-output {
 
 .workout-shell__insights {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
 }
 
 .workout-shell__log {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   flex: none;
+  min-width: 0;
   min-height: auto;
   overflow: visible;
 }
@@ -1106,37 +1108,64 @@ textarea.generator-output {
 .workout-muscle-groups {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   margin-bottom: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.workout-muscle-groups__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workout-muscle-groups__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .workout-muscle-groups__row {
   display: grid;
-  grid-template-columns: 72px 1fr auto;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 4.75rem;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
   font-size: 0.75rem;
 }
 
 .workout-muscle-groups__label {
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workout-muscle-groups__bar-track {
-  height: 6px;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 8px;
   overflow: hidden;
-  border-radius: 3px;
-  background: var(--linear-surface-tertiary);
+  border-radius: 4px;
+  background: var(--linear-surface-quaternary);
 }
 
 .workout-muscle-groups__bar-fill {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  min-width: 0;
+  border-radius: 4px;
   background: var(--linear-primary);
 }
 
@@ -1144,6 +1173,7 @@ textarea.generator-output {
   font-variant-numeric: tabular-nums;
   color: var(--text);
   white-space: nowrap;
+  text-align: right;
 }
 
 .workout-steps {
@@ -1155,6 +1185,13 @@ textarea.generator-output {
   background: var(--linear-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
+  min-width: 0;
+  height: 100%;
+}
+
+.workout-weight {
+  min-width: 0;
+  height: 100%;
 }
 
 .workout-steps__header {
@@ -1204,6 +1241,16 @@ textarea.generator-output {
   min-height: 200px;
 }
 
+.workout-weight__stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 480px) {
+  .workout-weight__stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 .workout-weekly__delta {
   margin-left: 6px;
   font-size: 0.75rem;
@@ -1217,6 +1264,10 @@ textarea.generator-output {
 }
 
 .workout-shell__insights > .workout-progress {
+  grid-column: 1 / -1;
+}
+
+.workout-shell__insights > .workout-muscle-groups {
   grid-column: 1 / -1;
 }
 
@@ -2241,7 +2292,8 @@ textarea.generator-output {
     grid-template-columns: 1fr;
   }
 
-  .workout-shell__insights > .workout-progress {
+  .workout-shell__insights > .workout-progress,
+  .workout-shell__insights > .workout-muscle-groups {
     grid-column: auto;
   }
 }
@@ -2330,8 +2382,8 @@ textarea.generator-output {
   }
 
   .workout-muscle-groups__row {
-    grid-template-columns: 64px 1fr auto;
-    gap: 6px;
+    grid-template-columns: 4.5rem minmax(0, 1fr) 4.25rem;
+    gap: 8px;
   }
 }
 

@@ -24,7 +24,9 @@ import WorkoutExerciseForm from "./WorkoutExerciseForm";
 import WorkoutExerciseBar from "./WorkoutExerciseBar";
 import WorkoutProgressPanel from "./WorkoutProgressPanel";
 import WorkoutStepsChart, { type StepsPeriod } from "./WorkoutStepsChart";
+import WorkoutBodyWeightChart, { type WeightPeriod } from "./WorkoutBodyWeightChart";
 import { useStepsHistory } from "./useStepsHistory";
+import { useBodyWeightHistory } from "./useBodyWeightHistory";
 import {
   exerciseDraftFromExercise,
   exerciseDraftNew,
@@ -76,9 +78,11 @@ export default function WorkoutPage() {
   const [showAllExercises, setShowAllExercises] = useState(true);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
   const [stepsPeriod, setStepsPeriod] = useState<StepsPeriod>("p31");
+  const [weightPeriod, setWeightPeriod] = useState<WeightPeriod>("p31");
   const exerciseSelectRef = useRef<RefSelectProps>(null);
 
   const { history: stepsHistory, loading: stepsLoading } = useStepsHistory(90);
+  const { history: weightHistory, loading: weightLoading } = useBodyWeightHistory(90);
 
   const chartExerciseIds = useMemo(
     () => (selectedExerciseId ? [selectedExerciseId] : []),
@@ -191,7 +195,6 @@ export default function WorkoutPage() {
         <div className="workout-shell workout-shell--simple">
           <section className="workout-shell__insights" aria-label="Progress">
             <WorkoutWeeklySummary summary={weeklySummary} />
-            <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
             <WorkoutStepsChart
               days={stepsHistory?.days ?? []}
               todaySteps={stepsHistory?.todaySteps ?? null}
@@ -199,6 +202,15 @@ export default function WorkoutPage() {
               period={stepsPeriod}
               onPeriodChange={setStepsPeriod}
             />
+            <WorkoutBodyWeightChart
+              days={weightHistory?.days ?? []}
+              latestWeightKg={weightHistory?.latestWeightKg ?? null}
+              latestDate={weightHistory?.latestDate ?? null}
+              loading={weightLoading}
+              period={weightPeriod}
+              onPeriodChange={setWeightPeriod}
+            />
+            <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
             <WorkoutProgressPanel
               series={series}
               primary={primary}

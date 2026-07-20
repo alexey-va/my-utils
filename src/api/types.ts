@@ -78,3 +78,14 @@ export type HealthStepsHistory = {
   days: HealthStepDay[];
   todaySteps: number | null;
 };
+
+export type HealthBodyWeightDay = {
+  date: string;
+  weightKg: number;
+};
+
+export type HealthBodyWeightHistory = {
+  days: HealthBodyWeightDay[];
+  latestWeightKg: number | null;
+  latestDate: string | null;
+};
