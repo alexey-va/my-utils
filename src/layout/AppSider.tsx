@@ -7,36 +7,30 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useGetIdentity, useMenu, useTranslate } from "@refinedev/core";
-import type { RefineThemedLayoutSiderProps } from "@refinedev/antd";
 import { APP_NAME } from "../config/appBranding";
-import { PATH_ADMIN, PATH_HOME } from "../config/paths";
+import type { AuthUser } from "../api/types";
+import { PATH_ACCOUNT, PATH_HOME } from "../config/paths";
 import { SIDER_EXPANDED_WIDTH, SIDER_RAIL_WIDTH } from "../config/sidebar";
 import { useConfirmLogout } from "../shared/hooks/useConfirmLogout";
 import { buildMenuRouteMap } from "../shared/utils/buildMenuRouteMap";
 import AppTitle from "./AppTitle";
 import SiderFooterButton from "./SiderFooterButton";
-import { loginPathWithRedirect } from "./RequireAuth";
+import { loginPathWithRedirect } from "./authNavigation";
 import { renderSiderMenu } from "./sider/renderSiderMenu";
 
-export default function AppSider({
-  Title: TitleFromProps,
-  render,
-  meta,
-  activeItemDisabled = false,
-  siderItemsAreCollapsed = true,
-}: RefineThemedLayoutSiderProps) {
+export default function AppSider() {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const onGrafanaTab = location.pathname === "/observability";
-  const { data: identity } = useGetIdentity();
+  const { data: identity } = useGetIdentity<AuthUser>();
   const translate = useTranslate();
-  const { menuItems, selectedKey, defaultOpenKeys } = useMenu({ meta });
+  const { menuItems, selectedKey, defaultOpenKeys } = useMenu();
   const confirmLogout = useConfirmLogout();
 
-  const RenderToTitle = TitleFromProps ?? AppTitle;
   const routeByKey = useMemo(() => buildMenuRouteMap(menuItems), [menuItems]);
   const siderWidth = expanded ? SIDER_EXPANDED_WIDTH : SIDER_RAIL_WIDTH;
 
@@ -50,9 +44,7 @@ export default function AppSider({
     [routeByKey, navigate],
   );
 
-  const defaultExpandMenuItems = siderItemsAreCollapsed ? [] : menuItems.map(({ key }) => key);
-  const items = renderSiderMenu({ tree: menuItems, selectedKey, activeItemDisabled });
-  const menuNodes = render ? render({ items, logout: null, collapsed: !expanded }) : items;
+  const menuNodes = renderSiderMenu({ tree: menuItems, selectedKey });
 
   const signInLabel = translate("buttons.login", "Sign in");
   const signOutLabel = translate("buttons.logout", "Logout");
@@ -60,7 +52,7 @@ export default function AppSider({
     ? translate("buttons.collapse", "Collapse")
     : translate("buttons.expand", "Expand");
 
-  const brand = <RenderToTitle collapsed={!expanded} />;
+  const brand = <AppTitle />;
 
   return (
     <Layout.Sider
@@ -86,7 +78,7 @@ export default function AppSider({
           mode="inline"
           inlineCollapsed={!expanded}
           selectedKeys={selectedKey ? [selectedKey] : []}
-          defaultOpenKeys={[...defaultOpenKeys, ...defaultExpandMenuItems]}
+          defaultOpenKeys={defaultOpenKeys}
           onClick={handleMenuClick}
         >
           {menuNodes}
@@ -101,12 +93,20 @@ export default function AppSider({
               onClick={() => navigate(PATH_HOME)}
             />
           ) : null}
+          {identity ? (
+            <SiderFooterButton
+              expanded={expanded}
+              icon={<UserOutlined />}
+              label={identity.username}
+              onClick={() => navigate(PATH_ACCOUNT)}
+            />
+          ) : null}
           <SiderFooterButton
             expanded={expanded}
             icon={identity ? <LogoutOutlined /> : <LoginOutlined />}
             label={identity ? signOutLabel : signInLabel}
             onClick={() =>
-              identity ? confirmLogout() : navigate(loginPathWithRedirect(PATH_ADMIN))
+              identity ? confirmLogout() : navigate(loginPathWithRedirect(PATH_HOME))
             }
           />
           <SiderFooterButton

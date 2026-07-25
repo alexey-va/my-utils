@@ -5,5 +5,6 @@ export type AppResourceMeta = {
   label?: string;
   icon?: ReactNode;
   requiresAuth?: boolean;
+  requiresAdmin?: boolean;
   parent?: string;
 };

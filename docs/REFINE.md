@@ -17,14 +17,11 @@ Refine is a **React meta-framework for CRUD-heavy apps** (admin panels, internal
 | Package | Version (package.json) | Role |
 |---------|------------------------|------|
 | `@refinedev/core` | ^5.0.0 | `<Refine>`, providers, hooks, `<Authenticated>` |
-| `@refinedev/antd` | ^6.0.2 | `ThemedLayout`, `ErrorComponent`, Ant Design glue |
 | `@refinedev/react-router` | ^2.0.0 | `routerProvider` for React Router v7 |
-| `@refinedev/cli` | ^2.16.48 | `refine dev` / `refine build` / `refine start` |
-| `@refinedev/graphql` | ^6.4.8 | Installed; **not wired** (stub data provider) |
-| `@refinedev/devtools` | ^2.0.1 | Dev overlay |
-| `@refinedev/kbar` | ^2.0.0 | Command palette (optional) |
 
-**Also in stack (not Refine):** React 19, Vite 6, Ant Design 5, `react-router-dom` 7, Tailwind 4.
+**Also in stack (not Refine):** React 19, Vite 6, Ant Design 5,
+`react-router-dom` 7, Vitest, and Tailwind 4. The app uses native Ant Design
+layout and components rather than the optional `@refinedev/antd` package.
 
 ---
 
@@ -40,41 +37,47 @@ BrowserRouter
               dataProvider
               resources
             >
-              └── Routes
-                    └── /* → <ThemedLayout Sider={AppSider} Header={null}>
-                              ├── AppRoutes (nested routes)
-                              └── AuthNotice
+              └── <Layout>
+                    ├── AppSider
+                    └── AppRoutes
+                          ├── feature routes
+                          ├── login / register / account
+                          └── AuthNotice
 ```
 
 | Concern | Location in repo |
 |---------|------------------|
 | Refine shell | `src/App.tsx` |
-| Routes | `src/components/AppRoutes.tsx` |
-| Auth (optional mock) | `src/providers/authProvider.ts`, `src/auth/session.ts` |
-| Access control | `src/providers/accessControlProvider.ts` (`meta.requiresAuth`) |
-| Route guard | `src/components/RequireAuth.tsx` |
+| Routes | `src/layout/AppRoutes.tsx` |
+| Auth | `src/providers/authProvider.ts`, `src/auth/session.ts` |
+| Access control | `src/providers/accessControlProvider.ts` |
+| Route guards | `src/layout/RequireAuth.tsx`, `src/layout/RequireAdmin.tsx` |
 | Data (stub) | `src/providers/dataProvider.ts` |
-| Sidebar menu | `src/config/resources.tsx` |
-| Custom sider | `src/components/AppSider.tsx` |
-| Ant Design theme | `src/theme/appTheme.ts` |
+| Sidebar menu | `src/config/featureCatalog.tsx`, `src/config/resources.tsx` |
+| Custom sider | `src/layout/AppSider.tsx` |
+| Ant Design theme | `src/theme/linearTheme.ts` |
 
-**No `<Authenticated>` wrapper** — `authProvider.check` always allows the app shell. Guests use public tools; `/admin` is gated by `RequireAuth` + `requiresAuth` on the dashboard resource.
+**No global `<Authenticated>` wrapper** — the app shell and Workout remain
+public. Login, registration, and account management use the real API.
+Operational routes are hidden and guarded through `requiresAdmin`,
+`accessControlProvider`, and `RequireAdmin`; the API separately enforces the
+administrator role.
 
 **Custom pages** (Generators, JSON) are plain React components; they do not use `useList` / `useForm` unless you add CRUD later.
 
 ---
 
-## CLI
+## Local commands
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | `refine dev` — Vite dev server |
-| `npm run build` | `tsc && refine build` — production build |
-| `npm run start` | `refine start` — serve production build |
-| `npm run refine` | Pass-through to Refine CLI |
+| `npm run dev` | Vite development server |
+| `npm run build` | `tsc && vite build` — production build |
+| `npm test` | Focused Vitest suite |
+| `npm run start` | `vite preview` — preview the production build |
 | `npm create refine-app@latest` | Scaffold new app |
 
-**Docs:** https://refine.dev/core/docs/packages/cli/
+The Refine CLI and devtools packages are intentionally not installed.
 
 ---
 
@@ -167,7 +170,7 @@ const authProvider: AuthProvider = {
 
 ```tsx
 <Authenticated key="authenticated" fallback={<Login />}>
-  <ThemedLayout>...</ThemedLayout>
+  <PrivatePage />
 </Authenticated>
 ```
 
@@ -268,43 +271,21 @@ Refine does not own your route tree — you define `Routes`; `resources` tell Re
 
 ---
 
-## Ant Design integration (`@refinedev/antd`)
+## Ant Design integration
 
-**Docs:** https://refine.dev/core/docs/ui-integrations/ant-design/introduction/
+The application imports Ant Design directly. Refine remains headless and
+provides resource, routing, identity, and access-control hooks.
 
 Import reset CSS once (see `src/index.tsx`):
 
 ```ts
 import "antd/dist/reset.css";
-// or: import "@refinedev/antd/dist/reset.css";
 ```
-
-### Components used in my-utils
-
-| Component | Docs |
-|-----------|------|
-| `ThemedLayout` | https://refine.dev/core/docs/ui-integrations/ant-design/components/themed-layout/ |
-| `ErrorComponent` | https://refine.dev/core/docs/ui-integrations/ant-design/components/error-component/ |
-| `AuthPage` | https://refine.dev/core/docs/ui-integrations/ant-design/components/auth-page/ (optional; we use custom Login) |
-
-### CRUD views (when you add real resources)
-
-| View | Docs |
-|------|------|
-| List | https://refine.dev/core/docs/ui-integrations/ant-design/components/basic-views/list/ |
-| Create | https://refine.dev/core/docs/ui-integrations/ant-design/components/basic-views/create/ |
-| Edit | https://refine.dev/core/docs/ui-integrations/ant-design/components/basic-views/edit/ |
-| Show | https://refine.dev/core/docs/ui-integrations/ant-design/components/basic-views/show/ |
-
-### Ant Design hooks
-
-`useTable`, `useForm`, `useModalForm`, `useDrawerForm`, `useSelect`, etc.  
-**Index:** https://refine.dev/core/docs/ui-integrations/ant-design/hooks/use-table/
 
 ### Theming
 
-Refine Ant Design respects Ant Design `ConfigProvider`. This project sets theme in `src/theme/appTheme.ts`.  
-**Docs:** https://refine.dev/core/docs/ui-integrations/ant-design/theming/
+The project passes `linearTheme` from `src/theme/linearTheme.ts` to Ant
+Design's `ConfigProvider`.
 
 ---
 
@@ -427,30 +408,35 @@ Refine Ant Design respects Ant Design `ConfigProvider`. This project sets theme 
 
 1. Implement real `dataProvider` (e.g. `@refinedev/simple-rest` or GraphQL package).
 2. Add `resources` entry with `list` / `create` / `edit` / `show` paths.
-3. Add routes under `ThemedLayout`.
-4. Use `<List>`, `<Create>`, `<Edit>`, `<Show>` from `@refinedev/antd` or custom pages with `useTable` / `useForm`.
+3. Add routes in `src/layout/AppRoutes.tsx`.
+4. Build custom Ant Design pages or explicitly add a compatible Refine UI integration.
 
 ### Add a menu item (custom page only)
 
-1. Add to `src/config/resources.tsx`: `{ name: "foo", list: "/foo", meta: { label: "Foo", icon: <Icon /> } }`.
-2. Add `<Route path="foo" element={<Foo />} />` in `src/components/AppRoutes.tsx`.
+1. Add metadata to `src/config/featureCatalog.tsx`.
+2. Add the lazy page mapping to `src/config/features.tsx`.
 
-### Add a login-gated page
+### Add an administrator page
 
-1. Resource: `meta: { requiresAuth: true }` in `config/resources.tsx`.
-2. Route: wrap with `<RequireAuth>` in `AppRoutes.tsx`.
-3. Menu item is hidden for guests via `accessControlProvider`; direct URL redirects to `/` with `AuthNotice` toast.
+1. Set `requiresAdmin: true` in `src/config/featureCatalog.tsx`.
+2. `AppRoutes` wraps it with `RequireAdmin`; `accessControlProvider` hides it
+   from guests and regular users.
+3. Protect every backing endpoint with the API's administrator role. The
+   frontend guard is navigation UX, not a security boundary.
 
-### Replace mock auth
+### Authentication contract
 
-1. Edit `src/auth/session.ts` and `src/providers/authProvider.ts` — real API, secure token storage.
-2. Keep `check` returning `{ authenticated: true }` if the shell should stay public; otherwise use `<Authenticated>` or redirect in `check`.
-3. Attach tokens to the data provider HTTP client in `onError` or an axios interceptor.
+1. `authProvider` performs real login/logout against `/api/auth/*`.
+2. Registration and credential changes live in the custom auth pages.
+3. `apiClient` attaches the stored Bearer token. The server validates roles and
+   can revoke user-bound sessions.
 
-### Wire GraphQL (already in package.json)
+### Wire GraphQL
 
-1. Replace stub in `dataProvider.ts` with `dataProvider` from `@refinedev/graphql`.
-2. See https://refine.dev/core/docs/data/packages/graphql/
+1. Add `@refinedev/graphql`, `graphql`, and `graphql-request` when an actual
+   GraphQL endpoint is introduced.
+2. Replace the stub in `dataProvider.ts` with the compatible provider.
+3. See https://refine.dev/core/docs/data/packages/graphql/
 
 ---
 

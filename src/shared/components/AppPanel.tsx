@@ -10,7 +10,11 @@ type Props = {
 /** Standard content panel (Admin, JSON tool, etc.). */
 export default function AppPanel({ title, children, className }: Props) {
   return (
-    <Card title={title} className={className ? `app-panel ${className}` : "app-panel"} bordered={false}>
+    <Card
+      title={title}
+      className={className ? `app-panel ${className}` : "app-panel"}
+      variant="borderless"
+    >
       {children}
     </Card>
   );

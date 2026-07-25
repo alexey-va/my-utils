@@ -1,3 +1,5 @@
+import type { AgentMemoryMessage } from "../../api/agentMemory";
+
 const MAX_IMAGES = 4;
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -50,4 +52,11 @@ export async function filesToPendingImages(files: FileList | File[]): Promise<Pe
 
 export function pendingImageDataUrls(images: PendingAgentImage[]): string[] {
   return images.map((image) => image.dataUrl);
+}
+
+export function messageImages(row: AgentMemoryMessage, parsedImages?: string[]): string[] {
+  if (parsedImages && parsedImages.length > 0) {
+    return parsedImages;
+  }
+  return row.images ?? [];
 }

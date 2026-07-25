@@ -1,24 +1,19 @@
+import { lazy } from "react";
 import type { AppFeature } from "../types/feature";
 import { featureCatalog } from "./featureCatalog";
-import AdminPage from "../features/admin/AdminPage";
-import WorkoutPage from "../features/workout/WorkoutPage";
-import PropertiesPage from "../features/properties/PropertiesPage";
-import GrafanaPage from "../features/observability/GrafanaPage";
-import TemporalPage from "../features/temporal/TemporalPage";
-import AgentsPage from "../features/agents/AgentsPage";
 
 const pagesById: Record<string, AppFeature["Page"]> = {
-  workout: WorkoutPage,
-  properties: PropertiesPage,
-  agents: AgentsPage,
-  observability: GrafanaPage,
-  temporal: TemporalPage,
-  dashboard: AdminPage,
+  workout: lazy(() => import("../features/workout/WorkoutPage")),
+  properties: lazy(() => import("../features/properties/PropertiesPage")),
+  agents: lazy(() => import("../features/agents/AgentsPage")),
+  observability: lazy(() => import("../features/observability/GrafanaPage")),
+  temporal: lazy(() => import("../features/temporal/TemporalPage")),
+  dashboard: lazy(() => import("../features/admin/AdminPage")),
 };
 
 /**
  * Register new tabs in featureCatalog.tsx (metadata) and map the page here.
- * Optional `requiresAuth` hides the item when signed out and wraps the page in RequireAuth.
+ * Access metadata hides restricted items and wraps routes in the matching server-backed gate.
  */
 export const appFeatures: AppFeature[] = featureCatalog.map((entry) => {
   const Page = pagesById[entry.id];

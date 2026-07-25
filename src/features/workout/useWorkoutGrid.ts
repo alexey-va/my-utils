@@ -2,8 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { message } from "antd";
 import { apiClient, ApiError } from "../../api";
 import { apiEndpoints } from "../../api/endpoints";
-import type { Exercise, UpsertWorkoutEntryRequest, WorkoutGrid } from "../../api/types";
-import { upsertRequestFromCell } from "./workoutEntryPayload";
+import type {
+  Exercise,
+  MoveWorkoutEntryRequest,
+  UpsertWorkoutEntryRequest,
+  WorkoutGrid,
+} from "../../api/types";
 import {
   applyDeleteFromGrid,
   applyMoveToGrid,
@@ -160,9 +164,13 @@ export function useWorkoutGrid() {
       setGrid(applyMoveToGrid(grid, from, toExerciseId, toDate, cell));
       void (async () => {
         try {
-          const payload = upsertRequestFromCell(toExerciseId, toDate, cell);
-          await apiClient.post<void>(apiEndpoints.workouts.entries, payload);
-          await apiClient.delete(apiEndpoints.workouts.entry(from.exerciseId, from.fromDate));
+          const payload: MoveWorkoutEntryRequest = {
+            fromExerciseId: from.exerciseId,
+            fromDate: from.fromDate,
+            toExerciseId,
+            toDate,
+          };
+          await apiClient.post<void>(apiEndpoints.workouts.moveEntry, payload);
           void reload({ silent: true });
         } catch (err) {
           setGrid(snapshot);

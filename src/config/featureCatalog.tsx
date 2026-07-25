@@ -15,7 +15,7 @@ export type FeatureCatalogEntry = {
   label: string;
   icon: ReactNode;
   requiresAuth?: boolean;
-  requiresTabPassword?: boolean;
+  requiresAdmin?: boolean;
   index?: boolean;
   aliases?: string[];
 };
@@ -34,21 +34,21 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     path: "/properties",
     label: "Properties",
     icon: <SettingOutlined />,
-    requiresTabPassword: true,
+    requiresAdmin: true,
   },
   {
     id: "agents",
     path: "/agents",
     label: "Agents",
     icon: <MessageOutlined />,
-    requiresTabPassword: true,
+    requiresAdmin: true,
   },
   {
     id: "observability",
     path: "/observability",
     label: "Grafana",
     icon: <DashboardOutlined />,
-    requiresTabPassword: true,
+    requiresAdmin: true,
   },
   {
     id: "temporal",
@@ -56,15 +56,14 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     label: "Temporal",
     icon: <ScheduleOutlined />,
     aliases: ["temporal"],
-    requiresTabPassword: true,
+    requiresAdmin: true,
   },
   {
     id: "dashboard",
     path: "/admin",
     label: "Admin panel",
     icon: <HomeOutlined />,
-    requiresAuth: true,
-    requiresTabPassword: true,
+    requiresAdmin: true,
   },
 ];
 

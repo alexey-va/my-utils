@@ -79,11 +79,11 @@ export type AgentMemoryChatTurnResult = {
 const BASE = "/api/admin/agent-memory";
 
 export async function fetchAgentMemoryChats(): Promise<AgentMemoryChatSummary[]> {
-  return apiClient.get<AgentMemoryChatSummary[]>(`${BASE}/chats`, { skipAuth: true });
+  return apiClient.get<AgentMemoryChatSummary[]>(`${BASE}/chats`);
 }
 
 export async function fetchAgentMemoryChat(chatId: number): Promise<AgentMemoryChatDetail> {
-  return apiClient.get<AgentMemoryChatDetail>(`${BASE}/chats/${chatId}`, { skipAuth: true });
+  return apiClient.get<AgentMemoryChatDetail>(`${BASE}/chats/${chatId}`);
 }
 
 export async function fetchAgentMemoryMessages(
@@ -97,7 +97,6 @@ export async function fetchAgentMemoryMessages(
   }
   return apiClient.get<AgentMemoryMessagePage>(
     `${BASE}/chats/${chatId}/messages?${params.toString()}`,
-    { skipAuth: true },
   );
 }
 
@@ -110,7 +109,6 @@ export async function appendAgentMessage(
   return apiClient.post<AgentMemoryMessage>(
     `${BASE}/chats/${chatId}/messages`,
     { role, content, images },
-    { skipAuth: true },
   );
 }
 
@@ -122,7 +120,6 @@ export async function simulateAgentChat(
   return apiClient.post<AgentMemoryChatTurnResult>(
     `${BASE}/chats/${chatId}/chat`,
     { content, images },
-    { skipAuth: true },
   );
 }
 
@@ -134,7 +131,6 @@ export async function createAgentFact(
   return apiClient.post<AgentMemoryFact>(
     `${BASE}/chats/${chatId}/facts`,
     { content, confidence },
-    { skipAuth: true },
   );
 }
 
@@ -146,16 +142,15 @@ export async function updateAgentFact(
   return apiClient.put<AgentMemoryFact>(
     `${BASE}/facts/${id}`,
     { content, confidence },
-    { skipAuth: true },
   );
 }
 
 export async function deleteAgentFact(id: string): Promise<void> {
-  await apiClient.delete(`${BASE}/facts/${id}`, { skipAuth: true });
+  await apiClient.delete(`${BASE}/facts/${id}`);
 }
 
 export async function deleteAgentSummary(id: string): Promise<void> {
-  await apiClient.delete(`${BASE}/summaries/${id}`, { skipAuth: true });
+  await apiClient.delete(`${BASE}/summaries/${id}`);
 }
 
 export async function updateMessageExcluded(
@@ -165,12 +160,11 @@ export async function updateMessageExcluded(
   return apiClient.patch<AgentMemoryMessage>(
     `${BASE}/messages/${id}`,
     { excludedFromContext },
-    { skipAuth: true },
   );
 }
 
 export async function deleteAgentMessage(id: number): Promise<void> {
-  await apiClient.delete(`${BASE}/messages/${id}`, { skipAuth: true });
+  await apiClient.delete(`${BASE}/messages/${id}`);
 }
 
 export async function compactAgentMemory(
@@ -180,10 +174,9 @@ export async function compactAgentMemory(
   return apiClient.post<AgentMemoryCompactResult>(
     `${BASE}/chats/${chatId}/compact?keepRecent=${keepRecent}`,
     undefined,
-    { skipAuth: true },
   );
 }
 
 export async function clearAgentDialog(chatId: number): Promise<void> {
-  await apiClient.delete(`${BASE}/chats/${chatId}/dialog`, { skipAuth: true });
+  await apiClient.delete(`${BASE}/chats/${chatId}/dialog`);
 }

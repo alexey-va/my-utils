@@ -1,11 +1,17 @@
 export type LoginResponse = {
   token: string;
-  user: { email: string };
+  user: AuthUser;
 };
 
-export type UserProfile = {
+export type AuthUser = {
+  id: string;
+  username: string;
   email: string;
+  role: "USER" | "ADMIN";
+  mustChangePassword: boolean;
 };
+
+export type UserProfile = AuthUser;
 
 export type Exercise = {
   id: string;
@@ -41,6 +47,13 @@ export type UpsertWorkoutEntryRequest = {
   repsPerSet: number;
   maxReps: number;
   setReps?: number[] | null;
+};
+
+export type MoveWorkoutEntryRequest = {
+  fromExerciseId: string;
+  fromDate: string;
+  toExerciseId: string;
+  toDate: string;
 };
 
 export type ProgressPoint = {

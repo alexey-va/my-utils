@@ -41,7 +41,7 @@ function bumpWeight(
   delta: number,
 ) {
   const current = form.getFieldValue("weightKg") ?? 0;
-  form.setFieldValue("weightKg", Math.max(1, Math.round(current + delta)));
+  form.setFieldValue("weightKg", Math.max(0.25, Math.round((current + delta) * 4) / 4));
 }
 
 function buildUpsertPayload(
@@ -57,7 +57,7 @@ function buildUpsertPayload(
     return {
       exerciseId: draft.exerciseId,
       performedOn: values.performedOn.format("YYYY-MM-DD"),
-      weightKg: Math.round(values.weightKg),
+      weightKg: values.weightKg,
       setCount: draft.setCount,
       repsPerSet,
       maxReps: repsPerSet,
@@ -66,7 +66,7 @@ function buildUpsertPayload(
   return {
     exerciseId: draft.exerciseId,
     performedOn: values.performedOn.format("YYYY-MM-DD"),
-    weightKg: Math.round(values.weightKg),
+    weightKg: values.weightKg,
     setCount: reps.length,
     repsPerSet: Math.min(...reps),
     maxReps: Math.max(...reps),
@@ -127,7 +127,13 @@ export default function WorkoutEntryForm({
             label="Weight (kg)"
             rules={[{ required: true, message: "Enter weight" }]}
           >
-            <InputNumber className="workout-form__full" min={1} step={1} precision={0} autoComplete="off" />
+            <InputNumber
+              className="workout-form__full"
+              min={0.25}
+              step={0.25}
+              precision={2}
+              autoComplete="off"
+            />
           </Form.Item>
           <Form.Item label=" " colon={false} className="workout-form__weight-bumps">
             <Space wrap size={4}>

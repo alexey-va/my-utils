@@ -39,7 +39,7 @@ export default function PropertyTextareaModal({
       cancelText="Cancel"
       confirmLoading={saving}
       width="min(960px, 96vw)"
-      destroyOnClose
+      destroyOnHidden
     >
       {description ? (
         <Typography.Paragraph type="secondary" className="properties-editor__modal-desc">

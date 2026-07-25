@@ -7,8 +7,10 @@ export const apiEndpoints = {
   healthWeight: "/api/health/weight",
   auth: {
     login: "/api/auth/login",
+    register: "/api/auth/register",
     logout: "/api/auth/logout",
     me: "/api/auth/me",
+    credentials: "/api/auth/credentials",
   },
   admin: {
     settings: "/api/admin/settings",
@@ -22,5 +24,6 @@ export const apiEndpoints = {
       `/api/workouts/exercises/${exerciseId}/entries/${performedOn}`,
     grid: "/api/workouts/grid",
     entries: "/api/workouts/entries",
+    moveEntry: "/api/workouts/entries/move",
   },
 } as const;

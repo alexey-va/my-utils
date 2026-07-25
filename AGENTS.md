@@ -1,6 +1,7 @@
 # AGENTS.md — my-utils
 
-Vite + React + **Refine v5** SPA. Sibling API: `../my-utils-api`. **Tab registry** drives routes and menu.
+Vite + React + **Refine v5** SPA. Sibling API: `../my-utils-api`. **Feature
+catalog** drives routes and menu.
 
 This is an independent Git repository. Backend changes belong in
 `../my-utils-api` and must be committed and verified separately.
@@ -29,25 +30,26 @@ page mapping. Do not infer routes from folder names.
 | id | path | access |
 |----|------|------|
 | workout | `/` | public |
-| properties | `/properties` | tab password |
-| agents | `/agents` | tab password |
-| observability | `/observability` | tab password (Grafana iframe) |
-| temporal | `/workflows` | tab password (Temporal iframe → `/temporal/`) |
-| dashboard | `/admin` | tab password + login |
+| properties | `/properties` | administrator |
+| agents | `/agents` | administrator |
+| observability | `/observability` | administrator (Grafana iframe) |
+| temporal | `/workflows` | administrator (Temporal iframe → `/temporal/`) |
+| dashboard | `/admin` | administrator |
 
 ## Commands
 
 | Task | Command |
 |------|---------|
 | Dev | `npm run dev` — proxies `/api` to localhost:8080 |
+| Lint | `npm exec eslint -- src` |
+| Test | `npm test` |
 | Build | `npm run build` |
 | Prod | Woodpecker (`.woodpecker.yml`); деплой: `git push origin main`. **Не** задавай `VITE_API_BASE_URL=…/api` — пути уже с `/api/`. |
 
 Working dir: `utils/my-utils/`.
 
-There is currently no automated frontend test script. `npm run build` is the
-required local gate; interaction changes additionally need a focused browser
-smoke check.
+Run lint, tests, the production build, and `git diff --check` before a commit.
+Interaction changes additionally need a focused browser smoke check.
 
 ## Add a tab
 
@@ -61,9 +63,13 @@ smoke check.
 
 - `apiClient` from `src/api/client.ts` — attaches Bearer JWT from `auth/session.ts`
 - Prod: browser calls `https://utils.alexeyav.ru/api/...` via nginx
-- Login: `POST /api/auth/login`; gated tabs use `requiresAuth: true` + `RequireAuth`
-- `RequireTabPassword` is a client-side visibility gate, not server
-  authorization. Never rely on it to protect a backend endpoint.
+- Login: `POST /api/auth/login`; registration: `POST /api/auth/register`
+- Workout is public. Operational tabs use `requiresAdmin: true` +
+  `RequireAdmin`; their API endpoints independently require `ROLE_ADMIN`.
+- A regular `USER` can use Workout and manage its own credentials but cannot
+  open administrative routes.
+- The bootstrap administrator must change its initial password before access
+  to administrative routes is granted.
 
 ## Grafana / Logs tab
 
@@ -109,7 +115,7 @@ Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/lin
 1. Keep route metadata in `featureCatalog.tsx`.
 2. Reuse `PageLayout`, `AppPanel`, and Linear tokens.
 3. Check desktop and narrow layouts.
-4. Run `npm run build` and `git diff --check`.
+4. Run lint, `npm test`, `npm run build`, and `git diff --check`.
 
 ### Cross-repo API change
 
@@ -120,5 +126,9 @@ Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/lin
 
 Push to `main` triggers production deployment. Do not push merely to verify a
 change.
+
+Only the author currently uses this application, so a short production
+downtime during an otherwise safe deployment is acceptable. Do not let
+zero-downtime complexity block a simple verified release.
 
 Backend agent/Temporal docs: `../my-utils-api/AGENTS.md`.

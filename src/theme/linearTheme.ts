@@ -29,6 +29,7 @@ export const linearAntTheme: ThemeConfig = {
     borderRadius: t.radiusMd,
     borderRadiusLG: t.radiusLg,
     controlHeight: 36,
+    fontSize: 15,
     fontFamily: "Inter, system-ui, -apple-system, Segoe UI, sans-serif",
     fontFamilyCode: "JetBrains Mono, ui-monospace, SF Mono, Menlo, monospace",
   },

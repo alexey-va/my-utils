@@ -18,12 +18,12 @@ export type RuntimeProperty = {
 };
 
 export async function fetchProperties(): Promise<RuntimeProperty[]> {
-  return apiClient.get<RuntimeProperty[]>("/api/admin/settings", { skipAuth: true });
+  return apiClient.get<RuntimeProperty[]>("/api/admin/settings");
 }
 
 export async function updateProperty(key: string, value: unknown): Promise<RuntimeProperty> {
   // Spring может «съесть» точки в @PathVariable — кодируем их явно.
   const pathKey = key.replace(/\./g, "%2E");
   const path = `/api/admin/settings/${pathKey}`;
-  return apiClient.put<RuntimeProperty>(path, { value }, { skipAuth: true });
+  return apiClient.put<RuntimeProperty>(path, { value });
 }

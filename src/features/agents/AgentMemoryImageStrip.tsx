@@ -1,5 +1,3 @@
-import type { AgentMemoryMessage } from "../../api/agentMemory";
-
 type Props = {
   images: string[];
   className?: string;
@@ -29,11 +27,4 @@ export default function AgentMemoryImageStrip({ images, className }: Props) {
       ))}
     </div>
   );
-}
-
-export function messageImages(row: AgentMemoryMessage, parsedImages?: string[]): string[] {
-  if (parsedImages && parsedImages.length > 0) {
-    return parsedImages;
-  }
-  return row.images ?? [];
 }

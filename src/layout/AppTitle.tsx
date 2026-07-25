@@ -1,10 +1,9 @@
 import { useLink } from "@refinedev/core";
 import { ThunderboltOutlined } from "@ant-design/icons";
-import type { RefineLayoutThemedTitleProps } from "@refinedev/ui-types";
 import { APP_NAME } from "../config/appBranding";
 
 /** Sidebar brand — icon stays fixed; title fades via `.app-sider--expanded` CSS. */
-export default function AppTitle(_props: RefineLayoutThemedTitleProps) {
+export default function AppTitle() {
   const Link = useLink();
 
   return (

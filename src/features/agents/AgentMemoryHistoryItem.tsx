@@ -3,7 +3,8 @@ import { RobotOutlined, ToolOutlined, UserOutlined } from "@ant-design/icons";
 import type { AgentMemoryMessage } from "../../api/agentMemory";
 import AgentMemoryJsonBlock from "./AgentMemoryJsonBlock";
 import AgentMemoryMessageActions from "./AgentMemoryMessageActions";
-import AgentMemoryImageStrip, { messageImages } from "./AgentMemoryImageStrip";
+import AgentMemoryImageStrip from "./AgentMemoryImageStrip";
+import { messageImages } from "./agentMemoryImages";
 import {
   type HistoryItem,
   parseStoredMessage,

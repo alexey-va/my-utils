@@ -8,7 +8,7 @@ export function upsertRequestFromValues(
   repsPattern: string,
   defaultSetCount = 3,
 ): UpsertWorkoutEntryRequest {
-  const weight = Math.round(weightKg);
+  const weight = Math.max(0.25, Math.round(weightKg * 4) / 4);
   const reps = parseRepsPattern(repsPattern);
   if (!reps?.length) {
     throw new Error("Enter reps per set, e.g. 10/10/9/9");

@@ -3,6 +3,16 @@ when:
     branch: main
 
 steps:
+  - name: verify
+    image: node:22-alpine
+    environment:
+      VITE_GRAFANA_URL: https://utils.alexeyav.ru/grafana
+      VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal
+    commands:
+      - npm ci
+      - npm test
+      - npm run build
+
   - name: deploy
     image: docker:27-cli
     volumes:

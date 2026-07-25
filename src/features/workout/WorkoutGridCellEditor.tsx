@@ -24,13 +24,15 @@ export default function WorkoutGridCellEditor({
       <Space.Compact className="workout-grid__cell-popover-row">
         <InputNumber
           className="workout-grid__cell-popover-weight"
-          min={1}
-          step={1}
-          precision={0}
+          min={0.25}
+          step={0.25}
+          precision={2}
           size="small"
           value={weightKg}
           addonAfter="kg"
-          onChange={(value) => onWeightChange(Math.max(1, Math.round(value ?? 1)))}
+          onChange={(value) =>
+            onWeightChange(Math.max(0.25, Math.round((value ?? 0.25) * 4) / 4))
+          }
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

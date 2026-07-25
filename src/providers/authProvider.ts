@@ -3,11 +3,11 @@ import { apiClient, ApiError } from "../api";
 import { apiEndpoints } from "../api/endpoints";
 import type { LoginResponse } from "../api/types";
 import { clearSession, isLoggedIn, readStoredUser, storeSession } from "../auth/session";
-import { PATH_HOME } from "../config/paths";
+import { PATH_ACCOUNT, PATH_HOME } from "../config/paths";
 
 export const authProvider: AuthProvider = {
-  login: async ({ email, password, redirectTo }) => {
-    if (!email || !password) {
+  login: async ({ login, password, redirectTo }) => {
+    if (!login || !password) {
       return {
         success: false,
         error: { name: "Login failed", message: "Invalid credentials" },
@@ -17,13 +17,17 @@ export const authProvider: AuthProvider = {
     try {
       const res = await apiClient.post<LoginResponse>(
         apiEndpoints.auth.login,
-        { email, password },
+        { login, password },
         { skipAuth: true },
       );
-      storeSession(res.user.email, res.token);
+      storeSession(res.user, res.token);
       return {
         success: true,
-        redirectTo: typeof redirectTo === "string" ? redirectTo : PATH_HOME,
+        redirectTo: res.user.mustChangePassword
+          ? PATH_ACCOUNT
+          : typeof redirectTo === "string"
+            ? redirectTo
+            : PATH_HOME,
       };
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Login failed";
@@ -47,6 +51,6 @@ export const authProvider: AuthProvider = {
   /** App shell is always reachable; use access control + RequireAuth for restricted routes. */
   check: async () => ({ authenticated: true }),
   getIdentity: async () => (isLoggedIn() ? readStoredUser() : null),
-  getPermissions: async () => null,
+  getPermissions: async () => readStoredUser()?.role ?? null,
   onError: async (error) => ({ error }),
 };

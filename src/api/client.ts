@@ -54,9 +54,20 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   if (!response.ok) {
     const body = await response.text();
+    let message = body || response.statusText || `Request failed (${response.status})`;
+    if (body && (response.headers.get("content-type") ?? "").includes("application/json")) {
+      try {
+        const parsed = JSON.parse(body) as { message?: unknown };
+        if (typeof parsed.message === "string" && parsed.message.trim()) {
+          message = parsed.message;
+        }
+      } catch {
+        // Keep the raw response when a server labels malformed JSON as application/json.
+      }
+    }
     throw new ApiError(
       response.status,
-      body || response.statusText || `Request failed (${response.status})`,
+      message,
       body,
     );
   }

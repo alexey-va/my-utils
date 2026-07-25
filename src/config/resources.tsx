@@ -3,9 +3,9 @@ import { appFeatures } from "./features";
 
 /** Refine menu resources — derived from the feature registry. */
 export const appResources: ResourceProps[] = appFeatures.map(
-  ({ id, path, label, icon, requiresAuth }) => ({
+  ({ id, path, label, icon, requiresAuth, requiresAdmin }) => ({
     name: id,
     list: path,
-    meta: { label, icon, requiresAuth },
+    meta: { label, icon, requiresAuth, requiresAdmin },
   }),
 );

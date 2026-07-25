@@ -1,12 +1,23 @@
-import type { ComponentType } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ErrorComponent } from "@refinedev/antd";
+import { Button, Flex, Result, Spin } from "antd";
 import { appFeatures } from "../config/features";
-import { PATH_LOGIN } from "../config/paths";
-import LoginPage from "../features/auth/LoginPage";
+import { PATH_ACCOUNT, PATH_LOGIN, PATH_REGISTER } from "../config/paths";
 import AuthNotice from "./AuthNotice";
 import RequireAuth from "./RequireAuth";
-import RequireTabPassword from "./RequireTabPassword";
+import RequireAdmin from "./RequireAdmin";
+
+const LoginPage = lazy(() => import("../features/auth/LoginPage"));
+const RegisterPage = lazy(() => import("../features/auth/RegisterPage"));
+const AccountPage = lazy(() => import("../features/auth/AccountPage"));
+
+function RouteLoading() {
+  return (
+    <Flex align="center" justify="center" style={{ minHeight: "50vh" }}>
+      <Spin size="large" />
+    </Flex>
+  );
+}
 
 function featureRoutePath(path: string): string | undefined {
   if (path === "/") {
@@ -18,15 +29,21 @@ function featureRoutePath(path: string): string | undefined {
 function FeatureRoute({
   Page,
   requiresAuth,
-  requiresTabPassword,
+  requiresAdmin,
 }: {
   Page: ComponentType;
   requiresAuth?: boolean;
-  requiresTabPassword?: boolean;
+  requiresAdmin?: boolean;
 }) {
-  let page = <Page />;
-  if (requiresTabPassword) {
-    page = <RequireTabPassword>{page}</RequireTabPassword>;
+  let page = (
+    <Suspense
+      fallback={<RouteLoading />}
+    >
+      <Page />
+    </Suspense>
+  );
+  if (requiresAdmin) {
+    page = <RequireAdmin>{page}</RequireAdmin>;
   }
   if (requiresAuth) {
     page = <RequireAuth>{page}</RequireAuth>;
@@ -38,9 +55,10 @@ export default function AppRoutes() {
   return (
     <>
       <AuthNotice />
-      <Routes>
-        {appFeatures.map((feature) => {
-          const { id, path, Page, requiresAuth, requiresTabPassword, index, aliases } = feature;
+      <Suspense fallback={<RouteLoading />}>
+        <Routes>
+          {appFeatures.map((feature) => {
+          const { id, path, Page, requiresAuth, requiresAdmin, index, aliases } = feature;
           const routePath = featureRoutePath(path);
 
           return (
@@ -52,7 +70,7 @@ export default function AppRoutes() {
                     <FeatureRoute
                       Page={Page}
                       requiresAuth={requiresAuth}
-                      requiresTabPassword={requiresTabPassword}
+                      requiresAdmin={requiresAdmin}
                     />
                   }
                 />
@@ -64,7 +82,7 @@ export default function AppRoutes() {
                     <FeatureRoute
                       Page={Page}
                       requiresAuth={requiresAuth}
-                      requiresTabPassword={requiresTabPassword}
+                      requiresAdmin={requiresAdmin}
                     />
                   }
                 />
@@ -74,10 +92,33 @@ export default function AppRoutes() {
               ))}
             </Route>
           );
-        })}
-        <Route path={PATH_LOGIN.replace(/^\//, "")} element={<LoginPage />} />
-        <Route path="*" element={<ErrorComponent />} />
-      </Routes>
+          })}
+          <Route path={PATH_LOGIN.replace(/^\//, "")} element={<LoginPage />} />
+          <Route path={PATH_REGISTER.replace(/^\//, "")} element={<RegisterPage />} />
+          <Route
+            path={PATH_ACCOUNT.replace(/^\//, "")}
+            element={
+              <RequireAuth>
+                <AccountPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <Result
+                status="404"
+                title="Page not found"
+                extra={
+                  <Button type="primary" href="/">
+                    Open Workout
+                  </Button>
+                }
+              />
+            }
+          />
+        </Routes>
+      </Suspense>
     </>
   );
 }

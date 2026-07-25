@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Modal } from "antd";
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { Modal, Spin } from "antd";
 import type { RefSelectProps } from "antd/es/select";
 import dayjs from "dayjs";
 import PageLayout from "../../shared/components/PageLayout";
@@ -15,16 +15,13 @@ import {
 import WorkoutMuscleGroupSummary from "./WorkoutMuscleGroupSummary";
 import { normalizeMuscleGroup } from "./workoutMuscleGroups";
 import { useWorkoutShortcuts } from "./useWorkoutShortcuts";
-import WorkoutSessionList from "./WorkoutSessionList";
-import WorkoutGridTable from "./WorkoutGridTable";
 import WorkoutWeeklySummary from "./WorkoutWeeklySummary";
 import { exportWorkoutGridCsv } from "./exportWorkoutGridCsv";
 import WorkoutEntryForm from "./WorkoutEntryForm";
 import WorkoutExerciseForm from "./WorkoutExerciseForm";
 import WorkoutExerciseBar from "./WorkoutExerciseBar";
-import WorkoutProgressPanel from "./WorkoutProgressPanel";
-import WorkoutStepsChart, { type StepsPeriod } from "./WorkoutStepsChart";
-import WorkoutBodyWeightChart, { type WeightPeriod } from "./WorkoutBodyWeightChart";
+import type { StepsPeriod } from "./WorkoutStepsChart";
+import type { WeightPeriod } from "./WorkoutBodyWeightChart";
 import { useStepsHistory } from "./useStepsHistory";
 import { useBodyWeightHistory } from "./useBodyWeightHistory";
 import {
@@ -36,6 +33,21 @@ import {
 } from "./types";
 import { useCompareProgress } from "./useCompareProgress";
 import { useWorkoutGrid } from "./useWorkoutGrid";
+import WorkoutTodayPanel from "./WorkoutTodayPanel";
+
+const WorkoutSessionList = lazy(() => import("./WorkoutSessionList"));
+const WorkoutGridTable = lazy(() => import("./WorkoutGridTable"));
+const WorkoutProgressPanel = lazy(() => import("./WorkoutProgressPanel"));
+const WorkoutStepsChart = lazy(() => import("./WorkoutStepsChart"));
+const WorkoutBodyWeightChart = lazy(() => import("./WorkoutBodyWeightChart"));
+
+function InsightLoading({ wide = false }: { wide?: boolean }) {
+  return (
+    <div className={`workout-insight-loading${wide ? " workout-insight-loading--wide" : ""}`}>
+      <Spin />
+    </div>
+  );
+}
 
 function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntryDraft {
   const today = dayjs().format("YYYY-MM-DD");
@@ -103,6 +115,19 @@ export default function WorkoutPage() {
 
   const selectedExercise = exercises.find((e) => e.id === selectedExerciseId);
   const selectedRow = grid.rows.find((r) => r.exerciseId === selectedExerciseId);
+  const selectedLastSession = useMemo(
+    () => (selectedRow ? lastSessionForRow(selectedRow, grid.dates) : undefined),
+    [grid.dates, selectedRow],
+  );
+  const selectedLastSessionDate = useMemo(() => {
+    if (!selectedRow) {
+      return undefined;
+    }
+    return [...grid.dates]
+      .sort()
+      .reverse()
+      .find((date) => selectedRow.cells[date]);
+  }, [grid.dates, selectedRow]);
 
   const sessionHistoryPoints = useMemo(
     () => filterPointsByPeriod(primary?.points ?? [], period),
@@ -193,38 +218,53 @@ export default function WorkoutPage() {
     >
       <AppPanel className="workout-panel">
         <div className="workout-shell workout-shell--simple">
+          <WorkoutTodayPanel
+            exercise={selectedExercise}
+            lastSession={selectedLastSession}
+            lastSessionDate={selectedLastSessionDate}
+            loading={loading}
+            onLogSession={openLogSession}
+            onAddExercise={() => setExerciseModal(exerciseDraftNew())}
+          />
+
           <section className="workout-shell__insights" aria-label="Progress">
             <WorkoutWeeklySummary summary={weeklySummary} />
-            <WorkoutStepsChart
-              days={stepsHistory?.days ?? []}
-              todaySteps={stepsHistory?.todaySteps ?? null}
-              loading={stepsLoading}
-              period={stepsPeriod}
-              onPeriodChange={setStepsPeriod}
-            />
-            <WorkoutBodyWeightChart
-              days={weightHistory?.days ?? []}
-              latestWeightKg={weightHistory?.latestWeightKg ?? null}
-              latestDate={weightHistory?.latestDate ?? null}
-              loading={weightLoading}
-              period={weightPeriod}
-              onPeriodChange={setWeightPeriod}
-            />
+            <Suspense fallback={<InsightLoading />}>
+              <WorkoutStepsChart
+                days={stepsHistory?.days ?? []}
+                todaySteps={stepsHistory?.todaySteps ?? null}
+                loading={stepsLoading}
+                period={stepsPeriod}
+                onPeriodChange={setStepsPeriod}
+              />
+            </Suspense>
+            <Suspense fallback={<InsightLoading />}>
+              <WorkoutBodyWeightChart
+                days={weightHistory?.days ?? []}
+                latestWeightKg={weightHistory?.latestWeightKg ?? null}
+                latestDate={weightHistory?.latestDate ?? null}
+                loading={weightLoading}
+                period={weightPeriod}
+                onPeriodChange={setWeightPeriod}
+              />
+            </Suspense>
             <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
-            <WorkoutProgressPanel
-              series={series}
-              primary={primary}
-              loading={progressLoading}
-              metric={metric}
-              period={period}
-              onMetricChange={setMetric}
-              onPeriodChange={setPeriod}
-              onDelete={() => {
-                if (selectedExerciseId) {
-                  void deleteExercise(selectedExerciseId);
-                }
-              }}
-            />
+            <Suspense fallback={<InsightLoading wide />}>
+              <WorkoutProgressPanel
+                series={series}
+                primary={primary}
+                loading={progressLoading}
+                metric={metric}
+                period={period}
+                onMetricChange={setMetric}
+                onPeriodChange={setPeriod}
+                onDelete={() => {
+                  if (selectedExerciseId) {
+                    void deleteExercise(selectedExerciseId);
+                  }
+                }}
+              />
+            </Suspense>
           </section>
 
           <section className="workout-shell__log" aria-label="Exercise and sessions">
@@ -249,36 +289,40 @@ export default function WorkoutPage() {
             />
 
             {showAllExercises ? (
-              <WorkoutGridTable
-                exercises={exercises}
-                grid={grid}
-                selectedExerciseId={selectedExerciseId}
-                loading={loading}
-                onSelectExercise={selectExercise}
-                onMoveCell={moveEntry}
-                onUpdateCell={(payload) => {
-                  void saveEntry(payload);
-                  setProgressRefreshKey((k) => k + 1);
-                }}
-                onDeleteCell={(exerciseId, date) => {
-                  void deleteEntry(exerciseId, date);
-                  setProgressRefreshKey((k) => k + 1);
-                }}
-              />
+              <Suspense fallback={<InsightLoading wide />}>
+                <WorkoutGridTable
+                  exercises={exercises}
+                  grid={grid}
+                  selectedExerciseId={selectedExerciseId}
+                  loading={loading}
+                  onSelectExercise={selectExercise}
+                  onMoveCell={moveEntry}
+                  onUpdateCell={(payload) => {
+                    void saveEntry(payload);
+                    setProgressRefreshKey((k) => k + 1);
+                  }}
+                  onDeleteCell={(exerciseId, date) => {
+                    void deleteEntry(exerciseId, date);
+                    setProgressRefreshKey((k) => k + 1);
+                  }}
+                />
+              </Suspense>
             ) : (
-              <WorkoutSessionList
-                points={sessionHistoryPoints}
-                exerciseName={primary?.exercise.name ?? selectedExercise?.name}
-                loading={progressLoading}
-                onEdit={openEditSession}
-                onDelete={async (point) => {
-                  if (!selectedExerciseId) {
-                    return;
-                  }
-                  await deleteEntry(selectedExerciseId, point.date);
-                  setProgressRefreshKey((k) => k + 1);
-                }}
-              />
+              <Suspense fallback={<InsightLoading wide />}>
+                <WorkoutSessionList
+                  points={sessionHistoryPoints}
+                  exerciseName={primary?.exercise.name ?? selectedExercise?.name}
+                  loading={progressLoading}
+                  onEdit={openEditSession}
+                  onDelete={async (point) => {
+                    if (!selectedExerciseId) {
+                      return;
+                    }
+                    await deleteEntry(selectedExerciseId, point.date);
+                    setProgressRefreshKey((k) => k + 1);
+                  }}
+                />
+              </Suspense>
             )}
           </section>
         </div>
@@ -289,7 +333,7 @@ export default function WorkoutPage() {
         open={entryModal != null}
         onCancel={closeEntryModal}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={520}
       >
         {entryModal ? (
@@ -322,7 +366,7 @@ export default function WorkoutPage() {
         open={exerciseModal != null}
         onCancel={closeExerciseModal}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={480}
       >
         {exerciseModal ? (

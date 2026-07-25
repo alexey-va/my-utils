@@ -50,7 +50,7 @@ export default function WorkoutGridCellEditorModal({
       footer={null}
       width={300}
       centered
-      destroyOnClose
+      destroyOnHidden
       maskClosable
       className="workout-grid__cell-modal"
       wrapClassName="workout-grid__cell-modal-wrap"

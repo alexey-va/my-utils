@@ -9,11 +9,17 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 | Area | Route | Access | Purpose |
 | --- | --- | --- | --- |
 | Workout | `/` | Public | Training grid and progress views backed by the API. |
-| Properties | `/properties` | Tab password | Runtime application settings. |
-| Agents | `/agents` | Tab password | Agent memory and conversation history. |
-| Grafana | `/observability` | Tab password | Same-origin Grafana and Loki logs. |
-| Temporal | `/workflows` | Tab password | Embedded Temporal UI. |
-| Admin panel | `/admin` | Tab password + sign-in | Authenticated administration. |
+| Properties | `/properties` | Administrator | Runtime application settings. |
+| Agents | `/agents` | Administrator | Agent memory and conversation history. |
+| Grafana | `/observability` | Administrator | Same-origin Grafana and Loki logs. |
+| Temporal | `/workflows` | Administrator | Embedded Temporal UI. |
+| Admin panel | `/admin` | Administrator | User and service administration. |
+
+Guests can use Workout without signing in. Registration creates a regular
+`USER` account, which can also use Workout and manage its own credentials.
+All operational areas require an `ADMIN` role enforced by the API, not only by
+the browser. The bootstrap administrator must replace its initial password
+before opening administrative routes.
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 
@@ -29,9 +35,10 @@ The development server proxies `/api` to `http://localhost:8080`. Start the API 
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Start the Refine/Vite development server. |
+| `npm run dev` | Start the Vite development server. |
 | `npm run build` | Type-check and create a production build. |
-| `npm run start` | Serve the production build locally. |
+| `npm test` | Run the focused Vitest suite. |
+| `npm run start` | Preview the production build locally. |
 
 ## Code map
 
@@ -68,18 +75,23 @@ become routes.
 ## Verification
 
 ```bash
+npm exec eslint -- src
+npm test
 npm run build
 git diff --check
 ```
 
-The repository currently has no automated frontend test script. For
-interaction-heavy changes, add focused tests when introducing a test runner or
-perform an explicit browser smoke check in addition to the production build.
+Interaction-heavy changes also require an explicit desktop and narrow-layout
+browser smoke check.
 
 ## Deployment
 
 Pushes to `main` run the Woodpecker pipeline. A push is a production action,
 not part of local verification.
+
+The application is currently used only by its author. A short production
+downtime during a straightforward deployment is acceptable; do not add
+high-availability machinery solely to avoid that brief interruption.
 
 Do not set `VITE_API_BASE_URL` with a trailing `/api`: API endpoint definitions
 already begin with `/api/`, and production uses same-origin nginx routing.
