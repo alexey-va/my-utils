@@ -2,6 +2,9 @@
 
 Vite + React + **Refine v5** SPA. Sibling API: `../my-utils-api`. **Tab registry** drives routes and menu.
 
+This is an independent Git repository. Backend changes belong in
+`../my-utils-api` and must be committed and verified separately.
+
 ## Layout
 
 ```
@@ -16,6 +19,10 @@ src/
 ├── providers/              — auth, accessControl (dataProvider = stub)
 └── shared/                 — PageLayout, random utils
 ```
+
+`src/features/generators/` and `src/features/json/` contain feature
+implementations but are not active tabs unless registered in both catalog and
+page mapping. Do not infer routes from folder names.
 
 ## Tabs (features.tsx)
 
@@ -38,6 +45,10 @@ src/
 
 Working dir: `utils/my-utils/`.
 
+There is currently no automated frontend test script. `npm run build` is the
+required local gate; interaction changes additionally need a focused browser
+smoke check.
+
 ## Add a tab
 
 1. `src/features/<name>/<Name>Page.tsx`
@@ -51,6 +62,8 @@ Working dir: `utils/my-utils/`.
 - `apiClient` from `src/api/client.ts` — attaches Bearer JWT from `auth/session.ts`
 - Prod: browser calls `https://utils.alexeyav.ru/api/...` via nginx
 - Login: `POST /api/auth/login`; gated tabs use `requiresAuth: true` + `RequireAuth`
+- `RequireTabPassword` is a client-side visibility gate, not server
+  authorization. Never rely on it to protect a backend endpoint.
 
 ## Grafana / Logs tab
 
@@ -85,5 +98,27 @@ Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/lin
 - Random: `shared/utils/random.ts`, not `Math.random`
 - Paths: `config/paths.ts` or `featurePath()` only
 - Refine details: `docs/REFINE.md` (framework only, not product logic)
+- API paths: `api/endpoints.ts`; keep them aligned with backend controllers
+- API payloads: shared frontend types/API modules; never spread anonymous
+  response shapes through page components
+
+## Change checklist
+
+### UI-only
+
+1. Keep route metadata in `featureCatalog.tsx`.
+2. Reuse `PageLayout`, `AppPanel`, and Linear tokens.
+3. Check desktop and narrow layouts.
+4. Run `npm run build` and `git diff --check`.
+
+### Cross-repo API change
+
+1. Update and test the backend contract first.
+2. Update `api/endpoints.ts`, API types, and the consuming feature.
+3. Build the frontend.
+4. Keep frontend and backend commits separate.
+
+Push to `main` triggers production deployment. Do not push merely to verify a
+change.
 
 Backend agent/Temporal docs: `../my-utils-api/AGENTS.md`.

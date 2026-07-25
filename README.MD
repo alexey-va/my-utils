@@ -50,9 +50,39 @@ src/
 
 `src/config/featureCatalog.tsx` is the source of truth for sidebar metadata and route paths. `src/config/features.tsx` maps that metadata to page components. Use `featurePath()` instead of hard-coding internal routes.
 
+Folders under `src/features/` are not automatically active product areas.
+Only entries registered in `featureCatalog.tsx` and mapped in `features.tsx`
+become routes.
+
+## Documentation
+
+| Document | Purpose |
+| --- | --- |
+| [AGENTS.md](AGENTS.md) | development rules and change checklists |
+| [docs/README.md](docs/README.md) | documentation index and ownership |
+| [DESIGN-APP.md](DESIGN-APP.md) | application/dashboard design system |
+| [DESIGN.md](DESIGN.md) | marketing/landing visual reference |
+| [docs/REFINE.md](docs/REFINE.md) | Refine framework notes |
+| [../my-utils-api/docs/UTILS-WORKSPACE.md](../my-utils-api/docs/UTILS-WORKSPACE.md) | frontend/backend contract |
+
+## Verification
+
+```bash
+npm run build
+git diff --check
+```
+
+The repository currently has no automated frontend test script. For
+interaction-heavy changes, add focused tests when introducing a test runner or
+perform an explicit browser smoke check in addition to the production build.
+
 ## Deployment
 
-Pushes to `main` run the Woodpecker pipeline. Do not set `VITE_API_BASE_URL` with a trailing `/api`: API endpoint definitions already begin with `/api/`, and production uses same-origin nginx routing.
+Pushes to `main` run the Woodpecker pipeline. A push is a production action,
+not part of local verification.
+
+Do not set `VITE_API_BASE_URL` with a trailing `/api`: API endpoint definitions
+already begin with `/api/`, and production uses same-origin nginx routing.
 
 ## License
 
