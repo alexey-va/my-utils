@@ -33,7 +33,6 @@ import {
 } from "./types";
 import { useCompareProgress } from "./useCompareProgress";
 import { useWorkoutGrid } from "./useWorkoutGrid";
-import WorkoutTodayPanel from "./WorkoutTodayPanel";
 
 const WorkoutSessionList = lazy(() => import("./WorkoutSessionList"));
 const WorkoutGridTable = lazy(() => import("./WorkoutGridTable"));
@@ -115,19 +114,6 @@ export default function WorkoutPage() {
 
   const selectedExercise = exercises.find((e) => e.id === selectedExerciseId);
   const selectedRow = grid.rows.find((r) => r.exerciseId === selectedExerciseId);
-  const selectedLastSession = useMemo(
-    () => (selectedRow ? lastSessionForRow(selectedRow, grid.dates) : undefined),
-    [grid.dates, selectedRow],
-  );
-  const selectedLastSessionDate = useMemo(() => {
-    if (!selectedRow) {
-      return undefined;
-    }
-    return [...grid.dates]
-      .sort()
-      .reverse()
-      .find((date) => selectedRow.cells[date]);
-  }, [grid.dates, selectedRow]);
 
   const sessionHistoryPoints = useMemo(
     () => filterPointsByPeriod(primary?.points ?? [], period),
@@ -214,19 +200,10 @@ export default function WorkoutPage() {
   return (
     <PageLayout
       title="Workout log"
-      subtitle="Today’s training, progress, and activity in one focused view."
+      subtitle="Progress, activity, and workout history in one focused view."
     >
       <AppPanel className="workout-panel">
         <div className="workout-shell workout-shell--simple">
-          <WorkoutTodayPanel
-            exercise={selectedExercise}
-            lastSession={selectedLastSession}
-            lastSessionDate={selectedLastSessionDate}
-            loading={loading}
-            onLogSession={openLogSession}
-            onAddExercise={() => setExerciseModal(exerciseDraftNew())}
-          />
-
           <section className="workout-shell__insights" aria-label="Progress">
             <WorkoutWeeklySummary summary={weeklySummary} />
             <Suspense fallback={<InsightLoading />}>
