@@ -27,9 +27,6 @@ const PERIOD_OPTIONS: { label: string; value: WeightPeriod }[] = [
 ];
 
 type ChartRow = {
-  label: string;
-  weekday: string;
-  dateLabel: string;
   date: string;
   weightKg: number;
 };
@@ -43,17 +40,10 @@ function filterByPeriod(days: HealthBodyWeightDay[], period: WeightPeriod): Heal
 }
 
 function toChartRows(days: HealthBodyWeightDay[]): ChartRow[] {
-  return days.map((day) => {
-    const d = dayjs(day.date);
-    const dateLabel = d.format("D MMM");
-    return {
-      date: day.date,
-      weekday: d.format("ddd"),
-      dateLabel,
-      label: `${d.format("ddd")} ${dateLabel}`,
-      weightKg: Number(day.weightKg),
-    };
-  });
+  return days.map((day) => ({
+    date: day.date,
+    weightKg: Number(day.weightKg),
+  }));
 }
 
 function formatKg(value: number | null | undefined): string {
@@ -154,10 +144,14 @@ function WorkoutBodyWeightChart({
 
   const renderXAxisTick = useMemo(
     () =>
-      function WeightXAxisTick(props: { x?: number; y?: number; index?: number }) {
-        const { x = 0, y = 0, index = 0 } = props;
-        const row = chartData[index];
-        if (!row) {
+      function WeightXAxisTick(props: {
+        x?: number;
+        y?: number;
+        payload?: { value?: string };
+      }) {
+        const { x = 0, y = 0, payload } = props;
+        const date = dayjs(payload?.value);
+        if (!date.isValid()) {
           return <g />;
         }
         return (
@@ -170,7 +164,7 @@ function WorkoutBodyWeightChart({
               fill={linearTokens.inkMuted}
               fontSize={9}
             >
-              {row.weekday}
+              {date.format("ddd")}
             </text>
             <text
               x={0}
@@ -180,12 +174,12 @@ function WorkoutBodyWeightChart({
               fill={linearTokens.inkMuted}
               fontSize={10}
             >
-              {row.dateLabel}
+              {date.format(period === "all" ? "D MMM YY" : "D MMM")}
             </text>
           </g>
         );
       },
-    [chartData],
+    [period],
   );
 
   const latestLabel =
@@ -240,7 +234,7 @@ function WorkoutBodyWeightChart({
               <LineChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
                 <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
                 <XAxis
-                  dataKey="label"
+                  dataKey="date"
                   tick={renderXAxisTick}
                   tickMargin={2}
                   height={36}

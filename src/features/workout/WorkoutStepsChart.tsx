@@ -28,9 +28,6 @@ const PERIOD_OPTIONS: { label: string; value: StepsPeriod }[] = [
 ];
 
 type ChartRow = {
-  label: string;
-  weekday: string;
-  dateLabel: string;
   date: string;
   steps: number;
 };
@@ -45,17 +42,10 @@ function filterByPeriod(days: HealthStepDay[], period: StepsPeriod): HealthStepD
 }
 
 function toChartRows(days: HealthStepDay[]): ChartRow[] {
-  return days.map((day) => {
-    const d = dayjs(day.date);
-    const dateLabel = d.format("D MMM");
-    return {
-      date: day.date,
-      weekday: d.format("ddd"),
-      dateLabel,
-      label: `${d.format("ddd")} ${dateLabel}`,
-      steps: day.steps,
-    };
-  });
+  return days.map((day) => ({
+    date: day.date,
+    steps: day.steps,
+  }));
 }
 
 type Props = {
@@ -125,10 +115,14 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
 
   const renderXAxisTick = useMemo(
     () =>
-      function StepsXAxisTick(props: { x?: number; y?: number; index?: number }) {
-        const { x = 0, y = 0, index = 0 } = props;
-        const row = chartData[index];
-        if (!row) {
+      function StepsXAxisTick(props: {
+        x?: number;
+        y?: number;
+        payload?: { value?: string };
+      }) {
+        const { x = 0, y = 0, payload } = props;
+        const date = dayjs(payload?.value);
+        if (!date.isValid()) {
           return <g />;
         }
         return (
@@ -141,7 +135,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
               fill={linearTokens.inkMuted}
               fontSize={9}
             >
-              {row.weekday}
+              {date.format("ddd")}
             </text>
             <text
               x={0}
@@ -151,12 +145,12 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
               fill={linearTokens.inkMuted}
               fontSize={10}
             >
-              {row.dateLabel}
+              {date.format(period === "all" ? "D MMM YY" : "D MMM")}
             </text>
           </g>
         );
       },
-    [chartData],
+    [period],
   );
 
   return (
@@ -203,7 +197,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
               <BarChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
                 <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
                 <XAxis
-                  dataKey="label"
+                  dataKey="date"
                   tick={renderXAxisTick}
                   tickMargin={2}
                   height={36}
