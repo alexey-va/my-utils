@@ -21,6 +21,12 @@ All operational areas require an `ADMIN` role enforced by the API, not only by
 the browser. The bootstrap administrator must replace its initial password
 before opening administrative routes.
 
+Opening the public Workout page sends one best-effort, value-free `page_view`
+event to `/api/client-events`. The backend enriches it with the verified IP and
+browser headers for the `Workout Visitors` Grafana dashboard. A failed
+telemetry request is ignored and never blocks the UI.
+The Grafana tab opens the `Workout Visitors` dashboard by default.
+
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 
 ## Local development

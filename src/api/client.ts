@@ -10,7 +10,7 @@ export type ApiRequestOptions = RequestInit & {
   skipAuth?: boolean;
 };
 
-function buildUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
@@ -46,7 +46,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers.set(key, value);
   }
 
-  const response = await fetch(buildUrl(path), {
+  const response = await fetch(buildApiUrl(path), {
     ...init,
     headers,
     body: json !== undefined ? JSON.stringify(json) : initBody,

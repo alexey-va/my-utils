@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Spin } from "antd";
 import type { RefSelectProps } from "antd/es/select";
 import dayjs from "dayjs";
@@ -33,6 +33,7 @@ import {
 } from "./types";
 import { useCompareProgress } from "./useCompareProgress";
 import { useWorkoutGrid } from "./useWorkoutGrid";
+import { sendWorkoutPageViewOnce } from "../../telemetry/workoutTelemetry";
 
 const WorkoutSessionList = lazy(() => import("./WorkoutSessionList"));
 const WorkoutGridTable = lazy(() => import("./WorkoutGridTable"));
@@ -64,6 +65,10 @@ function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntry
 }
 
 export default function WorkoutPage() {
+  useEffect(() => {
+    sendWorkoutPageViewOnce();
+  }, []);
+
   const {
     exercises,
     grid,

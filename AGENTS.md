@@ -74,7 +74,7 @@ Interaction changes additionally need a focused browser smoke check.
 ## Grafana / Logs tab
 
 - `GrafanaPage` embeds same-origin `/grafana/` (first-party cookies)
-- Default panel: dashboard `d/myutils-api-logs/...`; second tab: Loki Explore
+- Default panel: Workout visitor dashboard `d/workout-visitors/...`; it links to API logs
 - Override panels: `VITE_GRAFANA_DASHBOARDS` JSON at build time
 - Do not set cross-origin `VITE_GRAFANA_URL` in prod Woodpecker build
 

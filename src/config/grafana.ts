@@ -1,9 +1,9 @@
 /** Default embed path when opening the Grafana tab (not last visited). */
 export const DEFAULT_GRAFANA_EMBED_PATH =
-  import.meta.env.VITE_GRAFANA_PATH?.trim() || "d/myutils-api-logs/my-utils-api-logs";
+  import.meta.env.VITE_GRAFANA_PATH?.trim() || "d/workout-visitors/workout-visitors";
 
-/** Default time range when opening the API logs dashboard (Grafana: last 7 days). */
-export const DEFAULT_GRAFANA_TIME_FROM = "now-7d";
+/** Default time range when opening the Workout visitors dashboard. */
+export const DEFAULT_GRAFANA_TIME_FROM = "now-24h";
 export const DEFAULT_GRAFANA_TIME_TO = "now";
 
 type GrafanaUrlOptions = {
