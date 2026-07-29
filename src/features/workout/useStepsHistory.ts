@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchHealthStepsHistory } from "../../api/steps";
 import type { HealthStepsHistory } from "../../api/types";
 
-export function useStepsHistory(fetchDays = 90) {
+export function useStepsHistory(fetchDays = 0) {
   const [history, setHistory] = useState<HealthStepsHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

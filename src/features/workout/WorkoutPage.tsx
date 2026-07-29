@@ -97,8 +97,8 @@ export default function WorkoutPage() {
   const [weightPeriod, setWeightPeriod] = useState<WeightPeriod>("p31");
   const exerciseSelectRef = useRef<RefSelectProps>(null);
 
-  const { history: stepsHistory, loading: stepsLoading } = useStepsHistory(90);
-  const { history: weightHistory, loading: weightLoading } = useBodyWeightHistory(90);
+  const { history: stepsHistory, loading: stepsLoading } = useStepsHistory();
+  const { history: weightHistory, loading: weightLoading } = useBodyWeightHistory();
 
   const chartExerciseIds = useMemo(
     () => (selectedExerciseId ? [selectedExerciseId] : []),

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchHealthBodyWeightHistory } from "../../api/weight";
 import type { HealthBodyWeightHistory } from "../../api/types";
 
-export function useBodyWeightHistory(fetchDays = 90) {
+export function useBodyWeightHistory(fetchDays = 0) {
   const [history, setHistory] = useState<HealthBodyWeightHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
