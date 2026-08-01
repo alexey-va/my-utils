@@ -1375,7 +1375,7 @@ textarea.generator-output {
 }
 
 .workout-health-details__table-wrap {
-  max-height: 320px;
+  max-height: 462px;
   margin-top: 16px;
   overflow: auto;
   border: 1px solid var(--border-subtle);
@@ -1390,6 +1390,7 @@ textarea.generator-output {
 
 .workout-health-details__table th,
 .workout-health-details__table td {
+  height: 42px;
   padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
   text-align: left;

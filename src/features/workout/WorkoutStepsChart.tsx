@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { linearTokens } from "../../design/linearTokens";
 import type { HealthStepDay } from "../../api/types";
+import { HEALTH_CHART_Y_TICK_COUNT } from "./healthChartAxis";
 import { WorkoutHealthDetailsModal } from "./WorkoutHealthDetailsModal";
 import { useWorkoutLocale } from "./workoutLocale";
 
@@ -126,6 +127,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
           tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
           width={50}
           tickMargin={4}
+          tickCount={HEALTH_CHART_Y_TICK_COUNT}
           allowDecimals={false}
           domain={[0, yMax]}
         />

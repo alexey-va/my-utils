@@ -43,7 +43,10 @@ export function WorkoutHealthDetailsModal({
       <p className="workout-health-details__hint">{t("health.detailsHint")}</p>
       <div className="workout-health-details__controls">{controls}</div>
       <div className="workout-health-details__chart">{chart}</div>
-      <div className="workout-health-details__table-wrap">
+      <div
+        className="workout-health-details__table-wrap"
+        data-visible-row-capacity="10"
+      >
         <table className="workout-health-details__table">
           <thead>
             <tr>

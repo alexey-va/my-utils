@@ -40,4 +40,27 @@ describe("WorkoutHealthDetailsModal", () => {
     expect(within(rows[1]).getByText("9 400")).toBeInTheDocument();
     expect(within(rows[2]).getByText("8 100")).toBeInTheDocument();
   });
+
+  it("reserves enough table height for ten daily rows", () => {
+    localStorage.setItem(WORKOUT_LOCALE_STORAGE_KEY, "ru");
+
+    render(
+      <WorkoutLocaleProvider>
+        <WorkoutHealthDetailsModal
+          open
+          title="Вес по дням"
+          valueLabel="Вес"
+          rows={Array.from({ length: 14 }, (_, index) => ({
+            date: `2026-07-${String(index + 1).padStart(2, "0")}`,
+            value: `${80 + index / 10} кг`,
+          }))}
+          controls={<div>Период</div>}
+          chart={<div>Большой график</div>}
+          onClose={() => undefined}
+        />
+      </WorkoutLocaleProvider>,
+    );
+
+    expect(document.querySelector('[data-visible-row-capacity="10"]')).toBeInTheDocument();
+  });
 });
