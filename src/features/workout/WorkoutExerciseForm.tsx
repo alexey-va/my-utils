@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Button, Form, Input, Popconfirm, Select, Space } from "antd";
 import type { ExerciseDraft } from "./types";
-import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS } from "./workoutMuscleGroups";
+import { localizedMuscleGroupLabel, MUSCLE_GROUPS } from "./workoutMuscleGroups";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type FormValues = {
   exerciseName: string;
@@ -16,11 +17,6 @@ type Props = {
   onDelete?: () => Promise<void>;
 };
 
-const GROUP_OPTIONS = MUSCLE_GROUPS.map((g) => ({
-  value: g,
-  label: MUSCLE_GROUP_LABELS[g],
-}));
-
 export default function WorkoutExerciseForm({
   draft,
   saving,
@@ -29,6 +25,14 @@ export default function WorkoutExerciseForm({
   onDelete,
 }: Props) {
   const [form] = Form.useForm<FormValues>();
+  const { locale, t } = useWorkoutLocale();
+  const groupOptions = useMemo(
+    () => MUSCLE_GROUPS.map((group) => ({
+      value: group,
+      label: localizedMuscleGroupLabel(group, locale),
+    })),
+    [locale],
+  );
 
   useEffect(() => {
     form.setFieldsValue({ exerciseName: draft.name, muscleGroup: draft.muscleGroup });
@@ -37,7 +41,7 @@ export default function WorkoutExerciseForm({
   return (
     <>
       <p className="workout-form__hint">
-        {isEdit ? "Rename or re-tag this exercise." : "Add a new exercise type to the log."}
+        {isEdit ? t("exercise.editHint") : t("exercise.addHint")}
       </p>
       <Form
         form={form}
@@ -50,11 +54,11 @@ export default function WorkoutExerciseForm({
       >
         <Form.Item
           name="exerciseName"
-          label="Exercise name"
-          rules={[{ required: true, message: "Enter a name" }]}
+          label={t("exercise.name")}
+          rules={[{ required: true, message: t("exercise.enterName") }]}
         >
           <Input
-            placeholder="e.g. Bench press"
+            placeholder={t("exercise.example")}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -63,12 +67,12 @@ export default function WorkoutExerciseForm({
             data-1p-ignore
           />
         </Form.Item>
-        <Form.Item name="muscleGroup" label="Muscle group">
-          <Select options={GROUP_OPTIONS} />
+        <Form.Item name="muscleGroup" label={t("exercise.muscleGroup")}>
+          <Select options={groupOptions} />
         </Form.Item>
         <Space wrap>
           <Button type="primary" htmlType="submit" loading={saving}>
-            {isEdit ? "Update" : "Add"}
+            {isEdit ? t("common.update") : t("common.add")}
           </Button>
           <Button
             htmlType="button"
@@ -77,18 +81,18 @@ export default function WorkoutExerciseForm({
               form.setFieldsValue({ exerciseName: draft.name, muscleGroup: draft.muscleGroup })
             }
           >
-            Reset
+            {t("common.reset")}
           </Button>
           {isEdit && onDelete ? (
             <Popconfirm
-              title="Delete this exercise?"
-              description="All logged sessions for it will be removed."
+              title={t("progress.deleteExercise")}
+              description={t("progress.deleteExerciseDescription")}
               onConfirm={() => void onDelete()}
-              okText="Delete"
+              okText={t("common.delete")}
               okButtonProps={{ danger: true }}
             >
               <Button danger disabled={saving}>
-                Delete
+                {t("common.delete")}
               </Button>
             </Popconfirm>
           ) : null}

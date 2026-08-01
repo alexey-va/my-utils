@@ -7,8 +7,8 @@ function escapeCsv(value: string): string {
   return value;
 }
 
-export function exportWorkoutGridCsv(grid: WorkoutGrid): void {
-  const header = ["Exercise", ...grid.dates.map((d) => d)];
+export function exportWorkoutGridCsv(grid: WorkoutGrid, exerciseHeader = "Exercise"): void {
+  const header = [exerciseHeader, ...grid.dates.map((d) => d)];
   const lines = [
     header.map(escapeCsv).join(","),
     ...grid.rows.map((row) =>

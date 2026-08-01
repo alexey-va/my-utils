@@ -1,6 +1,7 @@
 import type { MouseEvent, TouchEvent } from "react";
 import type { WorkoutCell } from "../../api/types";
 import type { WorkoutGridCellEditorSession } from "./workoutGridDnD";
+import { useWorkoutLocale } from "./workoutLocale";
 
 export type WorkoutGridFilledCellProps = {
   exerciseId: string;
@@ -33,6 +34,7 @@ export default function WorkoutGridFilledCell({
   onDragPointerDown,
   initialRepsPattern,
 }: WorkoutGridFilledCellProps) {
+  const { t } = useWorkoutLocale();
   const queuePointerDrag = (event: MouseEvent | TouchEvent) => {
     event.stopPropagation();
     const point = "touches" in event ? event.touches[0] : event;
@@ -78,7 +80,7 @@ export default function WorkoutGridFilledCell({
         <button
           type="button"
           className="workout-grid__cell-btn"
-          title={`${tooltip} · drag to move · click to edit`}
+          title={`${tooltip} · ${t("grid.dragEdit")}`}
           onMouseDown={queuePointerDrag}
           onTouchStart={queuePointerDrag}
           onClick={openEditor}
@@ -113,6 +115,7 @@ export function WorkoutGridEmptyCell({
   defaultWeightKg,
   defaultRepsPattern,
 }: WorkoutGridEmptyCellProps) {
+  const { t } = useWorkoutLocale();
   const openEditor = () => {
     if (suppressOpen) {
       return;
@@ -140,7 +143,7 @@ export function WorkoutGridEmptyCell({
       <button
         type="button"
         className="workout-grid__cell-empty-btn"
-        title="Click to add session"
+        title={t("grid.clickToAdd")}
         onClick={openEditor}
       />
     </td>

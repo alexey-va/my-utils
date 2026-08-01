@@ -2,23 +2,25 @@ import { Statistic } from "antd";
 import { linearTokens } from "../../design/linearTokens";
 import type { WeeklySummary } from "./workoutAnalytics";
 import { formatSignedDelta } from "./workoutAnalytics";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   summary: WeeklySummary;
 };
 
 export default function WorkoutWeeklySummary({ summary }: Props) {
+  const { t } = useWorkoutLocale();
   const daysDelta = summary.thisWeekDays - summary.lastWeekDays;
   const volumeDelta = summary.thisWeekVolume - summary.lastWeekVolume;
 
   return (
     <div className="workout-weekly">
       <Statistic
-        title="Workout days this week"
+        title={t("weekly.days")}
         value={summary.thisWeekDays}
         suffix={
           <>
-            {" days"}
+            {` ${t("weekly.daysSuffix")}`}
             {daysDelta !== 0 ? (
               <span className="workout-weekly__delta">
                 {formatSignedDelta(daysDelta, "", 0)}
@@ -27,9 +29,9 @@ export default function WorkoutWeeklySummary({ summary }: Props) {
           </>
         }
       />
-      <Statistic title="Volume this week" value={summary.thisWeekVolume} suffix="kg" />
+      <Statistic title={t("weekly.volume")} value={summary.thisWeekVolume} suffix={t("common.kg")} />
       <Statistic
-        title="vs last week"
+        title={t("weekly.vsLast")}
         value={volumeDelta === 0 ? "—" : formatSignedDelta(volumeDelta, "kg", 0)}
         valueStyle={{
           color:

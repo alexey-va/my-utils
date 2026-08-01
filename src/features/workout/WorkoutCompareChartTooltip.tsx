@@ -6,6 +6,7 @@ import {
   compareTooltipEntries,
   formatMetricValue,
 } from "./workoutAnalytics";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   active?: boolean;
@@ -24,6 +25,7 @@ export default function WorkoutCompareChartTooltip({
   period,
   chartData,
 }: Props) {
+  const { t } = useWorkoutLocale();
   if (!active || label == null || series.length === 0) {
     return null;
   }
@@ -51,8 +53,12 @@ export default function WorkoutCompareChartTooltip({
                 .filter(Boolean)
                 .join(" ")}
             >
-              {entry.value != null ? formatMetricValue(entry.value, metric) : "—"}
-              {entry.carried ? <span className="workout-chart-tooltip__carried"> last</span> : null}
+              {entry.value != null
+                ? formatMetricValue(entry.value, metric, t("common.kg"))
+                : "—"}
+              {entry.carried ? (
+                <span className="workout-chart-tooltip__carried"> {t("tooltip.last")}</span>
+              ) : null}
             </span>
           </li>
         ))}

@@ -6,6 +6,7 @@ import type { ExerciseProgress } from "../../api/types";
 import { chartColorForIndex } from "./workoutChartColors";
 import type { CompareSeries } from "./workoutAnalytics";
 import { getWorkoutProgressCache, prefetchExerciseProgress } from "./workoutProgressCache";
+import { useWorkoutLocale } from "./workoutLocale";
 
 function progressToSeries(progress: ExerciseProgress, colorIndex: number): CompareSeries {
   return {
@@ -44,6 +45,9 @@ export function useCompareProgress(
   primaryExerciseId?: string,
   refreshKey = 0,
 ) {
+  const { t } = useWorkoutLocale();
+  const tRef = useRef(t);
+  tRef.current = t;
   const cache = getWorkoutProgressCache();
   const [series, setSeries] = useState<CompareSeries[]>([]);
   const [primary, setPrimary] = useState<ExerciseProgress | null>(null);
@@ -126,7 +130,9 @@ export function useCompareProgress(
         syncFromCache(ids);
       } catch (err) {
         if (fetchGenRef.current === generation) {
-          const text = err instanceof ApiError ? err.message : "Failed to load progress";
+          const text = err instanceof ApiError
+            ? err.message
+            : tRef.current("message.progressFailed");
           message.error(text);
         }
       } finally {
@@ -164,7 +170,9 @@ export function useCompareProgress(
         syncFromCache(ids);
       } catch (err) {
         if (fetchGenRef.current === generation) {
-          const text = err instanceof ApiError ? err.message : "Failed to load progress";
+          const text = err instanceof ApiError
+            ? err.message
+            : tRef.current("message.progressFailed");
           message.error(text);
         }
       }

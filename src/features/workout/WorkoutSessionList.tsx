@@ -3,6 +3,7 @@ import { Button, Empty, Popconfirm, Space, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { ProgressPoint } from "../../api/types";
 import { formatSignedDelta } from "./workoutAnalytics";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Row = ProgressPoint & {
   key: string;
@@ -21,11 +22,6 @@ type Props = {
   onDelete?: (point: ProgressPoint) => Promise<void>;
 };
 
-function formatShortDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
 function deltaTag(delta: number | null, unit: string) {
   if (delta == null || delta === 0) {
     return <span className="workout-sessions__muted">—</span>;
@@ -35,6 +31,7 @@ function deltaTag(delta: number | null, unit: string) {
 }
 
 function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }: Props) {
+  const { formatDate, t } = useWorkoutLocale();
   const rows: Row[] = points.map((p, i) => {
     const prev = i > 0 ? points[i - 1] : null;
     return {
@@ -47,23 +44,23 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
 
   const columns: ColumnsType<Row> = [
     {
-      title: "Date",
+      title: t("common.date"),
       dataIndex: "date",
       key: "date",
       width: "15%",
       ellipsis: true,
-      render: (date: string) => formatShortDate(date),
+      render: (date: string) => formatDate(date),
     },
     {
-      title: "Weight",
+      title: t("common.weight"),
       key: "weight",
       width: "10%",
       align: "right",
       ellipsis: true,
-      render: (_, r) => `${r.weightKg} kg`,
+      render: (_, r) => `${r.weightKg} ${t("common.kg")}`,
     },
     {
-      title: "Sets × reps",
+      title: t("sessions.setsReps"),
       key: "sets",
       width: "12%",
       align: "center",
@@ -74,33 +71,33 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
           : `${r.setCount}×${r.repsPerSet}`,
     },
     {
-      title: "Max",
+      title: t("sessions.max"),
       dataIndex: "maxReps",
       key: "maxReps",
       width: "7%",
       align: "right",
     },
     {
-      title: "Volume",
+      title: t("common.volume"),
       key: "volume",
       width: "11%",
       align: "right",
       ellipsis: true,
-      render: (_, r) => `${r.volume} kg`,
+      render: (_, r) => `${r.volume} ${t("common.kg")}`,
     },
     {
-      title: "Δ weight",
+      title: t("sessions.deltaWeight"),
       key: "dw",
       width: "12%",
       align: "right",
-      render: (_, r) => deltaTag(r.weightDelta, "kg"),
+      render: (_, r) => deltaTag(r.weightDelta, t("common.kg")),
     },
     {
-      title: "Δ vol",
+      title: t("sessions.deltaVolume"),
       key: "dv",
       width: "12%",
       align: "right",
-      render: (_, r) => deltaTag(r.volumeDelta, "kg"),
+      render: (_, r) => deltaTag(r.volumeDelta, t("common.kg")),
     },
     {
       title: "",
@@ -112,19 +109,19 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
           <Space size="small">
             {onEdit ? (
               <Button type="link" size="small" onClick={() => onEdit(r)}>
-                Edit
+                {t("common.edit")}
               </Button>
             ) : null}
             {onDelete ? (
               <Popconfirm
-                title="Delete this session?"
-                description={`Remove session on ${formatShortDate(r.date)}?`}
+                title={t("sessions.deleteTitle")}
+                description={t("sessions.deleteDescription", { date: formatDate(r.date) })}
                 onConfirm={() => void onDelete(r)}
-                okText="Delete"
+                okText={t("common.delete")}
                 okButtonProps={{ danger: true }}
               >
                 <Button type="link" size="small" danger>
-                  Delete
+                  {t("common.delete")}
                 </Button>
               </Popconfirm>
             ) : null}
@@ -139,13 +136,15 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
     exerciseName != null
       ? exerciseName
       : loading
-        ? "Loading…"
-        : "Select an exercise above";
+        ? t("common.loading")
+        : t("sessions.selectExercise");
 
   return (
     <div className="workout-sessions">
       <div className="workout-sessions__head">
-        <h3 className="workout-shell__label workout-sessions__title">Sessions</h3>
+        <h3 className="workout-shell__label workout-sessions__title">
+          {t("sessions.title")}
+        </h3>
         <span className="workout-sessions__subtitle">{subtitle}</span>
       </div>
       <div className="workout-sessions__table-wrap">
@@ -166,7 +165,7 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
             emptyText: (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No sessions — use Log session to add one"
+                description={t("sessions.empty")}
               />
             ),
           }}

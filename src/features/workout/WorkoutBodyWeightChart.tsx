@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, type KeyboardEvent } from "react";
 import { Empty, Segmented, Spin, Statistic } from "antd";
-import dayjs from "dayjs";
+import { ExpandAltOutlined } from "@ant-design/icons";
 import {
   CartesianGrid,
   Line,
@@ -13,18 +13,13 @@ import {
 } from "recharts";
 import { linearTokens } from "../../design/linearTokens";
 import type { HealthBodyWeightDay } from "../../api/types";
+import { WorkoutHealthDetailsModal } from "./WorkoutHealthDetailsModal";
+import { useWorkoutLocale } from "./workoutLocale";
 
 const CHART_HEIGHT = 200;
 const WEIGHT_LINE_COLOR = linearTokens.semanticBlue;
 
 export type WeightPeriod = "p7" | "p14" | "p31" | "all";
-
-const PERIOD_OPTIONS: { label: string; value: WeightPeriod }[] = [
-  { label: "7 d", value: "p7" },
-  { label: "14 d", value: "p14" },
-  { label: "31 d", value: "p31" },
-  { label: "All", value: "all" },
-];
 
 type ChartRow = {
   date: string;
@@ -39,20 +34,6 @@ function filterByPeriod(days: HealthBodyWeightDay[], period: WeightPeriod): Heal
   return days.slice(-limit);
 }
 
-function toChartRows(days: HealthBodyWeightDay[]): ChartRow[] {
-  return days.map((day) => ({
-    date: day.date,
-    weightKg: Number(day.weightKg),
-  }));
-}
-
-function formatKg(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) {
-    return "—";
-  }
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
 type Props = {
   days: HealthBodyWeightDay[];
   latestWeightKg: number | null;
@@ -62,36 +43,6 @@ type Props = {
   onPeriodChange: (period: WeightPeriod) => void;
 };
 
-function WeightTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: ChartRow }>;
-}) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-  const row = payload[0]?.payload;
-  if (!row) {
-    return null;
-  }
-  return (
-    <div className="workout-chart-tooltip">
-      <p className="workout-chart-tooltip__label">
-        {dayjs(row.date).format("ddd, D MMM YYYY")}
-      </p>
-      <ul className="workout-chart-tooltip__list">
-        <li className="workout-chart-tooltip__row">
-          <span className="workout-chart-tooltip__swatch" style={{ background: WEIGHT_LINE_COLOR }} />
-          <span className="workout-chart-tooltip__name">Weight</span>
-          <span className="workout-chart-tooltip__value">{formatKg(row.weightKg)} kg</span>
-        </li>
-      </ul>
-    </div>
-  );
-}
-
 function WorkoutBodyWeightChart({
   days,
   latestWeightKg,
@@ -100,27 +51,40 @@ function WorkoutBodyWeightChart({
   period,
   onPeriodChange,
 }: Props) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const { formatDate, formatNumber, t } = useWorkoutLocale();
   const filtered = useMemo(() => filterByPeriod(days, period), [days, period]);
-  const chartData = useMemo(() => toChartRows(filtered), [filtered]);
+  const chartData = useMemo<ChartRow[]>(
+    () => filtered.map((day) => ({ date: day.date, weightKg: Number(day.weightKg) })),
+    [filtered],
+  );
   const hasChart = chartData.length > 0;
-
+  const periodOptions = useMemo(
+    () => [
+      { label: t("period.days", { count: 7 }), value: "p7" },
+      { label: t("period.days", { count: 14 }), value: "p14" },
+      { label: t("period.days", { count: 31 }), value: "p31" },
+      { label: t("common.all"), value: "all" },
+    ],
+    [t],
+  );
+  const periodLabel = periodOptions.find((option) => option.value === period)?.label ?? period;
   const avgWeight = useMemo(() => {
     if (filtered.length === 0) {
       return null;
     }
-    const total = filtered.reduce((sum, day) => sum + Number(day.weightKg), 0);
-    return Math.round((total / filtered.length) * 10) / 10;
+    return Math.round(
+      (filtered.reduce((sum, day) => sum + Number(day.weightKg), 0) / filtered.length) * 10,
+    ) / 10;
   }, [filtered]);
-
   const delta = useMemo(() => {
     if (filtered.length < 2) {
       return null;
     }
-    const first = Number(filtered[0].weightKg);
-    const last = Number(filtered[filtered.length - 1].weightKg);
-    return Math.round((last - first) * 10) / 10;
+    return Math.round(
+      (Number(filtered[filtered.length - 1].weightKg) - Number(filtered[0].weightKg)) * 10,
+    ) / 10;
   }, [filtered]);
-
   const yDomain = useMemo((): [number, number] => {
     if (chartData.length === 0) {
       return [0, 100];
@@ -131,7 +95,6 @@ function WorkoutBodyWeightChart({
     const pad = Math.max(1, (max - min) * 0.15);
     return [Math.floor(min - pad), Math.ceil(max + pad)];
   }, [chartData]);
-
   const xAxisInterval = useMemo(() => {
     if (chartData.length <= 7) {
       return 0;
@@ -150,132 +113,186 @@ function WorkoutBodyWeightChart({
         payload?: { value?: string };
       }) {
         const { x = 0, y = 0, payload } = props;
-        const date = dayjs(payload?.value);
-        if (!date.isValid()) {
+        if (!payload?.value) {
           return <g />;
         }
         return (
           <g transform={`translate(${x},${y})`}>
-            <text
-              x={0}
-              y={0}
-              dy={10}
-              textAnchor="middle"
-              fill={linearTokens.inkMuted}
-              fontSize={9}
-            >
-              {date.format("ddd")}
+            <text x={0} y={0} dy={10} textAnchor="middle" fill={linearTokens.inkMuted} fontSize={9}>
+              {formatDate(payload.value, { weekday: "short" })}
             </text>
-            <text
-              x={0}
-              y={0}
-              dy={22}
-              textAnchor="middle"
-              fill={linearTokens.inkMuted}
-              fontSize={10}
-            >
-              {date.format(period === "all" ? "D MMM YY" : "D MMM")}
+            <text x={0} y={0} dy={22} textAnchor="middle" fill={linearTokens.inkMuted} fontSize={10}>
+              {formatDate(payload.value, {
+                day: "numeric",
+                month: "short",
+                ...(period === "all" ? { year: "2-digit" as const } : {}),
+              })}
             </text>
           </g>
         );
       },
-    [period],
+    [formatDate, period],
   );
 
-  const latestLabel =
-    latestDate != null ? dayjs(latestDate).format("D MMM") : null;
+  const renderChart = (height: number | "100%") => (
+    <ResponsiveContainer width="100%" height={height} debounce={0}>
+      <LineChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
+        <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tick={renderXAxisTick}
+          tickMargin={2}
+          height={36}
+          interval={xAxisInterval}
+        />
+        <YAxis
+          tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+          width={50}
+          tickMargin={4}
+          domain={yDomain}
+          tickFormatter={(value: number) => formatNumber(value)}
+        />
+        <RechartsTooltip
+          content={({ active, payload }) => {
+            const row = payload?.[0]?.payload as ChartRow | undefined;
+            if (!active || !row) {
+              return null;
+            }
+            return (
+              <div className="workout-chart-tooltip">
+                <p className="workout-chart-tooltip__label">
+                  {formatDate(row.date, {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+                <ul className="workout-chart-tooltip__list">
+                  <li className="workout-chart-tooltip__row">
+                    <span className="workout-chart-tooltip__swatch" style={{ background: WEIGHT_LINE_COLOR }} />
+                    <span className="workout-chart-tooltip__name">{t("common.weight")}</span>
+                    <span className="workout-chart-tooltip__value">
+                      {formatNumber(row.weightKg)} {t("common.kg")}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            );
+          }}
+          cursor={{ stroke: linearTokens.accentTint }}
+        />
+        {avgWeight != null ? (
+          <ReferenceLine
+            y={avgWeight}
+            stroke={linearTokens.inkMuted}
+            strokeDasharray="5 4"
+            strokeWidth={1}
+            label={{
+              value: t("common.average"),
+              position: "insideTopRight",
+              fill: linearTokens.inkMuted,
+              fontSize: 10,
+            }}
+          />
+        ) : null}
+        <Line
+          type="monotone"
+          dataKey="weightKg"
+          stroke={WEIGHT_LINE_COLOR}
+          strokeWidth={2.5}
+          dot={{ r: 3, fill: WEIGHT_LINE_COLOR, strokeWidth: 0 }}
+          activeDot={{ r: 5 }}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
+  const openDetailsFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setDetailsOpen(true);
+    }
+  };
+  const periodControl = (
+    <Segmented
+      className="workout-steps__period"
+      value={period}
+      options={periodOptions}
+      onChange={(value) => onPeriodChange(String(value) as WeightPeriod)}
+    />
+  );
+  const latestLabel = latestDate
+    ? formatDate(latestDate, { day: "numeric", month: "short" })
+    : null;
 
   return (
     <div className="workout-steps workout-weight">
       <div className="workout-steps__header">
         <div className="workout-steps__header-text">
-          <h2 className="workout-steps__title">Body weight</h2>
-          <p className="workout-steps__hint">Telegram bot or API</p>
+          <h2 className="workout-steps__title">{t("weight.title")}</h2>
+          <p className="workout-steps__hint">{t("weight.hint")}</p>
         </div>
       </div>
 
       <div className="workout-steps__stats workout-weight__stats">
         <Statistic
-          title={latestLabel ? `Latest (${latestLabel})` : "Latest"}
-          value={latestWeightKg != null ? formatKg(Number(latestWeightKg)) : "—"}
-          suffix={latestWeightKg != null ? "kg" : undefined}
+          title={latestLabel ? `${t("common.latest")} (${latestLabel})` : t("common.latest")}
+          value={latestWeightKg != null ? formatNumber(Number(latestWeightKg)) : "—"}
+          suffix={latestWeightKg != null ? t("common.kg") : undefined}
         />
         <Statistic
-          title={`Avg (${PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? period})`}
-          value={avgWeight != null ? formatKg(avgWeight) : "—"}
-          suffix={avgWeight != null ? "kg" : undefined}
+          title={`${t("common.average")} (${periodLabel})`}
+          value={avgWeight != null ? formatNumber(avgWeight) : "—"}
+          suffix={avgWeight != null ? t("common.kg") : undefined}
         />
         <Statistic
-          title="Δ period"
-          value={delta != null ? `${delta > 0 ? "+" : ""}${formatKg(delta)}` : "—"}
-          suffix={delta != null ? "kg" : undefined}
+          title={t("weight.deltaPeriod")}
+          value={delta != null ? `${delta > 0 ? "+" : ""}${formatNumber(delta)}` : "—"}
+          suffix={delta != null ? t("common.kg") : undefined}
         />
       </div>
 
-      <div className="workout-steps__controls">
-        <Segmented
-          className="workout-steps__period"
-          value={period}
-          options={PERIOD_OPTIONS}
-          onChange={(value) => onPeriodChange(String(value) as WeightPeriod)}
-        />
+      <div className="workout-steps__controls">{periodControl}</div>
+
+      <div
+        className="workout-steps__chart-trigger"
+        role="button"
+        tabIndex={hasChart ? 0 : -1}
+        aria-label={t("common.expand")}
+        aria-disabled={!hasChart}
+        onClick={() => hasChart && setDetailsOpen(true)}
+        onKeyDown={openDetailsFromKeyboard}
+      >
+        <span className="workout-steps__expand-icon" aria-hidden>
+          <ExpandAltOutlined />
+        </span>
+        <div className="workout-steps__chart">
+          {loading && !hasChart ? (
+            <div className="workout-steps__chart-placeholder">
+              <Spin size="small" />
+            </div>
+          ) : !hasChart ? (
+            <Empty description={t("weight.empty")} />
+          ) : (
+            <div className="workout-steps__chart-inner">{renderChart(CHART_HEIGHT)}</div>
+          )}
+        </div>
       </div>
 
-      <div className="workout-steps__chart">
-        {loading && !hasChart ? (
-          <div className="workout-steps__chart-placeholder">
-            <Spin size="small" />
-          </div>
-        ) : !hasChart ? (
-          <Empty description="No weight yet — tell the bot «вес 82.5»" />
-        ) : (
-          <div className="workout-steps__chart-inner">
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
-              <LineChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
-                <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tick={renderXAxisTick}
-                  tickMargin={2}
-                  height={36}
-                  interval={xAxisInterval}
-                />
-                <YAxis
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
-                  width={44}
-                  tickMargin={4}
-                  domain={yDomain}
-                  tickFormatter={(v: number) => formatKg(v)}
-                />
-                <RechartsTooltip content={<WeightTooltip />} cursor={{ stroke: linearTokens.accentTint }} />
-                {avgWeight != null ? (
-                  <ReferenceLine
-                    y={avgWeight}
-                    stroke={linearTokens.inkMuted}
-                    strokeDasharray="5 4"
-                    strokeWidth={1}
-                    label={{
-                      value: "avg",
-                      position: "insideTopRight",
-                      fill: linearTokens.inkMuted,
-                      fontSize: 10,
-                    }}
-                  />
-                ) : null}
-                <Line
-                  type="monotone"
-                  dataKey="weightKg"
-                  stroke={WEIGHT_LINE_COLOR}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: WEIGHT_LINE_COLOR, strokeWidth: 0 }}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
+      <WorkoutHealthDetailsModal
+        open={detailsOpen}
+        title={t("weight.detailsTitle")}
+        valueLabel={t("common.weight")}
+        rows={chartData.map((row) => ({
+          date: row.date,
+          value: `${formatNumber(row.weightKg)} ${t("common.kg")}`,
+        }))}
+        controls={periodControl}
+        chart={renderChart("100%")}
+        onClose={() => setDetailsOpen(false)}
+      />
     </div>
   );
 }

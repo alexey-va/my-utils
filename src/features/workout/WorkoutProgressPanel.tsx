@@ -21,21 +21,9 @@ import {
   computeProgressTrends,
   formatSignedDelta,
 } from "./workoutAnalytics";
+import { useWorkoutLocale } from "./workoutLocale";
 
 const CHART_HEIGHT = 252;
-
-const PERIOD_OPTIONS: { label: string; value: ProgressPeriod }[] = [
-  { label: "4 wk", value: "p4" },
-  { label: "8 wk", value: "p8" },
-  { label: "12 wk", value: "p12" },
-  { label: "All", value: "all" },
-];
-
-const METRIC_OPTIONS: { label: string; value: ProgressMetric }[] = [
-  { label: "Volume", value: "volume" },
-  { label: "Weight", value: "weight" },
-  { label: "Max reps", value: "maxReps" },
-];
 
 type Props = {
   series: CompareSeries[];
@@ -70,6 +58,24 @@ function WorkoutProgressPanel({
   onPeriodChange,
   onDelete,
 }: Props) {
+  const { t } = useWorkoutLocale();
+  const periodOptions = useMemo(
+    () => [
+      { label: t("period.weeks", { count: 4 }), value: "p4" },
+      { label: t("period.weeks", { count: 8 }), value: "p8" },
+      { label: t("period.weeks", { count: 12 }), value: "p12" },
+      { label: t("common.all"), value: "all" },
+    ],
+    [t],
+  );
+  const metricOptions = useMemo(
+    () => [
+      { label: t("common.volume"), value: "volume" },
+      { label: t("common.weight"), value: "weight" },
+      { label: t("progress.maxReps"), value: "maxReps" },
+    ],
+    [t],
+  );
   const chartData = buildCompareChartData(series, period, metric);
   const hasChart = chartData.length > 0 && series.length > 0;
   const showChartSpinner = loading && series.length === 0;
@@ -105,7 +111,7 @@ function WorkoutProgressPanel({
       <div className="workout-progress workout-progress--placeholder">
         <Empty
           className="workout-progress__empty"
-          description="Select an exercise below to see progress"
+          description={t("progress.selectExercise")}
         />
       </div>
     );
@@ -117,20 +123,20 @@ function WorkoutProgressPanel({
     <div className="workout-progress">
       <div className="workout-progress__header">
         <div className="workout-progress__header-text">
-          <p className="workout-progress__eyebrow">Progress</p>
+          <p className="workout-progress__eyebrow">{t("progress.title")}</p>
           <h2 className="workout-progress__title">{title}</h2>
-          <p className="workout-progress__hint">Choose a metric and time range to compare each session.</p>
+          <p className="workout-progress__hint">{t("progress.hint")}</p>
         </div>
         {primary ? (
           <Popconfirm
-            title="Delete this exercise?"
-            description="All logged sessions for it will be removed."
+            title={t("progress.deleteExercise")}
+            description={t("progress.deleteExerciseDescription")}
             onConfirm={onDelete}
-            okText="Delete"
+            okText={t("common.delete")}
             okButtonProps={{ danger: true }}
           >
             <Button danger icon={<DeleteOutlined />} size="small">
-              Delete
+              {t("common.delete")}
             </Button>
           </Popconfirm>
         ) : null}
@@ -141,23 +147,25 @@ function WorkoutProgressPanel({
           className={`workout-progress__stats${primary ? "" : " workout-progress__stats--placeholder"}`}
           aria-busy={!primary && loading}
         >
-          <Statistic title="Sessions" value={primary?.stats.sessions ?? "—"} />
+          <Statistic title={t("progress.sessions")} value={primary?.stats.sessions ?? "—"} />
           <Statistic
-            title="Best weight"
+            title={t("progress.bestWeight")}
             value={primary?.stats.bestWeightKg ?? "—"}
-            suffix={primary?.stats.bestWeightKg != null ? "kg" : undefined}
+            suffix={primary?.stats.bestWeightKg != null ? t("common.kg") : undefined}
           />
           <div className="workout-progress__stat">
             <Statistic
-              title="Latest"
+              title={t("common.latest")}
               value={primary?.stats.latestWeightKg ?? "—"}
-              suffix={primary?.stats.latestWeightKg != null ? "kg" : undefined}
+              suffix={primary?.stats.latestWeightKg != null ? t("common.kg") : undefined}
             />
             <div className="workout-progress__stat-delta">
-              {trendSuffix(trends.weightVsPrevious, "kg") ? (
+              {trendSuffix(trends.weightVsPrevious, t("common.kg")) ? (
                 <>
-                  {trendSuffix(trends.weightVsPrevious, "kg")}
-                  <span className="workout-progress__stat-delta-label"> vs prev</span>
+                  {trendSuffix(trends.weightVsPrevious, t("common.kg"))}
+                  <span className="workout-progress__stat-delta-label">
+                    {" "}{t("progress.vsPrevious")}
+                  </span>
                 </>
               ) : (
                 <span className="workout-progress__stat-delta-placeholder" aria-hidden>
@@ -167,22 +175,22 @@ function WorkoutProgressPanel({
             </div>
           </div>
           <Statistic
-            title={`vs ${trends.weeksAgoLabel ?? 4} wk ago`}
+            title={t("progress.weeksAgo", { count: trends.weeksAgoLabel ?? 4 })}
             value={
               trends.weightVsWeeksAgo != null
-                ? formatSignedDelta(trends.weightVsWeeksAgo, "kg")
+                ? formatSignedDelta(trends.weightVsWeeksAgo, t("common.kg"))
                 : "—"
             }
           />
           <Statistic
-            title="Best e1RM"
+            title={t("progress.bestE1rm")}
             value={bestE1rm ?? "—"}
-            suffix={bestE1rm != null ? "kg" : undefined}
+            suffix={bestE1rm != null ? t("common.kg") : undefined}
           />
           <Statistic
-            title="Best volume"
+            title={t("progress.bestVolume")}
             value={primary?.stats.bestVolume ?? "—"}
-            suffix={primary?.stats.bestVolume != null ? "kg" : undefined}
+            suffix={primary?.stats.bestVolume != null ? t("common.kg") : undefined}
           />
         </div>
       </div>
@@ -191,13 +199,13 @@ function WorkoutProgressPanel({
         <Segmented
           className="workout-progress__period"
           value={period}
-          options={PERIOD_OPTIONS}
+          options={periodOptions}
           onChange={(value) => onPeriodChange(String(value) as ProgressPeriod)}
         />
         <Segmented
           className="workout-progress__metric"
           value={metric}
-          options={METRIC_OPTIONS}
+          options={metricOptions}
           onChange={(value) => onMetricChange(String(value) as ProgressMetric)}
         />
       </div>
@@ -208,7 +216,7 @@ function WorkoutProgressPanel({
             <Spin size="small" />
           </div>
         ) : !hasChart ? (
-          <Empty description="No sessions in this period — log one below" />
+          <Empty description={t("progress.noSessions")} />
         ) : (
           <div className="workout-progress__chart-inner">
             <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>

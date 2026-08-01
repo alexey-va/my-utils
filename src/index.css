@@ -1296,6 +1296,55 @@ textarea.generator-output {
   min-height: 200px;
 }
 
+.workout-steps__chart-trigger {
+  position: relative;
+  min-width: 0;
+  border-radius: 6px;
+  cursor: zoom-in;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.workout-steps__chart-trigger:hover {
+  background: var(--linear-hover);
+}
+
+.workout-steps__chart-trigger:focus-visible {
+  outline: 2px solid var(--linear-primary);
+  outline-offset: 2px;
+}
+
+.workout-steps__chart-trigger[aria-disabled="true"] {
+  cursor: default;
+}
+
+.workout-steps__chart-trigger[aria-disabled="true"] .workout-steps__expand-icon {
+  display: none;
+}
+
+.workout-steps__expand-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--linear-surface-1);
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+
+.workout-steps__chart-trigger:hover .workout-steps__expand-icon,
+.workout-steps__chart-trigger:focus-visible .workout-steps__expand-icon {
+  color: var(--text);
+  opacity: 1;
+}
+
 .workout-steps__chart-inner {
   width: 100%;
 }
@@ -1307,6 +1356,65 @@ textarea.generator-output {
   min-height: 200px;
 }
 
+.workout-health-details__hint {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+.workout-health-details__controls {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.workout-health-details__chart {
+  height: 420px;
+  padding: 8px 4px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--linear-surface-2);
+}
+
+.workout-health-details__table-wrap {
+  max-height: 320px;
+  margin-top: 16px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.workout-health-details__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.workout-health-details__table th,
+.workout-health-details__table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.workout-health-details__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--linear-surface-2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.workout-health-details__table th:last-child,
+.workout-health-details__table td:last-child {
+  text-align: right;
+}
+
+.workout-health-details__table tr:last-child td {
+  border-bottom: 0;
+}
+
 .workout-weight__stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1314,6 +1422,22 @@ textarea.generator-output {
 @media (max-width: 480px) {
   .workout-weight__stats {
     grid-template-columns: 1fr;
+  }
+
+  .workout-health-details {
+    top: 8px;
+    width: calc(100vw - 16px) !important;
+    max-width: none;
+    margin: 0;
+    padding-bottom: 8px;
+  }
+
+  .workout-health-details__chart {
+    height: 300px;
+  }
+
+  .workout-health-details__table-wrap {
+    max-height: 260px;
   }
 }
 

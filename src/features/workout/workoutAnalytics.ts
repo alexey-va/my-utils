@@ -525,13 +525,13 @@ export function compareTooltipEntries(
   });
 }
 
-export function formatMetricValue(value: number, metric: ProgressMetric): string {
+export function formatMetricValue(value: number, metric: ProgressMetric, kgUnit = "kg"): string {
   switch (metric) {
     case "weight":
-      return `${value} kg`;
+      return `${value} ${kgUnit}`;
     case "maxReps":
       return String(value);
     case "volume":
-      return `${value} kg`;
+      return `${value} ${kgUnit}`;
   }
 }

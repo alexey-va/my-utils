@@ -9,6 +9,7 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import type { Exercise } from "../../api/types";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   exercises: Exercise[];
@@ -39,6 +40,7 @@ export default function WorkoutExerciseBar({
   showAllExercises = false,
   onToggleAllExercises,
 }: Props) {
+  const { t } = useWorkoutLocale();
   const options = exercises.map((e) => ({
     value: e.id,
     label: e.name,
@@ -50,14 +52,14 @@ export default function WorkoutExerciseBar({
         ref={selectRef}
         className="workout-toolbar__select"
         showSearch
-        placeholder="Select exercise"
+        placeholder={t("toolbar.selectExercise")}
         optionFilterProp="label"
         loading={loading}
         disabled={!exercises.length}
         value={selectedExerciseId}
         options={options}
         onChange={onSelect}
-        aria-label="Exercise"
+        aria-label={t("toolbar.exerciseAria")}
       />
       <Space wrap size="small" className="workout-toolbar__actions">
         <Button
@@ -66,34 +68,35 @@ export default function WorkoutExerciseBar({
           disabled={!selectedExerciseId}
           onClick={onLogSession}
         >
-          Log session
+          {t("toolbar.logSession")}
         </Button>
         <Button icon={<PlusOutlined />} onClick={onAddExercise}>
-          Add exercise
+          {t("toolbar.addExercise")}
         </Button>
         <Button
           icon={showAllExercises ? <UnorderedListOutlined /> : <AppstoreOutlined />}
           disabled={!exercises.length || !onToggleAllExercises}
           onClick={onToggleAllExercises}
         >
-          {showAllExercises ? "Sessions" : "Training grid"}
+          {showAllExercises ? t("toolbar.sessions") : t("toolbar.trainingGrid")}
         </Button>
         <Button
           icon={<EditOutlined />}
           disabled={!selectedExerciseId}
           onClick={onEditExercise}
         >
-          Edit exercise
+          {t("toolbar.editExercise")}
         </Button>
         <Button
           icon={<DownloadOutlined />}
           disabled={!canExport}
           onClick={onExportCsv}
         >
-          Export CSV
+          {t("toolbar.exportCsv")}
         </Button>
         <span className="workout-toolbar__keys" aria-hidden>
-          <kbd>N</kbd> log · <kbd>/</kbd> search
+          <kbd>N</kbd> {t("toolbar.shortcuts").split(" · ")[0]} · <kbd>/</kbd>{" "}
+          {t("toolbar.shortcuts").split(" · ")[1]}
         </span>
       </Space>
     </div>

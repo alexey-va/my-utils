@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, message } from "antd";
 import WorkoutGridCellEditor from "./WorkoutGridCellEditor";
 import type { WorkoutGridCellEditorSession } from "./workoutGridDnD";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   session: WorkoutGridCellEditorSession | null;
@@ -16,6 +17,7 @@ export default function WorkoutGridCellEditorModal({
   onSave,
   onDelete,
 }: Props) {
+  const { t } = useWorkoutLocale();
   const [weightKg, setWeightKg] = useState(session?.weightKg ?? 20);
   const [repsPattern, setRepsPattern] = useState(session?.repsPattern ?? "10");
 
@@ -33,13 +35,13 @@ export default function WorkoutGridCellEditorModal({
     try {
       onSave(session, weightKg, repsPattern);
       onClose();
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : "Invalid value");
+    } catch {
+      message.error(t("error.invalidValue"));
     }
   };
 
   const title = session
-    ? `${session.mode === "add" ? "Add session" : "Edit session"} · ${session.exerciseName} · ${session.dateLabel}`
+    ? `${session.mode === "add" ? t("grid.addSession") : t("grid.editSession")} · ${session.exerciseName} · ${session.dateLabel}`
     : "";
 
   return (

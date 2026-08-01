@@ -1,4 +1,5 @@
 import { Button, Input, InputNumber, Space } from "antd";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   mode: "add" | "edit";
@@ -19,6 +20,7 @@ export default function WorkoutGridCellEditor({
   onSave,
   onDelete,
 }: Props) {
+  const { t } = useWorkoutLocale();
   return (
     <div className="workout-grid__cell-popover-inner">
       <Space.Compact className="workout-grid__cell-popover-row">
@@ -29,7 +31,7 @@ export default function WorkoutGridCellEditor({
           precision={2}
           size="small"
           value={weightKg}
-          addonAfter="kg"
+          addonAfter={t("common.kg")}
           onChange={(value) =>
             onWeightChange(Math.max(0.25, Math.round((value ?? 0.25) * 4) / 4))
           }
@@ -56,11 +58,11 @@ export default function WorkoutGridCellEditor({
       </Space.Compact>
       <div className="workout-grid__cell-popover-actions">
         <Button type="primary" size="small" onClick={onSave}>
-          {mode === "add" ? "Add" : "Update"}
+          {mode === "add" ? t("common.add") : t("common.update")}
         </Button>
         {onDelete ? (
           <Button danger size="small" onClick={onDelete}>
-            Delete
+            {t("common.delete")}
           </Button>
         ) : null}
       </div>

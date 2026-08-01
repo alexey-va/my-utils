@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import { apiClient, ApiError } from "../../api";
 import { apiEndpoints } from "../../api/endpoints";
@@ -14,8 +14,12 @@ import {
   applyUpsertToGrid,
   sortGridDatesOldestFirst,
 } from "./workoutGridMutations";
+import { useWorkoutLocale } from "./workoutLocale";
 
 export function useWorkoutGrid() {
+  const { t } = useWorkoutLocale();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [grid, setGrid] = useState<WorkoutGrid>({ dates: [], rows: [] });
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>();
@@ -43,7 +47,9 @@ export function useWorkoutGrid() {
         return exerciseList[0]?.id;
       });
     } catch (err) {
-      const text = err instanceof ApiError ? err.message : "Failed to load workout data";
+      const text = err instanceof ApiError
+        ? err.message
+        : tRef.current("message.loadWorkoutFailed");
       message.error(text);
     } finally {
       if (!options?.silent) {
@@ -66,12 +72,12 @@ export function useWorkoutGrid() {
         name,
         muscleGroup,
       });
-      message.success(`Added “${created.name}”`);
+      message.success(t("message.exerciseAdded", { name: created.name }));
       await reload();
       setSelectedExerciseId(created.id);
       return created;
     },
-    [reload],
+    [reload, t],
   );
 
   const updateExercise = useCallback(
@@ -82,28 +88,28 @@ export function useWorkoutGrid() {
           name,
           muscleGroup,
         });
-        message.success("Exercise updated");
+        message.success(t("message.exerciseUpdated"));
         await reload();
         setSelectedExerciseId(updated.id);
         return updated;
       } catch (err) {
-        const text = err instanceof ApiError ? err.message : "Failed to update exercise";
+        const text = err instanceof ApiError ? err.message : t("message.updateExerciseFailed");
         message.error(text);
         throw err;
       } finally {
         setSaving(false);
       }
     },
-    [reload],
+    [reload, t],
   );
 
   const deleteExercise = useCallback(
     async (exerciseId: string) => {
       await apiClient.delete(apiEndpoints.workouts.exercise(exerciseId));
-      message.success("Exercise removed");
+      message.success(t("message.exerciseRemoved"));
       await reload();
     },
-    [reload],
+    [reload, t],
   );
 
   const saveEntry = useCallback(
@@ -115,12 +121,12 @@ export function useWorkoutGrid() {
         void reload({ silent: true });
       } catch (err) {
         setGrid(snapshot);
-        const text = err instanceof ApiError ? err.message : "Failed to save";
+        const text = err instanceof ApiError ? err.message : t("message.saveFailed");
         message.error(text);
         throw err;
       }
     },
-    [grid, reload],
+    [grid, reload, t],
   );
 
   const deleteEntry = useCallback(
@@ -132,12 +138,12 @@ export function useWorkoutGrid() {
         void reload({ silent: true });
       } catch (err) {
         setGrid(snapshot);
-        const text = err instanceof ApiError ? err.message : "Failed to delete session";
+        const text = err instanceof ApiError ? err.message : t("message.deleteSessionFailed");
         message.error(text);
         throw err;
       }
     },
-    [grid, reload],
+    [grid, reload, t],
   );
 
   const moveEntry = useCallback(
@@ -152,12 +158,12 @@ export function useWorkoutGrid() {
       const sourceRow = grid.rows.find((r) => r.exerciseId === from.exerciseId);
       const cell = sourceRow?.cells[from.fromDate];
       if (!cell) {
-        message.error("Source session not found");
+        message.error(t("message.sourceMissing"));
         return;
       }
       const targetRow = grid.rows.find((r) => r.exerciseId === toExerciseId);
       if (targetRow?.cells[toDate]) {
-        message.warning("Target cell already has a session — pick an empty cell");
+        message.warning(t("message.targetOccupied"));
         return;
       }
       const snapshot = grid;
@@ -174,12 +180,12 @@ export function useWorkoutGrid() {
           void reload({ silent: true });
         } catch (err) {
           setGrid(snapshot);
-          const text = err instanceof ApiError ? err.message : "Failed to move session";
+          const text = err instanceof ApiError ? err.message : t("message.moveFailed");
           message.error(text);
         }
       })();
     },
-    [grid, reload],
+    [grid, reload, t],
   );
 
   return {

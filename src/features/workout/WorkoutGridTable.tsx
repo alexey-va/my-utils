@@ -9,8 +9,8 @@ import {
 } from "./workoutAnalytics";
 import {
   MUSCLE_GROUP_COLORS,
-  MUSCLE_GROUP_LABELS,
   MUSCLE_GROUPS,
+  localizedMuscleGroupLabel,
   normalizeMuscleGroup,
   type MuscleGroup,
 } from "./workoutMuscleGroups";
@@ -27,6 +27,7 @@ import {
 import { upsertRequestFromCell, upsertRequestFromValues } from "./workoutEntryPayload";
 import { repsPatternFromCell } from "./workoutSetReps";
 import { sortGridDatesOldestFirst } from "./workoutGridMutations";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   exercises: Exercise[];
@@ -42,15 +43,6 @@ type Props = {
   onUpdateCell: (payload: UpsertWorkoutEntryRequest) => void;
   onDeleteCell?: (exerciseId: string, date: string) => void;
 };
-
-function formatHeaderDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
 
 function columnHasActivity(rows: WorkoutGridRow[], date: string): boolean {
   return rows.some((row) => row.cells[date] != null);
@@ -105,6 +97,11 @@ function WorkoutGridTable({
   onUpdateCell,
   onDeleteCell,
 }: Props) {
+  const { formatDate, locale, t } = useWorkoutLocale();
+  const formatHeaderDate = useCallback(
+    (iso: string) => formatDate(iso, { weekday: "short", day: "numeric", month: "short" }),
+    [formatDate],
+  );
   const [activeDrag, setActiveDrag] = useState<WorkoutGridActiveDrag | null>(null);
   const [dragPointer, setDragPointer] = useState({ x: 0, y: 0 });
   const [dragHoverTarget, setDragHoverTarget] = useState<{
@@ -450,7 +447,7 @@ function WorkoutGridTable({
   if (!loading && grid.rows.length === 0) {
     return (
       <div className="workout-grid">
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No workout data yet" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("grid.empty")} />
       </div>
     );
   }
@@ -471,18 +468,18 @@ function WorkoutGridTable({
         onDelete={onDeleteCell ? handleEditorDelete : undefined}
       />
       <div className="workout-grid__head">
-        <h3 className="workout-shell__label workout-grid__title">Training grid</h3>
-        <div className="workout-grid__legend" aria-label="Volume intensity legend">
-          <span className="workout-grid__legend-label">Volume</span>
+        <h3 className="workout-shell__label workout-grid__title">{t("grid.title")}</h3>
+        <div className="workout-grid__legend" aria-label={t("grid.volumeLegend")}>
+          <span className="workout-grid__legend-label">{t("common.volume")}</span>
           <span className="workout-grid__legend-swatch workout-grid__cell--level-0" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-1" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-2" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-3" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-4" aria-hidden />
           <span className="workout-grid__legend-swatch workout-grid__cell--level-5" aria-hidden />
-          <span className="workout-grid__legend-hint">low → high</span>
+          <span className="workout-grid__legend-hint">{t("grid.lowHigh")}</span>
           <span className="workout-grid__legend-hint workout-grid__legend-interaction">
-            · oldest ← left · newest → right · drag to move · click to edit
+            {t("grid.instructions")}
           </span>
         </div>
       </div>
@@ -490,7 +487,9 @@ function WorkoutGridTable({
         <table className="workout-grid__table">
           <thead>
             <tr>
-              <th className="workout-grid__th workout-grid__th--exercise">Exercise</th>
+              <th className="workout-grid__th workout-grid__th--exercise">
+                {t("grid.exercise")}
+              </th>
               {displayDates.map((date) => (
                 <th
                   key={date}
@@ -526,7 +525,7 @@ function WorkoutGridTable({
                     >
                       <span className="workout-grid__exercise-name">{row.exerciseName}</span>
                       <span className="workout-grid__exercise-group">
-                        {MUSCLE_GROUP_LABELS[muscleGroup]}
+                        {localizedMuscleGroupLabel(muscleGroup, locale)}
                       </span>
                     </button>
                   </th>
@@ -566,7 +565,7 @@ function WorkoutGridTable({
                       row.exerciseName,
                       formatHeaderDate(date),
                       cell.display,
-                      `${volume} kg volume`,
+                      t("grid.kgVolume", { value: volume }),
                     ].join(" · ");
 
                     const isDragSource =

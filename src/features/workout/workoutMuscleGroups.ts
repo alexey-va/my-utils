@@ -20,6 +20,23 @@ export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
   other: "Other",
 };
 
+const MUSCLE_GROUP_LABELS_RU: Record<MuscleGroup, string> = {
+  chest: "Грудь",
+  back: "Спина",
+  legs: "Ноги",
+  shoulders: "Плечи",
+  arms: "Руки",
+  core: "Кор",
+  other: "Другое",
+};
+
+export function localizedMuscleGroupLabel(
+  group: MuscleGroup,
+  locale: WorkoutLocale,
+): string {
+  return locale === "ru" ? MUSCLE_GROUP_LABELS_RU[group] : MUSCLE_GROUP_LABELS[group];
+}
+
 /** Accent colors for grid rows and muscle-group hints (readable on dark UI). */
 export const MUSCLE_GROUP_COLORS: Record<MuscleGroup, string> = {
   chest: "#60a5fa",
@@ -35,3 +52,4 @@ export function normalizeMuscleGroup(value: string | undefined | null): MuscleGr
   const v = (value ?? "other").trim().toLowerCase();
   return (MUSCLE_GROUPS as readonly string[]).includes(v) ? (v as MuscleGroup) : "other";
 }
+import type { WorkoutLocale } from "./workoutLocale";

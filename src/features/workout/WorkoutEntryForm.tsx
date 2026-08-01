@@ -4,6 +4,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import type { UpsertWorkoutEntryRequest, WorkoutCell } from "../../api/types";
 import type { WorkoutEntryDraft } from "./types";
 import { parseRepsPattern, repsPatternFromCell } from "./workoutSetReps";
+import { useWorkoutLocale } from "./workoutLocale";
 
 type FormValues = {
   performedOn: Dayjs;
@@ -83,6 +84,7 @@ export default function WorkoutEntryForm({
   onDelete,
 }: Props) {
   const [form] = Form.useForm<FormValues>();
+  const { t } = useWorkoutLocale();
 
   useEffect(() => {
     form.setFieldsValue(draftToFormValues(draft));
@@ -93,7 +95,7 @@ export default function WorkoutEntryForm({
       <p className="workout-form__hint">
         <strong>{draft.exerciseName}</strong>
         {" · "}
-        {isEdit ? "edit session" : "new session"}
+        {isEdit ? t("entry.editHint") : t("entry.newHint")}
         {" · "}
         {draft.performedOn}
       </p>
@@ -105,16 +107,16 @@ export default function WorkoutEntryForm({
         onFinish={async (values) => {
           try {
             await onSubmit(buildUpsertPayload(draft, values));
-          } catch (error) {
-            message.error(error instanceof Error ? error.message : "Invalid reps pattern");
+          } catch {
+            message.error(t("entry.invalidReps"));
           }
         }}
       >
         <div className="workout-form__grid">
           <Form.Item
             name="performedOn"
-            label="Date"
-            rules={[{ required: true, message: "Pick a date" }]}
+            label={t("common.date")}
+            rules={[{ required: true, message: t("entry.pickDate") }]}
           >
             <DatePicker
               className="workout-form__full"
@@ -124,8 +126,8 @@ export default function WorkoutEntryForm({
           </Form.Item>
           <Form.Item
             name="weightKg"
-            label="Weight (kg)"
-            rules={[{ required: true, message: "Enter weight" }]}
+            label={t("entry.weightKg")}
+            rules={[{ required: true, message: t("entry.enterWeight") }]}
           >
             <InputNumber
               className="workout-form__full"
@@ -153,9 +155,9 @@ export default function WorkoutEntryForm({
           </Form.Item>
           <Form.Item
             name="repsPattern"
-            label="Reps per set"
-            extra="Uniform: 10 · Classic: 10/10/10/12 · Variable: 10/10/9/9"
-            rules={[{ required: true, message: "Enter reps" }]}
+            label={t("entry.repsPerSet")}
+            extra={t("entry.repsHelp")}
+            rules={[{ required: true, message: t("entry.enterReps") }]}
             className="workout-form__reps-pattern"
           >
             <Input
@@ -167,7 +169,7 @@ export default function WorkoutEntryForm({
         </div>
         <div className="workout-form__actions">
           <Button type="primary" htmlType="submit" loading={saving}>
-            {isEdit ? "Update" : "Save"}
+            {isEdit ? t("common.update") : t("common.save")}
           </Button>
           <Button
             type="default"
@@ -182,31 +184,34 @@ export default function WorkoutEntryForm({
               )
             }
           >
-            Same as last
+            {t("entry.sameAsLast")}
           </Button>
           <Button
             htmlType="button"
             disabled={saving}
             onClick={() => form.setFieldsValue(draftToFormValues(draft))}
           >
-            Reset
+            {t("common.reset")}
           </Button>
           <span className="workout-form__action-slot">
             {isEdit && onDelete ? (
               <Popconfirm
-                title="Delete this session?"
-                description={`Remove ${draft.exerciseName} on ${draft.performedOn} from the log.`}
+                title={t("sessions.deleteTitle")}
+                description={t("entry.deleteDescription", {
+                  exercise: draft.exerciseName,
+                  date: draft.performedOn,
+                })}
                 onConfirm={() => void onDelete()}
-                okText="Delete"
+                okText={t("common.delete")}
                 okButtonProps={{ danger: true }}
               >
                 <Button danger disabled={saving}>
-                  Delete session
+                  {t("entry.deleteSession")}
                 </Button>
               </Popconfirm>
             ) : (
               <Button danger disabled className="workout-form__action-placeholder" aria-hidden tabIndex={-1}>
-                Delete session
+                {t("entry.deleteSession")}
               </Button>
             )}
           </span>

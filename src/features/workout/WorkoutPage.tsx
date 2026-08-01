@@ -34,6 +34,8 @@ import {
 import { useCompareProgress } from "./useCompareProgress";
 import { useWorkoutGrid } from "./useWorkoutGrid";
 import { sendWorkoutPageViewOnce } from "../../telemetry/workoutTelemetry";
+import WorkoutLanguageSwitch from "./WorkoutLanguageSwitch";
+import { WorkoutLocaleProvider, useWorkoutLocale } from "./workoutLocale";
 
 const WorkoutSessionList = lazy(() => import("./WorkoutSessionList"));
 const WorkoutGridTable = lazy(() => import("./WorkoutGridTable"));
@@ -64,7 +66,9 @@ function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntry
   };
 }
 
-export default function WorkoutPage() {
+function WorkoutPageContent() {
+  const { t } = useWorkoutLocale();
+
   useEffect(() => {
     sendWorkoutPageViewOnce();
   }, []);
@@ -204,12 +208,13 @@ export default function WorkoutPage() {
 
   return (
     <PageLayout
-      title="Workout log"
-      subtitle="Progress, activity, and workout history in one focused view."
+      title={t("page.title")}
+      subtitle={t("page.subtitle")}
+      actions={<WorkoutLanguageSwitch />}
     >
       <AppPanel className="workout-panel">
         <div className="workout-shell workout-shell--simple">
-          <section className="workout-shell__insights" aria-label="Progress">
+          <section className="workout-shell__insights" aria-label={t("page.progressAria")}>
             <WorkoutWeeklySummary summary={weeklySummary} />
             <Suspense fallback={<InsightLoading />}>
               <WorkoutStepsChart
@@ -249,7 +254,7 @@ export default function WorkoutPage() {
             </Suspense>
           </section>
 
-          <section className="workout-shell__log" aria-label="Exercise and sessions">
+          <section className="workout-shell__log" aria-label={t("page.sessionsAria")}>
             <WorkoutExerciseBar
               exercises={exercises}
               selectedExerciseId={selectedExerciseId}
@@ -264,7 +269,7 @@ export default function WorkoutPage() {
                 }
                 openEditExercise(selectedExercise);
               }}
-              onExportCsv={() => exportWorkoutGridCsv(grid)}
+              onExportCsv={() => exportWorkoutGridCsv(grid, t("grid.exercise"))}
               canExport={grid.rows.length > 0}
               showAllExercises={showAllExercises}
               onToggleAllExercises={() => setShowAllExercises((open) => !open)}
@@ -311,7 +316,7 @@ export default function WorkoutPage() {
       </AppPanel>
 
       <Modal
-        title={entryModal?.isEdit ? "Edit session" : "Log session"}
+        title={entryModal?.isEdit ? t("modal.editSession") : t("modal.logSession")}
         open={entryModal != null}
         onCancel={closeEntryModal}
         footer={null}
@@ -344,7 +349,7 @@ export default function WorkoutPage() {
       </Modal>
 
       <Modal
-        title={exerciseModal?.exerciseId ? "Edit exercise" : "Add exercise"}
+        title={exerciseModal?.exerciseId ? t("modal.editExercise") : t("modal.addExercise")}
         open={exerciseModal != null}
         onCancel={closeExerciseModal}
         footer={null}
@@ -377,5 +382,13 @@ export default function WorkoutPage() {
         ) : null}
       </Modal>
     </PageLayout>
+  );
+}
+
+export default function WorkoutPage() {
+  return (
+    <WorkoutLocaleProvider>
+      <WorkoutPageContent />
+    </WorkoutLocaleProvider>
   );
 }
