@@ -8,7 +8,7 @@ import type {
 export type AgentTestChat = {
   id: string;
   memoryChatId: number;
-  userContextChatId: number;
+  sandboxed: boolean;
   title: string;
   messageCount: number;
   createdAt: string;

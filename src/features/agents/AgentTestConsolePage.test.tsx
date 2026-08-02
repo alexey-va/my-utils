@@ -44,10 +44,11 @@ beforeEach(() => {
 });
 
 describe("AgentTestConsolePage", () => {
-  it("warns about live data and renders persisted tool calls after a real turn", async () => {
+  it("shows isolated sandbox and renders persisted tool calls after a real turn", async () => {
     render(<AgentTestConsolePage />);
 
-    expect(await screen.findByText("LIVE DATA")).toBeInTheDocument();
+    expect(await screen.findByText("SANDBOX")).toBeInTheDocument();
+    expect(screen.queryByText("LIVE DATA")).not.toBeInTheDocument();
     const composer = await screen.findByPlaceholderText("Сообщение Workout-ассистенту…");
     fireEvent.change(composer, { target: { value: "Покажи упражнения" } });
     fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
@@ -84,7 +85,7 @@ describe("AgentTestConsolePage", () => {
 const testChat: AgentTestChat = {
   id: "9b5fb277-2456-4e89-a428-ff8fcff56f9b",
   memoryChatId: -9_000_000_000_000_000,
-  userContextChatId: 303_179_278,
+  sandboxed: true,
   title: "Тестовый чат",
   messageCount: 0,
   createdAt: "2026-08-02T09:00:00Z",

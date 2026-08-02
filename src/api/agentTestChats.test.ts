@@ -19,7 +19,7 @@ describe("agentTestChats API", () => {
     const chat = {
       id: "9b5fb277-2456-4e89-a428-ff8fcff56f9b",
       memoryChatId: -9_000_000_000_000_000,
-      userContextChatId: 303_179_278,
+      sandboxed: true,
       title: "Тест",
       messageCount: 0,
       createdAt: "2026-08-02T09:00:00Z",

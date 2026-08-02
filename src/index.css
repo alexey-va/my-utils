@@ -2782,9 +2782,9 @@ textarea.generator-output {
   min-width: 0;
 }
 
-.agent-test-console__live-alert {
-  border-color: color-mix(in srgb, var(--linear-warning, #f59e0b) 34%, var(--border-subtle));
-  background: color-mix(in srgb, var(--linear-warning, #f59e0b) 8%, var(--linear-surface-1));
+.agent-test-console__sandbox-alert {
+  border-color: color-mix(in srgb, var(--linear-success, #22c55e) 34%, var(--border-subtle));
+  background: color-mix(in srgb, var(--linear-success, #22c55e) 8%, var(--linear-surface-1));
 }
 
 .agent-test-console__layout {

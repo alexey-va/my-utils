@@ -168,8 +168,8 @@ export default function AgentTestConsolePage() {
   const onClear = () => {
     if (!selectedChat) return;
     Modal.confirm({
-      title: "Очистить историю?",
-      content: "Сообщения и tool rounds этого тестового чата будут удалены. Workout-данные останутся.",
+      title: "Начать чистый чат?",
+      content: "Удалятся сообщения, tool rounds и все данные sandbox этого тестового чата.",
       okText: "Очистить",
       okType: "danger",
       cancelText: "Отмена",
@@ -190,7 +190,7 @@ export default function AgentTestConsolePage() {
     if (!selectedChat) return;
     Modal.confirm({
       title: `Удалить «${selectedChat.title}»?`,
-      content: "Удалится только тестовая история. Записи тренировок, веса и факты пользователя не удаляются.",
+      content: "Удалятся только тестовая история и её sandbox. Реальные Workout-данные не затрагиваются.",
       okText: "Удалить",
       okType: "danger",
       cancelText: "Отмена",
@@ -267,10 +267,10 @@ export default function AgentTestConsolePage() {
   return (
     <div className="agent-test-console">
       <Alert
-        className="agent-test-console__live-alert"
-        type="warning"
+        className="agent-test-console__sandbox-alert"
+        type="success"
         showIcon
-        message={<><strong>LIVE DATA</strong> — инструменты читают и меняют настоящие Workout-данные.</>}
+        message={<><strong>SANDBOX</strong> — отдельные чистые данные для каждого чата. Telegram и реальные Workout-данные не затрагиваются.</>}
       />
 
       <div className="agent-test-console__layout">
@@ -335,7 +335,7 @@ export default function AgentTestConsolePage() {
               <header className="agent-test-console__chat-head">
                 <div>
                   <h3>{selectedChat.title}</h3>
-                  <span>Отдельная история · реальный пользовательский контекст</span>
+                  <span>Отдельная история и данные · без Telegram и production-записей</span>
                 </div>
                 <div className="agent-test-console__chat-actions">
                   <Tooltip title="Переименовать">
