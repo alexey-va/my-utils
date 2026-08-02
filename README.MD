@@ -10,7 +10,7 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 | --- | --- | --- | --- |
 | Workout | `/` | Public | Training grid and progress views backed by the API. |
 | Properties | `/properties` | Administrator | Runtime application settings. |
-| Agents | `/agents` | Administrator | Agent memory and conversation history. |
+| Agents | `/agents` | Administrator | Live Workout AI test chats, tool calls, and agent memory. |
 | Grafana | `/observability` | Administrator | Same-origin Grafana and Loki logs. |
 | Temporal | `/workflows` | Administrator | Embedded Temporal UI. |
 | Admin panel | `/admin` | Administrator | User and service administration. |

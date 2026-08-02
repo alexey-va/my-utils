@@ -17,6 +17,7 @@ type Props = {
   togglingMessageId: number | null;
   onToggleExcluded: (row: AgentMemoryMessage, excluded: boolean) => void;
   onDeleteMessage: (messageId: number) => void;
+  showActions?: boolean;
 };
 
 function isCompactedMessage(row: AgentMemoryMessage): boolean {
@@ -132,12 +133,14 @@ function SimpleMessageBody({
   togglingMessageId,
   onToggleExcluded,
   onDeleteMessage,
+  showActions,
 }: {
   row: AgentMemoryMessage;
   formatTime: (value: string | null) => string;
   togglingMessageId: number | null;
   onToggleExcluded: (row: AgentMemoryMessage, excluded: boolean) => void;
   onDeleteMessage: (messageId: number) => void;
+  showActions: boolean;
 }) {
   const parsed = parseStoredMessage(row);
   const modifierClasses = rowModifierClasses(row);
@@ -165,12 +168,14 @@ function SimpleMessageBody({
             <AgentMemoryJsonBlock source={resultSource} />
           </div>
         </div>
-        <AgentMemoryMessageActions
-          row={row}
-          loading={loading}
-          onToggleExcluded={onToggleExcluded}
-          onDeleteMessage={onDeleteMessage}
-        />
+        {showActions ? (
+          <AgentMemoryMessageActions
+            row={row}
+            loading={loading}
+            onToggleExcluded={onToggleExcluded}
+            onDeleteMessage={onDeleteMessage}
+          />
+        ) : null}
       </li>
     );
   }
@@ -193,12 +198,14 @@ function SimpleMessageBody({
             <DialogTextBody row={row} text={text} images={images} showRaw={!!showRaw} />
           </div>
         </div>
-        <AgentMemoryMessageActions
-          row={row}
-          loading={loading}
-          onToggleExcluded={onToggleExcluded}
-          onDeleteMessage={onDeleteMessage}
-        />
+        {showActions ? (
+          <AgentMemoryMessageActions
+            row={row}
+            loading={loading}
+            onToggleExcluded={onToggleExcluded}
+            onDeleteMessage={onDeleteMessage}
+          />
+        ) : null}
       </li>
     );
   }
@@ -210,12 +217,14 @@ function SimpleMessageBody({
         <ChatMeta label={label} time={time} row={row} />
         <DialogTextBody row={row} text={text} images={images} showRaw={!!showRaw} />
       </div>
-      <AgentMemoryMessageActions
-        row={row}
-        loading={loading}
-        onToggleExcluded={onToggleExcluded}
-        onDeleteMessage={onDeleteMessage}
-      />
+      {showActions ? (
+        <AgentMemoryMessageActions
+          row={row}
+          loading={loading}
+          onToggleExcluded={onToggleExcluded}
+          onDeleteMessage={onDeleteMessage}
+        />
+      ) : null}
     </li>
   );
 }
@@ -226,6 +235,7 @@ export default function AgentMemoryHistoryItem({
   togglingMessageId,
   onToggleExcluded,
   onDeleteMessage,
+  showActions = true,
 }: Props) {
   if (item.kind === "message") {
     return (
@@ -235,6 +245,7 @@ export default function AgentMemoryHistoryItem({
         togglingMessageId={togglingMessageId}
         onToggleExcluded={onToggleExcluded}
         onDeleteMessage={onDeleteMessage}
+        showActions={showActions}
       />
     );
   }
@@ -280,7 +291,7 @@ export default function AgentMemoryHistoryItem({
           </>
         ) : null}
 
-        {assistantText || assistantImages.length > 0 ? (
+        {showActions && (assistantText || assistantImages.length > 0) ? (
           <AgentMemoryMessageActions
             row={assistant}
             loading={assistantLoading}
@@ -319,7 +330,7 @@ export default function AgentMemoryHistoryItem({
                 ) : (
                   <p className="agent-memory__tool-missing">No result stored for this call.</p>
                 )}
-                {toolRow ? (
+                {showActions && toolRow ? (
                   <AgentMemoryMessageActions
                     row={toolRow}
                     loading={toolLoading}
@@ -351,19 +362,21 @@ export default function AgentMemoryHistoryItem({
                     <span className="agent-memory__tool-label">Output</span>
                     <AgentMemoryJsonBlock source={resultSource} maxLines={12} />
                   </div>
-                  <AgentMemoryMessageActions
-                    row={toolRow}
-                    loading={toolLoading}
-                    onToggleExcluded={onToggleExcluded}
-                    onDeleteMessage={onDeleteMessage}
-                    className="agent-memory__chat-actions--inline"
-                  />
+                  {showActions ? (
+                    <AgentMemoryMessageActions
+                      row={toolRow}
+                      loading={toolLoading}
+                      onToggleExcluded={onToggleExcluded}
+                      onDeleteMessage={onDeleteMessage}
+                      className="agent-memory__chat-actions--inline"
+                    />
+                  ) : null}
                 </li>
               );
             })}
         </ul>
       </div>
-      {!assistantText && assistantImages.length === 0 ? (
+      {showActions && !assistantText && assistantImages.length === 0 ? (
         <AgentMemoryMessageActions
           row={assistant}
           loading={assistantLoading}

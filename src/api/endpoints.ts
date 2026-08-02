@@ -15,6 +15,11 @@ export const apiEndpoints = {
   admin: {
     settings: "/api/admin/settings",
     setting: (key: string) => `/api/admin/settings/${encodeURIComponent(key)}`,
+    agentTestChats: "/api/admin/agent-test-chats",
+    agentTestChat: (id: string) =>
+      `/api/admin/agent-test-chats/${encodeURIComponent(id)}`,
+    agentTestChatMessages: (id: string) =>
+      `/api/admin/agent-test-chats/${encodeURIComponent(id)}/messages`,
   },
   workouts: {
     exercises: "/api/workouts/exercises",
