@@ -1,8 +1,8 @@
-.wireguard-page { display: grid; gap: 16px; }
-.wireguard-relay-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.wireguard-page { display: grid; gap: 24px; }
+.wireguard-relay-tabs { display: flex; flex-wrap: wrap; gap: 12px; }
 .wireguard-relay-tabs .ant-tag { margin-inline: 6px 0; }
-.wireguard-relay-actions { margin-top: 18px; }
-.wireguard-peer-create { width: min(680px, 100%); margin-bottom: 18px; }
+.wireguard-relay-actions { margin-top: 24px; }
+.wireguard-peer-create { width: min(680px, 100%); margin-bottom: 24px; }
 .wireguard-credentials { display: grid; justify-items: center; gap: 16px; }
 .wireguard-credentials__qr { padding: 12px; border-radius: var(--linear-radius-md); background: var(--linear-on-primary); transition: filter 160ms ease; }
 .wireguard-credentials__qr--masked { filter: blur(10px); user-select: none; pointer-events: none; }

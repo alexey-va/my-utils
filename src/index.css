@@ -2608,6 +2608,16 @@ textarea.generator-output {
   font-weight: 600;
 }
 
+.properties-editor__content {
+  min-height: min(520px, 60vh);
+}
+
+.properties-editor__content > .ant-empty {
+  display: grid;
+  min-height: min(420px, 50vh);
+  place-content: center;
+}
+
 .properties-editor__key-cell {
   width: 100%;
 }

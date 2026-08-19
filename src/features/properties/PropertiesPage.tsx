@@ -446,36 +446,38 @@ export default function PropertiesPage() {
           )}
         </div>
 
-        {groupedProperties.length === 0 ? (
-          <Empty description="Нет свойств по фильтрам" />
-        ) : (
-          <Collapse
-            className="properties-editor__groups"
-            defaultActiveKey={groupedProperties.map((g) => g.tag)}
-            items={groupedProperties.map(({ tag, items }) => ({
-              key: tag,
-              label: (
-                <Space>
-                  <span>{tagLabel(tag)}</span>
-                  <Tag>{items.length}</Tag>
-                </Space>
-              ),
-              children: (
-                <Table
-                  className="properties-editor__table"
-                  rowKey="key"
-                  columns={columns}
-                  dataSource={items}
-                  loading={loading}
-                  pagination={false}
-                  size="middle"
-                  tableLayout="fixed"
-                  scroll={{ x: 1020 }}
-                />
-              ),
-            }))}
-          />
-        )}
+        <div className="properties-editor__content" aria-busy={loading}>
+          {groupedProperties.length === 0 ? (
+            <Empty description={loading ? "Загрузка свойств…" : "Нет свойств по фильтрам"} />
+          ) : (
+            <Collapse
+              className="properties-editor__groups"
+              defaultActiveKey={groupedProperties.map((g) => g.tag)}
+              items={groupedProperties.map(({ tag, items }) => ({
+                key: tag,
+                label: (
+                  <Space>
+                    <span>{tagLabel(tag)}</span>
+                    <Tag>{items.length}</Tag>
+                  </Space>
+                ),
+                children: (
+                  <Table
+                    className="properties-editor__table"
+                    rowKey="key"
+                    columns={columns}
+                    dataSource={items}
+                    loading={loading}
+                    pagination={false}
+                    size="middle"
+                    tableLayout="fixed"
+                    scroll={{ x: 1020 }}
+                  />
+                ),
+              }))}
+            />
+          )}
+        </div>
       </AppPanel>
 
       {textareaProperty && textareaRow ? (

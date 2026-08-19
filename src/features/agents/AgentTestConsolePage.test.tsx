@@ -44,6 +44,16 @@ beforeEach(() => {
 });
 
 describe("AgentTestConsolePage", () => {
+  it("keeps the chat menu visible while refreshing it", async () => {
+    render(<AgentTestConsolePage />);
+
+    expect(await screen.findByRole("button", { name: /Тестовый чат/ })).toBeInTheDocument();
+    api.fetchChats.mockImplementationOnce(() => new Promise(() => undefined));
+    fireEvent.click(screen.getByRole("button", { name: "Обновить список" }));
+
+    expect(screen.getByRole("button", { name: /Тестовый чат/ })).toBeInTheDocument();
+  });
+
   it("shows isolated sandbox and renders persisted tool calls after a real turn", async () => {
     render(<AgentTestConsolePage />);
 

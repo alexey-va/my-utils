@@ -283,6 +283,7 @@ export default function AgentTestConsolePage() {
                   type="text"
                   size="small"
                   icon={<ReloadOutlined />}
+                  loading={loading}
                   aria-label="Обновить список"
                   onClick={() => void loadChats()}
                 />
@@ -299,7 +300,7 @@ export default function AgentTestConsolePage() {
             </div>
           </div>
 
-          {loading ? (
+          {loading && chats.length === 0 ? (
             <div className="agent-test-console__loading"><Spin size="small" /></div>
           ) : chats.length === 0 ? (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Пока нет тестовых чатов" />

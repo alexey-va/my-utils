@@ -1,5 +1,6 @@
 import type { AccessControlProvider } from "@refinedev/core";
-import { isLoggedIn, readStoredUser } from "../auth/session";
+import { canAccessResource } from "../auth/access";
+import { readStoredUser } from "../auth/session";
 import { appResources } from "../config/resources";
 import type { AppResourceMeta } from "../types/resource";
 
@@ -17,13 +18,6 @@ function resolveMeta(
 export const accessControlProvider: AccessControlProvider = {
   can: async ({ resource, params }) => {
     const meta = resolveMeta(resource, params);
-    if (meta?.requiresAdmin === true) {
-      const user = readStoredUser();
-      return { can: user?.role === "ADMIN" && !user.mustChangePassword };
-    }
-    if (meta?.requiresAuth !== true) {
-      return { can: true };
-    }
-    return { can: isLoggedIn() };
+    return { can: canAccessResource(meta, readStoredUser()) };
   },
 };

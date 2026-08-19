@@ -9,7 +9,7 @@ import {
   MenuUnfoldOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useGetIdentity, useMenu, useTranslate } from "@refinedev/core";
+import { useMenu, useTranslate } from "@refinedev/core";
 import { APP_NAME } from "../config/appBranding";
 import type { AuthUser } from "../api/types";
 import { PATH_ACCOUNT, PATH_HOME } from "../config/paths";
@@ -20,13 +20,14 @@ import AppTitle from "./AppTitle";
 import SiderFooterButton from "./SiderFooterButton";
 import { loginPathWithRedirect } from "./authNavigation";
 import { renderSiderMenu } from "./sider/renderSiderMenu";
+import { readStoredUser } from "../auth/session";
 
 export default function AppSider() {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const onGrafanaTab = location.pathname === "/observability";
-  const { data: identity } = useGetIdentity<AuthUser>();
+  const identity: AuthUser | null = readStoredUser();
   const translate = useTranslate();
   const { menuItems, selectedKey, defaultOpenKeys } = useMenu();
   const confirmLogout = useConfirmLogout();
@@ -44,7 +45,7 @@ export default function AppSider() {
     [routeByKey, navigate],
   );
 
-  const menuNodes = renderSiderMenu({ tree: menuItems, selectedKey });
+  const menuNodes = renderSiderMenu({ tree: menuItems, selectedKey, identity });
 
   const signInLabel = translate("buttons.login", "Sign in");
   const signOutLabel = translate("buttons.logout", "Logout");

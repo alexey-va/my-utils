@@ -510,6 +510,7 @@ export default function AgentMemoryPage() {
               type="text"
               size="small"
               icon={<ReloadOutlined />}
+              loading={loading}
               onClick={() => loadChats()}
               aria-label="Refresh chats"
             />
@@ -520,7 +521,7 @@ export default function AgentMemoryPage() {
             {apiError}
           </Typography.Text>
         ) : null}
-        {loading ? (
+        {loading && chats.length === 0 ? (
           <Typography.Text type="secondary" className="agent-memory__sidebar-empty">
             Loading…
           </Typography.Text>
