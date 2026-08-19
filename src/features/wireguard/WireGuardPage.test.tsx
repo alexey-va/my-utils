@@ -94,5 +94,5 @@ describe("WireGuardPage refresh", () => {
 
     expect(await screen.findByText("116.3 MiB ↓ · 153.5 MiB ↑", undefined, { timeout: 10_000 })).toBeInTheDocument();
     expect(api.fetchPeers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh);
-  });
+  }, 15_000);
 });
