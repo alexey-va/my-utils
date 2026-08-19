@@ -1,4 +1,4 @@
-import { Empty, Drawer, Segmented, Spin, message } from "antd";
+import { Empty, Drawer, Segmented, Spin, Tabs, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -31,11 +31,11 @@ const rangeOptions: Array<{ label: string; value: WireGuardPeerMetricsRange }> =
   { label: "30д", value: "MONTH" },
 ];
 
-type MetricsView = "DIRECTION" | "ROUTE";
+type MetricsRoute = "RU" | "EXTERNAL";
 
-const viewOptions: Array<{ label: string; value: MetricsView }> = [
-  { label: "↓ / ↑", value: "DIRECTION" },
-  { label: "RU / не RU", value: "ROUTE" },
+const routeTabs: Array<{ label: string; key: MetricsRoute }> = [
+  { label: "RU", key: "RU" },
+  { label: "Внешние", key: "EXTERNAL" },
 ];
 
 const formatBytes = (value: number): string => {
@@ -52,7 +52,7 @@ const formatBytes = (value: number): string => {
 
 export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: Props) {
   const [range, setRange] = useState<WireGuardPeerMetricsRange>("HOUR");
-  const [view, setView] = useState<MetricsView>("DIRECTION");
+  const [route, setRoute] = useState<MetricsRoute>("RU");
   const [metrics, setMetrics] = useState<WireGuardPeerMetrics | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +72,7 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
   useEffect(() => {
     if (!peer) {
       setRange("HOUR");
-      setView("DIRECTION");
+      setRoute("RU");
       setMetrics(null);
     }
   }, [peer]);
@@ -81,23 +81,33 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
     () => metrics?.points.map((point) => ({
       ...point,
       time: new Date(point.bucketStart).getTime(),
-      ruBytes: point.ruDownloadBytes + point.ruUploadBytes,
-      nonRuBytes: point.nonRuDownloadBytes + point.nonRuUploadBytes,
     })) ?? [],
     [metrics],
   );
   const totals = useMemo(
     () => rows.reduce(
       (sum, point) => ({
-        download: sum.download + point.downloadBytes,
-        upload: sum.upload + point.uploadBytes,
-        ru: sum.ru + point.ruBytes,
-        nonRu: sum.nonRu + point.nonRuBytes,
+        ruDownload: sum.ruDownload + point.ruDownloadBytes,
+        ruUpload: sum.ruUpload + point.ruUploadBytes,
+        externalDownload: sum.externalDownload + point.nonRuDownloadBytes,
+        externalUpload: sum.externalUpload + point.nonRuUploadBytes,
       }),
-      { download: 0, upload: 0, ru: 0, nonRu: 0 },
+      { ruDownload: 0, ruUpload: 0, externalDownload: 0, externalUpload: 0 },
     ),
     [rows],
   );
+  const scaleMaximum = useMemo(
+    () => Math.max(1, ...rows.flatMap((point) => [
+      point.ruDownloadBytes,
+      point.ruUploadBytes,
+      point.nonRuDownloadBytes,
+      point.nonRuUploadBytes,
+    ])),
+    [rows],
+  );
+  const routeLabel = route === "RU" ? "RU" : "Внешние";
+  const routeDownload = route === "RU" ? totals.ruDownload : totals.externalDownload;
+  const routeUpload = route === "RU" ? totals.ruUpload : totals.externalUpload;
 
   return (
     <Drawer
@@ -109,6 +119,12 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
       className="wireguard-metrics-drawer"
     >
       <div className="wireguard-metrics-controls">
+        <Tabs
+          className="wireguard-route-tabs"
+          activeKey={route}
+          items={routeTabs}
+          onChange={(key) => setRoute(key as MetricsRoute)}
+        />
         <Segmented<WireGuardPeerMetricsRange>
           block
           name="wireguard-metrics-range"
@@ -117,33 +133,22 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           onChange={setRange}
           aria-label="Период графика"
         />
-        <Segmented<MetricsView>
-          block
-          name="wireguard-metrics-view"
-          value={view}
-          options={viewOptions}
-          onChange={setView}
-          aria-label="Разрез графика"
-        />
       </div>
       <div className="wireguard-metrics-summary" aria-live="polite">
-        {view === "DIRECTION" ? (
-          <>
-            <span className="wireguard-traffic wireguard-traffic--download">↓ {formatBytes(totals.download)}</span>
-            <span className="wireguard-traffic wireguard-traffic--upload">↑ {formatBytes(totals.upload)}</span>
-          </>
-        ) : (
-          <>
-            <span className="wireguard-traffic wireguard-traffic--ru" aria-label={`RU трафик ${formatBytes(totals.ru)}`}>
-              RU напрямую {formatBytes(totals.ru)}
-            </span>
-            <span className="wireguard-traffic wireguard-traffic--non-ru" aria-label={`Не RU трафик через Veesp ${formatBytes(totals.nonRu)}`}>
-              Не RU · Veesp {formatBytes(totals.nonRu)}
-            </span>
-          </>
-        )}
+        <span
+          className="wireguard-traffic wireguard-traffic--download"
+          aria-label={`${routeLabel} скачано ${formatBytes(routeDownload)}`}
+        >
+          ↓ {formatBytes(routeDownload)}
+        </span>
+        <span
+          className="wireguard-traffic wireguard-traffic--upload"
+          aria-label={`${routeLabel} отдано ${formatBytes(routeUpload)}`}
+        >
+          ↑ {formatBytes(routeUpload)}
+        </span>
       </div>
-      <div className="wireguard-chart" aria-label="Гистограмма трафика">
+      <div className="wireguard-chart" aria-label={`Гистограмма трафика, общая шкала до ${formatBytes(scaleMaximum)}`}>
         {loading ? (
           <Spin />
         ) : rows.length === 0 ? (
@@ -165,6 +170,8 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
               />
               <YAxis
                 width={64}
+                domain={[0, scaleMaximum]}
+                allowDataOverflow
                 tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                 tickFormatter={formatBytes}
               />
@@ -174,15 +181,17 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   const labels: Record<string, string> = {
                     downloadBytes: "Скачано",
                     uploadBytes: "Отдано",
-                    ruBytes: "RU напрямую",
-                    nonRuBytes: "Не RU через Veesp",
+                    ruDownloadBytes: "RU · скачано",
+                    ruUploadBytes: "RU · отдано",
+                    nonRuDownloadBytes: "Внешние · скачано",
+                    nonRuUploadBytes: "Внешние · отдано",
                   };
                   return [formatBytes(Number(value)), labels[String(name)] ?? String(name)];
                 }}
               />
-              {view === "DIRECTION" && (
+              {route === "RU" && (
                 <Bar
-                  dataKey="downloadBytes"
+                  dataKey="ruDownloadBytes"
                   fill={linearTokens.semanticBlue}
                   fillOpacity={0.84}
                   maxBarSize={12}
@@ -190,9 +199,9 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   isAnimationActive={false}
                 />
               )}
-              {view === "DIRECTION" && (
+              {route === "RU" && (
                 <Bar
-                  dataKey="uploadBytes"
+                  dataKey="ruUploadBytes"
                   fill={linearTokens.semanticGreen}
                   fillOpacity={0.84}
                   maxBarSize={12}
@@ -200,20 +209,20 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   isAnimationActive={false}
                 />
               )}
-              {view === "ROUTE" && (
+              {route === "EXTERNAL" && (
                 <Bar
-                  dataKey="ruBytes"
-                  fill={linearTokens.semanticGreen}
+                  dataKey="nonRuDownloadBytes"
+                  fill={linearTokens.semanticBlue}
                   fillOpacity={0.84}
                   maxBarSize={12}
                   radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               )}
-              {view === "ROUTE" && (
+              {route === "EXTERNAL" && (
                 <Bar
-                  dataKey="nonRuBytes"
-                  fill={linearTokens.semanticIndigo}
+                  dataKey="nonRuUploadBytes"
+                  fill={linearTokens.semanticGreen}
                   fillOpacity={0.84}
                   maxBarSize={12}
                   radius={[2, 2, 0, 0]}

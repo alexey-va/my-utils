@@ -5,7 +5,7 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { Button, Dropdown, Empty, Form, Input, Modal, Typography, message } from "antd";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../api/errors";
 import PageLayout from "../../shared/components/PageLayout";
 import {
@@ -57,13 +57,20 @@ function speed(value: number | undefined): string {
   return value === undefined ? "считается" : `${bytes(value)}/s`;
 }
 
-function PeerTrafficPreview({ peerName, points }: { peerName: string; points: WireGuardPeerMetricPoint[] }) {
+function PeerTrafficPreview({
+  peerName,
+  points,
+  maximum,
+}: {
+  peerName: string;
+  points: WireGuardPeerMetricPoint[];
+  maximum: number;
+}) {
   const buckets = points.slice(-18);
   const width = 126;
   const height = 34;
   const gap = 2;
   const barWidth = buckets.length === 0 ? 0 : (width - gap * (buckets.length - 1)) / buckets.length;
-  const maximum = Math.max(1, ...buckets.map((point) => point.downloadBytes + point.uploadBytes));
   return (
     <svg
       className="wireguard-peer__preview"
@@ -106,9 +113,9 @@ function date(value: string | null): string {
   return value ? new Date(value).toLocaleString("ru-RU") : "—";
 }
 
-function relativeTime(value: string | null): string {
+function relativeTime(value: string | null, now = Date.now()): string {
   if (!value) return "данных ещё нет";
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  const seconds = Math.max(0, Math.round((now - new Date(value).getTime()) / 1000));
   if (seconds < 10) return "только что";
   if (seconds < 60) return `${seconds} сек. назад`;
   const minutes = Math.floor(seconds / 60);
@@ -118,22 +125,31 @@ function relativeTime(value: string | null): string {
   return date(value);
 }
 
-function peerPresence(peer: WireGuardPeer): { label: string; tone: string } {
+function peerPresence(peer: WireGuardPeer, now: number): { label: string; tone: string } {
   if (!peer.enabled) return { label: "Отключён", tone: "disabled" };
   if (!peer.latestHandshakeAt) return { label: "Не подключался", tone: "idle" };
-  if (Date.now() - new Date(peer.latestHandshakeAt).getTime() <= ONLINE_WINDOW_MS) {
+  if (now - new Date(peer.latestHandshakeAt).getTime() <= ONLINE_WINDOW_MS) {
     return { label: "Онлайн", tone: "online" };
   }
-  return { label: `Был в сети ${relativeTime(peer.latestHandshakeAt)}`, tone: "idle" };
+  return { label: `Был в сети ${relativeTime(peer.latestHandshakeAt, now)}`, tone: "idle" };
 }
 
 function relayHealth(relay: WireGuardRelay): { label: string; tone: string } {
   switch (relay.status) {
-    case "READY": return { label: "Работает", tone: "online" };
-    case "SYNCING": return { label: "Синхронизация", tone: "syncing" };
-    case "STALE": return { label: "Агент не отвечает", tone: "error" };
-    default: return { label: "Ждёт агента", tone: "idle" };
+    case "READY": return { label: "VPN работает", tone: "online" };
+    case "SYNCING": return { label: "VPN синхронизируется", tone: "syncing" };
+    case "STALE": return { label: "VPN: агент не отвечает", tone: "error" };
+    default: return { label: "VPN ждёт агента", tone: "idle" };
   }
+}
+
+function routingHealth(relay: WireGuardRelay): { label: string; tone: string } {
+  if (relay.status === "STALE") return { label: "Маршрутизация недоступна", tone: "error" };
+  if (relay.status !== "READY") return { label: "Маршрутизация настраивается", tone: "syncing" };
+  if (relay.routingMode === "RU_DIRECT_AWG_DEFAULT") {
+    return { label: "Маршрутизация работает", tone: "online" };
+  }
+  return { label: "Маршрутизация по странам выключена", tone: "idle" };
 }
 
 function compactNumber(value: number): string {
@@ -170,6 +186,7 @@ export default function WireGuardPage() {
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
   const [peerSpeeds, setPeerSpeeds] = useState<Record<string, PeerSpeed>>({});
   const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetricPoint[]>>({});
+  const [now, setNow] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
@@ -185,6 +202,12 @@ export default function WireGuardPage() {
   const selected = relays[0] ?? null;
   const selectedRelayId = selected?.id ?? null;
   const peerIdsKey = peers.map((peer) => peer.id).join(",");
+  const previewMaximum = useMemo(
+    () => Math.max(1, ...Object.values(metricPreviews).flatMap((points) => (
+      points.slice(-18).map((point) => point.downloadBytes + point.uploadBytes)
+    ))),
+    [metricPreviews],
+  );
 
   const loadSnapshot = useCallback(async () => {
     if (snapshotInFlight.current) return;
@@ -240,6 +263,11 @@ export default function WireGuardPage() {
   }, []);
 
   useEffect(() => { void loadSnapshot(); }, [loadSnapshot]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const poll = () => {
@@ -366,14 +394,15 @@ export default function WireGuardPage() {
                   </span>
                 );
               })()}
-              <span className={selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "wireguard-route wireguard-route--direct" : "wireguard-route wireguard-route--pending"}>
-                RU → {selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "напрямую" : "через Veesp"}
-              </span>
-              <span className="wireguard-route">Остальное → Veesp</span>
-              <span className="wireguard-auto-refresh" aria-label="Автообновление каждые 5 секунд" title="Автообновление каждые 5 секунд">
-                <i aria-hidden="true" /> авто
-              </span>
-              <span className="wireguard-updated">Обновлено {relativeTime(selected.lastSeenAt)}</span>
+              {(() => {
+                const health = routingHealth(selected);
+                return (
+                  <span className={`wireguard-status wireguard-status--${health.tone}`}>
+                    <i aria-hidden="true" /> {health.label}
+                  </span>
+                );
+              })()}
+              <span className="wireguard-updated">Обновлено {relativeTime(selected.lastSeenAt, now)}</span>
             </header>
 
             {selected.routeQuality ? (
@@ -388,7 +417,7 @@ export default function WireGuardPage() {
                       key={name}
                       className={`wireguard-quality wireguard-quality--${routeQualityTone(probe.packetLossPercent)}`}
                       aria-label={label}
-                      title={`Проверка ${probe.target} · ${relativeTime(selected.routeQuality?.measuredAt ?? null)}`}
+                      title={`Проверка ${probe.target} · ${relativeTime(selected.routeQuality?.measuredAt ?? null, now)}`}
                     >
                       <i aria-hidden="true" />
                       <b>{name}</b>
@@ -404,7 +433,7 @@ export default function WireGuardPage() {
 
             <div className="wireguard-peer-list" role="list" aria-label="Устройства">
               {peers.map((peer) => {
-                const presence = peerPresence(peer);
+                const presence = peerPresence(peer, now);
                 const download = bytes(peer.totalTransmitBytes);
                 const upload = bytes(peer.totalReceiveBytes);
                 const currentSpeed = peerSpeeds[peer.id];
@@ -441,7 +470,11 @@ export default function WireGuardPage() {
                         </small>
                       </span>
                     </div>
-                    <PeerTrafficPreview peerName={peer.name} points={metricPreviews[peer.id] ?? []} />
+                    <PeerTrafficPreview
+                      peerName={peer.name}
+                      points={metricPreviews[peer.id] ?? []}
+                      maximum={previewMaximum}
+                    />
                     <div className="wireguard-peer__actions">
                       <Button type="text" onClick={() => setMetricsPeer(peer)} aria-label={`График ${peer.name}`}>
                         График

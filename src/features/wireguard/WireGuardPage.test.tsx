@@ -112,13 +112,15 @@ describe("WireGuardPage", () => {
     const { container } = render(<WireGuardPage />);
 
     expect(await screen.findByRole("heading", { name: "VPN" })).toBeInTheDocument();
-    expect(screen.getByText("RU → напрямую")).toBeInTheDocument();
-    expect(screen.getByText("Остальное → Veesp")).toBeInTheDocument();
+    expect(screen.getByText("VPN работает")).toBeInTheDocument();
+    expect(screen.getByText("Маршрутизация работает")).toBeInTheDocument();
+    expect(screen.queryByText("RU → напрямую")).not.toBeInTheDocument();
+    expect(screen.queryByText("Остальное → Veesp")).not.toBeInTheDocument();
     expect(screen.getByLabelText("RU напрямую: потери 0%, задержка 2.7 мс")).toBeInTheDocument();
     expect(screen.getByLabelText("Veesp: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
     const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
     expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
-    expect(screen.getByLabelText("Автообновление каждые 5 секунд")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Автообновление каждые 5 секунд")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Обновить данные" })).not.toBeInTheDocument();
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
     expect(container.querySelector(".app-panel")).not.toBeInTheDocument();
@@ -153,6 +155,28 @@ describe("WireGuardPage", () => {
     expect(api.fetchRelays.mock.calls.length).toBeGreaterThan(1);
   });
 
+  it("updates the relative heartbeat age every second without another API request", async () => {
+    const lastSeenAt = "2026-08-19T18:00:00Z";
+    const lastSeenMs = new Date(lastSeenAt).getTime();
+    let clockTick: (() => void) | undefined;
+    api.fetchRelays.mockResolvedValue([{ ...relay, lastSeenAt }]);
+    vi.spyOn(Date, "now").mockReturnValue(lastSeenMs + 11_000);
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 1_000 && typeof handler === "function") clockTick = handler as () => void;
+      return 1;
+    }) as typeof setInterval);
+    render(<WireGuardPage />);
+
+    expect(await screen.findByText("Обновлено 11 сек. назад")).toBeInTheDocument();
+    expect(clockTick).toBeTypeOf("function");
+    const requestsBeforeTick = api.fetchRelays.mock.calls.length;
+    vi.mocked(Date.now).mockReturnValue(lastSeenMs + 12_000);
+    await act(async () => { clockTick?.(); });
+
+    expect(screen.getByText("Обновлено 12 сек. назад")).toBeInTheDocument();
+    expect(api.fetchRelays).toHaveBeenCalledTimes(requestsBeforeTick);
+  });
+
   it("shows an inline traffic preview and rates from consecutive agent samples", async () => {
     let poll: (() => void) | undefined;
     vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
@@ -174,13 +198,54 @@ describe("WireGuardPage", () => {
     expect(screen.getByLabelText("Текущая скорость отдачи 512 B/s")).toBeInTheDocument();
   });
 
+  it("uses one preview scale for every peer so low traffic stays visually low", async () => {
+    const slowPeer: WireGuardPeer = {
+      ...peer,
+      id: "peer-2",
+      name: "slowphone",
+      assignedIp: "10.89.0.3",
+    };
+    api.fetchPeers.mockResolvedValue([peer, slowPeer]);
+    api.fetchMetrics.mockImplementation(async (_relayId: string, peerId: string) => ({
+      peerId,
+      range: "HOUR",
+      from: "2026-08-19T17:00:00Z",
+      to: "2026-08-19T18:00:00Z",
+      points: [{
+        bucketStart: "2026-08-19T17:59:00Z",
+        downloadBytes: peerId === peer.id ? 60_000 : 60,
+        uploadBytes: 0,
+        ruDownloadBytes: 0,
+        ruUploadBytes: 0,
+        nonRuDownloadBytes: peerId === peer.id ? 60_000 : 60,
+        nonRuUploadBytes: 0,
+      }],
+    }));
+
+    render(<WireGuardPage />);
+
+    const fastPreview = await screen.findByLabelText("Превью трафика grophone");
+    const slowPreview = await screen.findByLabelText("Превью трафика slowphone");
+    await waitFor(() => {
+      const fastHeight = Number(fastPreview.querySelector(".wireguard-peer__preview-download")?.getAttribute("height"));
+      const slowHeight = Number(slowPreview.querySelector(".wireguard-peer__preview-download")?.getAttribute("height"));
+      expect(fastHeight).toBe(34);
+      expect(slowHeight).toBeLessThan(1);
+    });
+  });
+
   it("opens a traffic drawer and loads all selectable time ranges", async () => {
     render(<WireGuardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "График grophone" }));
     expect(await screen.findByRole("dialog", { name: "Трафик grophone" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Гистограмма трафика")).toBeInTheDocument();
+    expect(screen.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
     expect(api.fetchMetrics).toHaveBeenCalledWith(relay.id, peer.id, "HOUR");
+    expect(screen.getByRole("tab", { name: "RU" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Внешние" })).toBeInTheDocument();
+    expect(screen.getByLabelText("RU скачано 1.00 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("RU отдано 512 B")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Разрез графика")).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "1ч" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "24ч" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "7д" })).toBeInTheDocument();
@@ -189,9 +254,10 @@ describe("WireGuardPage", () => {
     fireEvent.click(screen.getByRole("radio", { name: "24ч" }));
     await waitFor(() => expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "DAY"));
 
-    fireEvent.click(screen.getByRole("radio", { name: "RU / не RU" }));
-    expect(screen.getByLabelText("RU трафик 1.50 KiB")).toBeInTheDocument();
-    expect(screen.getByLabelText("Не RU трафик через Veesp 4.50 KiB")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Внешние" }));
+    expect(screen.getByLabelText("Внешние скачано 3.00 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Внешние отдано 1.50 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
   });
 
   it("keeps a fixed loading shell until the first response arrives", () => {

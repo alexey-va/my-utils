@@ -15,8 +15,6 @@
 }
 
 .wireguard-status,
-.wireguard-route,
-.wireguard-auto-refresh,
 .wireguard-updated {
   white-space: nowrap;
 }
@@ -40,21 +38,6 @@
 .wireguard-status--syncing i { background: var(--linear-blue); }
 .wireguard-status--error i { background: var(--linear-red); }
 .wireguard-status--disabled { color: var(--linear-ink-quaternary); }
-.wireguard-route--direct { color: var(--linear-green); }
-.wireguard-route--pending { color: var(--linear-yellow); }
-.wireguard-auto-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--linear-ink-muted);
-  font-size: 12px;
-}
-.wireguard-auto-refresh i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--linear-green);
-}
 .wireguard-updated { margin-left: auto; color: var(--linear-ink-muted); }
 
 .wireguard-quality-strip {
@@ -208,14 +191,14 @@
 .wireguard-peer-add small { color: var(--linear-ink-muted); font-size: 12px; }
 
 .wireguard-infrastructure {
-  margin-top: 46px;
-  border-top: 1px solid var(--linear-hairline);
+  margin-top: 0;
   color: var(--linear-ink-secondary);
 }
 
 .wireguard-infrastructure summary {
-  width: fit-content;
-  padding: 18px 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px 0;
   color: var(--linear-ink-muted);
   cursor: pointer;
   font-size: 13px;
@@ -301,11 +284,17 @@
 
 .wireguard-metrics-controls {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
-.wireguard-traffic--ru { color: var(--linear-green); }
-.wireguard-traffic--non-ru { color: var(--linear-primary); }
+.wireguard-route-tabs .ant-tabs-nav { margin: 0; }
+.wireguard-route-tabs .ant-tabs-nav-list { width: 100%; }
+.wireguard-route-tabs .ant-tabs-tab {
+  flex: 1;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 10px 0;
+}
 
 .wireguard-chart {
   display: grid;
