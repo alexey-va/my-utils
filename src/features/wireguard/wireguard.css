@@ -172,6 +172,23 @@
   gap: 16px;
 }
 
+.wireguard-load-error {
+  min-height: 240px;
+  color: var(--linear-ink-secondary);
+  text-align: center;
+}
+
+.wireguard-load-error strong {
+  color: var(--linear-red);
+  font-size: 15px;
+}
+
+.wireguard-load-error span {
+  max-width: 420px;
+  color: var(--linear-ink-muted);
+  font-size: 13px;
+}
+
 .wireguard-metrics-summary {
   display: flex;
   gap: 30px;

@@ -25,12 +25,18 @@ export default function WireGuardCredentialsModal({ open, credentials, onClose }
 
   const download = () => {
     if (!credentials) return;
-    const url = URL.createObjectURL(new Blob([credentials.clientConfig], { type: "text/plain" }));
+    const url = URL.createObjectURL(new Blob(
+      [credentials.clientConfig],
+      { type: "application/x-wireguard-profile;charset=utf-8" },
+    ));
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = credentials.fileName;
+    anchor.hidden = true;
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   };
 
   return (

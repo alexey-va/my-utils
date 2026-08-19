@@ -1,17 +1,21 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 
 describe("WireGuardCredentialsModal", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   it("renders repeatable config, local QR payload, and a download", () => {
     const createObjectUrl = vi.fn(() => "blob:wireguard-config");
+    const revokeObjectUrl = vi.fn();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
-    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.isConnected).toBe(true);
+    });
     const credentials = {
       peer: {
         id: "peer-id",
@@ -44,8 +48,13 @@ describe("WireGuardCredentialsModal", () => {
       credentials.clientConfig,
     );
 
+    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: /скачать/i }));
     expect(createObjectUrl).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+
+    act(() => vi.runAllTimers());
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:wireguard-config");
   });
 });

@@ -77,11 +77,25 @@ function relayHealth(relay: WireGuardRelay): { label: string; tone: string } {
   }
 }
 
+function snapshotErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401 || error.status === 403) {
+      return "Сессия администратора истекла. Войдите заново.";
+    }
+    if (error.status >= 500) {
+      return `VPN API временно недоступен (код ${error.status}).`;
+    }
+    return error.displayMessage();
+  }
+  return "Не удалось получить состояние VPN.";
+}
+
 export default function WireGuardPage() {
   const [relays, setRelays] = useState<WireGuardRelay[]>([]);
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
   const [createPeerOpen, setCreatePeerOpen] = useState(false);
   const [peerName, setPeerName] = useState("");
@@ -100,8 +114,11 @@ export default function WireGuardPage() {
       const nextPeers = nextRelay ? await fetchWireGuardPeers(nextRelay.id) : [];
       setRelays(nextRelays);
       setPeers(nextPeers);
+      setLoadFailure(null);
     } catch (error) {
-      message.error(errorMessage(error, "Не удалось обновить VPN"));
+      const failure = snapshotErrorMessage(error);
+      setLoadFailure(failure);
+      message.error(failure);
     } finally {
       setInitialLoading(false);
       if (background) setRefreshing(false);
@@ -323,6 +340,12 @@ export default function WireGuardPage() {
               </div>
             </details>
           </>
+        ) : loadFailure ? (
+          <div className="wireguard-empty wireguard-load-error" role="alert">
+            <strong>VPN API временно недоступен</strong>
+            <span>{loadFailure}</span>
+            <Button onClick={() => void loadSnapshot(true)}>Повторить</Button>
+          </div>
         ) : (
           <div className="wireguard-empty">
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="VPN ещё не настроен" />

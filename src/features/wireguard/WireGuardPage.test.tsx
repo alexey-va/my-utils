@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../api/errors";
 import type { WireGuardPeer, WireGuardRelay } from "./types";
 import WireGuardPage from "./WireGuardPage";
 
@@ -156,5 +157,16 @@ describe("WireGuardPage", () => {
 
     expect(container.querySelector(".wireguard-loading-shell")).toBeInTheDocument();
     expect(container.querySelector(".wireguard-loading-shell")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("does not present a failed relay request as an unconfigured VPN", async () => {
+    api.fetchRelays.mockRejectedValue(new ApiError(502, "Bad Gateway"));
+
+    render(<WireGuardPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("VPN API временно недоступен");
+    expect(screen.getByRole("button", { name: "Повторить" })).toBeInTheDocument();
+    expect(screen.queryByText("VPN ещё не настроен")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Настроить relay" })).not.toBeInTheDocument();
   });
 });
