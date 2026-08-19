@@ -325,7 +325,7 @@
 .wireguard-credentials__qr--masked { filter: blur(10px); user-select: none; pointer-events: none; }
 .wireguard-credentials__config { width: 100%; font-family: "JetBrains Mono", monospace; }
 
-@media (max-width: 860px) {
+@media (max-width: 960px) {
   .wireguard-peer {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px 18px;
