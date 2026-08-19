@@ -198,44 +198,45 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   return [formatBytes(Number(value)), labels[String(name)] ?? String(name)];
                 }}
               />
-              {view === "DIRECTION" ? (
-                <>
-                  <Area
-                    type="monotone"
-                    dataKey="downloadBytes"
-                    stroke={linearTokens.semanticBlue}
-                    fill="url(#wg-download)"
-                    strokeWidth={2}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="uploadBytes"
-                    stroke={linearTokens.semanticGreen}
-                    fill="url(#wg-upload)"
-                    strokeWidth={2}
-                    isAnimationActive={false}
-                  />
-                </>
-              ) : (
-                <>
-                  <Area
-                    type="monotone"
-                    dataKey="ruBytes"
-                    stroke={linearTokens.semanticGreen}
-                    fill="url(#wg-ru)"
-                    strokeWidth={2}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="nonRuBytes"
-                    stroke={linearTokens.semanticIndigo}
-                    fill="url(#wg-non-ru)"
-                    strokeWidth={2}
-                    isAnimationActive={false}
-                  />
-                </>
+              {view === "DIRECTION" && (
+                <Area
+                  type="monotone"
+                  dataKey="downloadBytes"
+                  stroke={linearTokens.semanticBlue}
+                  fill="url(#wg-download)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
+              )}
+              {view === "DIRECTION" && (
+                <Area
+                  type="monotone"
+                  dataKey="uploadBytes"
+                  stroke={linearTokens.semanticGreen}
+                  fill="url(#wg-upload)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
+              )}
+              {view === "ROUTE" && (
+                <Area
+                  type="monotone"
+                  dataKey="ruBytes"
+                  stroke={linearTokens.semanticGreen}
+                  fill="url(#wg-ru)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
+              )}
+              {view === "ROUTE" && (
+                <Area
+                  type="monotone"
+                  dataKey="nonRuBytes"
+                  stroke={linearTokens.semanticIndigo}
+                  fill="url(#wg-non-ru)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
               )}
             </AreaChart>
           </ResponsiveContainer>
