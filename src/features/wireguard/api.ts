@@ -6,11 +6,13 @@ import type {
   WireGuardAgentToken,
   WireGuardPeer,
   WireGuardPeerCredentials,
+  WireGuardPeerMetrics,
+  WireGuardPeerMetricsRange,
   WireGuardRelay,
 } from "./types";
 
 export const fetchWireGuardRelays = () =>
-  apiClient.get<WireGuardRelay[]>(apiEndpoints.admin.wireguardRelays);
+  apiClient.get<WireGuardRelay[]>(apiEndpoints.admin.wireguardRelays, { cache: "no-store" });
 
 export const createWireGuardRelay = (body: CreateWireGuardRelay) =>
   apiClient.post<CreatedWireGuardRelay>(apiEndpoints.admin.wireguardRelays, body);
@@ -22,7 +24,17 @@ export const rotateWireGuardAgentToken = (relayId: string) =>
   apiClient.post<WireGuardAgentToken>(apiEndpoints.admin.wireguardRelayToken(relayId));
 
 export const fetchWireGuardPeers = (relayId: string) =>
-  apiClient.get<WireGuardPeer[]>(apiEndpoints.admin.wireguardPeers(relayId));
+  apiClient.get<WireGuardPeer[]>(apiEndpoints.admin.wireguardPeers(relayId), { cache: "no-store" });
+
+export const fetchWireGuardPeerMetrics = (
+  relayId: string,
+  peerId: string,
+  range: WireGuardPeerMetricsRange,
+) =>
+  apiClient.get<WireGuardPeerMetrics>(
+    `${apiEndpoints.admin.wireguardPeerMetrics(relayId, peerId)}?range=${range}`,
+    { cache: "no-store" },
+  );
 
 export const createWireGuardPeer = (relayId: string, name: string) =>
   apiClient.post<WireGuardPeerCredentials>(apiEndpoints.admin.wireguardPeers(relayId), { name });

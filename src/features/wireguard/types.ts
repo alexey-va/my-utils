@@ -1,4 +1,5 @@
 export type WireGuardRelayStatus = "WAITING_FOR_AGENT" | "SYNCING" | "READY" | "STALE";
+export type WireGuardRoutingMode = "AWG_ONLY" | "RU_DIRECT_AWG_DEFAULT";
 
 export type WireGuardRelay = {
   id: string;
@@ -12,6 +13,9 @@ export type WireGuardRelay = {
   appliedRevision: number | null;
   status: WireGuardRelayStatus;
   lastSeenAt: string | null;
+  routingMode: WireGuardRoutingMode;
+  ruPrefixCount: number;
+  routingUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,4 +48,20 @@ export type CreateWireGuardRelay = {
   publicEndpoint: string;
   clientCidr: string;
   clientDns: string;
+};
+
+export type WireGuardPeerMetricsRange = "HOUR" | "DAY" | "WEEK" | "MONTH";
+
+export type WireGuardPeerMetricPoint = {
+  bucketStart: string;
+  downloadBytes: number;
+  uploadBytes: number;
+};
+
+export type WireGuardPeerMetrics = {
+  peerId: string;
+  range: WireGuardPeerMetricsRange;
+  from: string;
+  to: string;
+  points: WireGuardPeerMetricPoint[];
 };

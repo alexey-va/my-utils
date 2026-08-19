@@ -1,9 +1,13 @@
-import { DeleteOutlined, KeyOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DeleteOutlined,
+  EllipsisOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
+import { Button, Dropdown, Empty, Form, Input, Modal, Typography, message } from "antd";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../api/errors";
-import AppPanel from "../../shared/components/AppPanel";
 import PageLayout from "../../shared/components/PageLayout";
 import {
   createWireGuardPeer,
@@ -18,14 +22,11 @@ import {
 } from "./api";
 import type { CreateWireGuardRelay, WireGuardPeer, WireGuardPeerCredentials, WireGuardRelay } from "./types";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
+import WireGuardPeerMetricsDrawer from "./WireGuardPeerMetricsDrawer";
 import "./wireguard.css";
 
-const statusLabels = {
-  WAITING_FOR_AGENT: ["Ждёт агента", "default"],
-  SYNCING: ["Синхронизация", "processing"],
-  READY: ["Готов", "success"],
-  STALE: ["Агент не отвечает", "error"],
-} as const;
+const POLL_INTERVAL_MS = 15_000;
+const ONLINE_WINDOW_MS = 3 * 60_000;
 
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError ? error.message : fallback;
@@ -46,76 +47,329 @@ function date(value: string | null): string {
   return value ? new Date(value).toLocaleString("ru-RU") : "—";
 }
 
+function relativeTime(value: string | null): string {
+  if (!value) return "данных ещё нет";
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 10) return "только что";
+  if (seconds < 60) return `${seconds} сек. назад`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} мин. назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ч. назад`;
+  return date(value);
+}
+
+function peerPresence(peer: WireGuardPeer): { label: string; tone: string } {
+  if (!peer.enabled) return { label: "Отключён", tone: "disabled" };
+  if (!peer.latestHandshakeAt) return { label: "Не подключался", tone: "idle" };
+  if (Date.now() - new Date(peer.latestHandshakeAt).getTime() <= ONLINE_WINDOW_MS) {
+    return { label: "Онлайн", tone: "online" };
+  }
+  return { label: `Был в сети ${relativeTime(peer.latestHandshakeAt)}`, tone: "idle" };
+}
+
+function relayHealth(relay: WireGuardRelay): { label: string; tone: string } {
+  switch (relay.status) {
+    case "READY": return { label: "Работает", tone: "online" };
+    case "SYNCING": return { label: "Синхронизация", tone: "syncing" };
+    case "STALE": return { label: "Агент не отвечает", tone: "error" };
+    default: return { label: "Ждёт агента", tone: "idle" };
+  }
+}
+
 export default function WireGuardPage() {
   const [relays, setRelays] = useState<WireGuardRelay[]>([]);
-  const [relayId, setRelayId] = useState<string | null>(null);
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
+  const [createPeerOpen, setCreatePeerOpen] = useState(false);
   const [peerName, setPeerName] = useState("");
   const [credentials, setCredentials] = useState<WireGuardPeerCredentials | null>(null);
+  const [metricsPeer, setMetricsPeer] = useState<WireGuardPeer | null>(null);
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [relayForm] = Form.useForm<CreateWireGuardRelay>();
-  const selected = relays.find((relay) => relay.id === relayId) ?? null;
+  const [modal, modalContext] = Modal.useModal();
+  const selected = relays[0] ?? null;
 
-  const loadRelays = useCallback(async () => {
-    setLoading(true);
+  const loadSnapshot = useCallback(async (background = false) => {
+    if (background) setRefreshing(true);
     try {
-      const next = await fetchWireGuardRelays();
-      setRelays(next);
-      setRelayId((current) => current && next.some((item) => item.id === current) ? current : next[0]?.id ?? null);
+      const nextRelays = await fetchWireGuardRelays();
+      const nextRelay = nextRelays[0] ?? null;
+      const nextPeers = nextRelay ? await fetchWireGuardPeers(nextRelay.id) : [];
+      setRelays(nextRelays);
+      setPeers(nextPeers);
     } catch (error) {
-      message.error(errorMessage(error, "Не удалось загрузить relay"));
+      message.error(errorMessage(error, "Не удалось обновить VPN"));
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      if (background) setRefreshing(false);
     }
   }, []);
 
-  const loadPeers = useCallback(async (id: string | null) => {
-    if (!id) { setPeers([]); return; }
-    try { setPeers(await fetchWireGuardPeers(id)); }
-    catch (error) { message.error(errorMessage(error, "Не удалось загрузить пиры")); }
-  }, []);
+  useEffect(() => { void loadSnapshot(); }, [loadSnapshot]);
 
-  const refresh = useCallback(async () => {
-    await Promise.all([loadRelays(), loadPeers(relayId)]);
-  }, [loadPeers, loadRelays, relayId]);
-
-  useEffect(() => { void loadRelays(); }, [loadRelays]);
-  useEffect(() => { void loadPeers(relayId); }, [loadPeers, relayId]);
-
-  const columns = useMemo<ColumnsType<WireGuardPeer>>(() => [
-    { title: "Пир", dataIndex: "name", render: (name, peer) => <Space direction="vertical" size={0}><Typography.Text strong>{name}</Typography.Text><Typography.Text type="secondary" code>{peer.assignedIp}</Typography.Text></Space> },
-    { title: "Состояние", render: (_, peer) => <Switch checked={peer.enabled} onChange={async (enabled) => { if (!relayId) return; try { const updated = await setWireGuardPeerEnabled(relayId, peer.id, enabled); setPeers((items) => items.map((item) => item.id === updated.id ? updated : item)); await loadRelays(); } catch (error) { message.error(errorMessage(error, "Не удалось изменить пир")); } }} /> },
-    { title: "Handshake", dataIndex: "latestHandshakeAt", render: date },
-    { title: "Трафик", render: (_, peer) => `${bytes(peer.totalReceiveBytes)} ↓ · ${bytes(peer.totalTransmitBytes)} ↑` },
-    { title: "Действия", render: (_, peer) => <Space><Button icon={<KeyOutlined />} onClick={async () => { if (!relayId) return; try { setCredentials(await fetchWireGuardPeerCredentials(relayId, peer.id)); } catch (error) { message.error(errorMessage(error, "Не удалось получить конфиг")); } }}>Конфиг</Button><Popconfirm title="Удалить пир и освободить адрес?" onConfirm={async () => { if (!relayId) return; try { await deleteWireGuardPeer(relayId, peer.id); await Promise.all([loadPeers(relayId), loadRelays()]); } catch (error) { message.error(errorMessage(error, "Не удалось удалить пир")); } }}><Button danger icon={<DeleteOutlined />} /></Popconfirm></Space> },
-  ], [loadPeers, loadRelays, relayId]);
+  useEffect(() => {
+    const poll = () => {
+      if (document.visibilityState === "visible") void loadSnapshot(true);
+    };
+    const interval = window.setInterval(poll, POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [loadSnapshot]);
 
   const createRelay = async (values: CreateWireGuardRelay) => {
     try {
       const created = await createWireGuardRelay(values);
-      setCreateRelayOpen(false); setAgentToken(created.agentToken); relayForm.resetFields();
-      await loadRelays(); setRelayId(created.id);
-    } catch (error) { message.error(errorMessage(error, "Не удалось создать relay")); }
+      setCreateRelayOpen(false);
+      setAgentToken(created.agentToken);
+      relayForm.resetFields();
+      await loadSnapshot(true);
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось создать relay"));
+    }
   };
 
   const createPeer = async () => {
-    if (!relayId || !peerName.trim()) return;
-    try { const created = await createWireGuardPeer(relayId, peerName.trim()); setPeerName(""); setCredentials(created); await Promise.all([loadPeers(relayId), loadRelays()]); }
-    catch (error) { message.error(errorMessage(error, "Не удалось создать пир")); }
+    if (!selected || !peerName.trim()) return;
+    try {
+      const created = await createWireGuardPeer(selected.id, peerName.trim());
+      setPeerName("");
+      setCreatePeerOpen(false);
+      setCredentials(created);
+      await loadSnapshot(true);
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось добавить устройство"));
+    }
   };
 
+  const showCredentials = async (peer: WireGuardPeer) => {
+    if (!selected) return;
+    try {
+      setCredentials(await fetchWireGuardPeerCredentials(selected.id, peer.id));
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось получить конфиг"));
+    }
+  };
+
+  const setPeerEnabled = async (peer: WireGuardPeer, enabled: boolean) => {
+    if (!selected) return;
+    try {
+      const updated = await setWireGuardPeerEnabled(selected.id, peer.id, enabled);
+      setPeers((items) => items.map((item) => item.id === updated.id ? updated : item));
+      void loadSnapshot(true);
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось изменить устройство"));
+    }
+  };
+
+  const confirmDeletePeer = (peer: WireGuardPeer) => {
+    if (!selected) return;
+    modal.confirm({
+      title: `Удалить ${peer.name}?`,
+      content: "Устройство потеряет доступ, а его адрес освободится.",
+      okText: "Удалить",
+      okButtonProps: { danger: true },
+      cancelText: "Отмена",
+      onOk: async () => {
+        try {
+          await deleteWireGuardPeer(selected.id, peer.id);
+          await loadSnapshot(true);
+        } catch (error) {
+          message.error(errorMessage(error, "Не удалось удалить устройство"));
+          throw error;
+        }
+      },
+    });
+  };
+
+  const actions = (
+    <>
+      <Button
+        aria-label="Обновить данные"
+        title="Обновить данные"
+        icon={<ReloadOutlined />}
+        loading={refreshing}
+        onClick={() => void loadSnapshot(true)}
+      />
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        aria-label="Добавить устройство"
+        disabled={!selected || selected.status === "WAITING_FOR_AGENT"}
+        onClick={() => setCreatePeerOpen(true)}
+      >
+        Добавить устройство
+      </Button>
+    </>
+  );
+
   return (
-    <PageLayout title="WireGuard" subtitle="Клиенты входят на utils и выходят через AmneziaWG на Veesp" actions={<><Button aria-label="Обновить relays" title="Обновить relays" icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()} /><Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateRelayOpen(true)}>Новый relay</Button></>}>
-      <div className="wireguard-page">
-        {relays.length ? <div className="wireguard-relay-tabs">{relays.map((relay) => { const [label, color] = statusLabels[relay.status]; return <Button key={relay.id} type={relay.id === relayId ? "primary" : "default"} onClick={() => setRelayId(relay.id)}>{relay.name} <Tag color={color}>{label}</Tag></Button>; })}</div> : null}
-        {selected ? <AppPanel title={selected.name}><Descriptions column={{ xs: 1, md: 2 }} size="small" items={[{ key: "endpoint", label: "Endpoint", children: selected.publicEndpoint }, { key: "cidr", label: "Client CIDR", children: selected.clientCidr }, { key: "revision", label: "Ревизия", children: `${selected.appliedRevision ?? "—"} / ${selected.desiredRevision}` }, { key: "seen", label: "Heartbeat", children: date(selected.lastSeenAt) }, { key: "key", label: "Server key", children: selected.serverPublicKey ? <Typography.Text copyable code>{selected.serverPublicKey}</Typography.Text> : "—" }]} /><Space wrap className="wireguard-relay-actions"><Button onClick={async () => { try { setAgentToken((await rotateWireGuardAgentToken(selected.id)).agentToken); } catch (error) { message.error(errorMessage(error, "Не удалось сменить токен")); } }}>Сменить agent token</Button><Popconfirm title="Удалить пустой relay?" onConfirm={async () => { try { await deleteWireGuardRelay(selected.id); await loadRelays(); } catch (error) { message.error(errorMessage(error, "Не удалось удалить relay")); } }}><Button danger>Удалить relay</Button></Popconfirm></Space></AppPanel> : <AppPanel><Empty description="Relay ещё не создан" /></AppPanel>}
-        {selected ? <AppPanel title="Клиентские пиры"><Space.Compact className="wireguard-peer-create"><Input value={peerName} maxLength={120} placeholder="Название устройства" onChange={(event) => setPeerName(event.target.value)} onPressEnter={() => void createPeer()} /><Button type="primary" disabled={selected.status === "WAITING_FOR_AGENT"} onClick={() => void createPeer()}>Создать и показать конфиг</Button></Space.Compact><Table rowKey="id" columns={columns} dataSource={peers} pagination={false} scroll={{ x: 860 }} /></AppPanel> : null}
-      </div>
-      <Modal open={createRelayOpen} title="Новый WireGuard relay" footer={null} onCancel={() => setCreateRelayOpen(false)}><Form form={relayForm} layout="vertical" onFinish={(values) => void createRelay(values)} initialValues={{ name: "utils → veesp", publicEndpoint: "51.250.112.232:51820", clientCidr: "10.89.0.0/24", clientDns: "1.1.1.1" }}><Form.Item name="name" label="Название" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="publicEndpoint" label="Публичный endpoint" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="clientCidr" label="Client CIDR" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="clientDns" label="DNS" rules={[{ required: true }]}><Input /></Form.Item><Button type="primary" htmlType="submit">Создать</Button></Form></Modal>
-      <Modal open={agentToken !== null} title="Одноразовый agent token" onCancel={() => setAgentToken(null)} onOk={() => setAgentToken(null)}><Typography.Paragraph type="warning">Сохраните в root-only файл: после закрытия API его больше не покажет.</Typography.Paragraph><Input.TextArea readOnly rows={3} value={agentToken ?? ""} /></Modal>
+    <PageLayout title="VPN" subtitle="WireGuard на utils · защищённый выход через Veesp" actions={actions}>
+      {modalContext}
+      <section className="wireguard-page" aria-label="Состояние VPN">
+        {initialLoading ? (
+          <div className="wireguard-loading-shell" aria-busy="true" aria-label="Загрузка VPN">
+            <span className="wireguard-loading-line wireguard-loading-line--status" />
+            <span className="wireguard-loading-line wireguard-loading-line--peer" />
+          </div>
+        ) : selected ? (
+          <>
+            <header className="wireguard-status-strip">
+              {(() => {
+                const health = relayHealth(selected);
+                return (
+                  <span className={`wireguard-status wireguard-status--${health.tone}`}>
+                    <i aria-hidden="true" /> {health.label}
+                  </span>
+                );
+              })()}
+              <span className={selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "wireguard-route wireguard-route--direct" : "wireguard-route wireguard-route--pending"}>
+                RU → {selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "напрямую" : "через Veesp"}
+              </span>
+              <span className="wireguard-route">Остальное → Veesp</span>
+              <span className="wireguard-updated">Обновлено {relativeTime(selected.lastSeenAt)}</span>
+            </header>
+
+            <div className="wireguard-peer-list" role="list" aria-label="Устройства">
+              {peers.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Устройств пока нет" />
+              ) : peers.map((peer) => {
+                const presence = peerPresence(peer);
+                const download = bytes(peer.totalTransmitBytes);
+                const upload = bytes(peer.totalReceiveBytes);
+                return (
+                  <article className="wireguard-peer" role="listitem" key={peer.id}>
+                    <div className="wireguard-peer__identity">
+                      <strong>{peer.name}</strong>
+                      <code>{peer.assignedIp}</code>
+                    </div>
+                    <span className={`wireguard-status wireguard-status--${presence.tone}`}>
+                      <i aria-hidden="true" /> {presence.label}
+                    </span>
+                    <div className="wireguard-peer__traffic">
+                      <span
+                        className="wireguard-traffic wireguard-traffic--download"
+                        aria-label={`Скачано ${download}`}
+                      >
+                        <b aria-hidden="true">↓</b> {download}
+                      </span>
+                      <span
+                        className="wireguard-traffic wireguard-traffic--upload"
+                        aria-label={`Отдано ${upload}`}
+                      >
+                        <b aria-hidden="true">↑</b> {upload}
+                      </span>
+                    </div>
+                    <div className="wireguard-peer__actions">
+                      <Button type="text" onClick={() => setMetricsPeer(peer)} aria-label={`График ${peer.name}`}>
+                        График
+                      </Button>
+                      <Dropdown
+                        trigger={["click"]}
+                        menu={{
+                          items: [
+                            { key: "config", icon: <KeyOutlined />, label: "Показать конфиг" },
+                            { key: "enabled", label: peer.enabled ? "Отключить" : "Включить" },
+                            { type: "divider" },
+                            { key: "delete", icon: <DeleteOutlined />, label: "Удалить", danger: true },
+                          ],
+                          onClick: ({ key }) => {
+                            if (key === "config") void showCredentials(peer);
+                            if (key === "enabled") void setPeerEnabled(peer, !peer.enabled);
+                            if (key === "delete") confirmDeletePeer(peer);
+                          },
+                        }}
+                      >
+                        <Button type="text" icon={<EllipsisOutlined />} aria-label={`Действия ${peer.name}`} />
+                      </Dropdown>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <details className="wireguard-infrastructure">
+              <summary>Инфраструктура</summary>
+              <dl>
+                <div><dt>Публичный адрес VPN</dt><dd><code>{selected.publicEndpoint}</code></dd></div>
+                <div><dt>Адресная сеть устройств (CIDR)</dt><dd><code>{selected.clientCidr}</code></dd></div>
+                <div><dt>DNS устройств</dt><dd><code>{selected.clientDns}</code></dd></div>
+                <div><dt>Ревизия агента</dt><dd>{selected.appliedRevision ?? "—"} / {selected.desiredRevision}</dd></div>
+                <div><dt>Heartbeat</dt><dd>{date(selected.lastSeenAt)}</dd></div>
+                <div><dt>RU-префиксов</dt><dd>{selected.ruPrefixCount.toLocaleString("ru-RU")}</dd></div>
+                <div><dt>Server key</dt><dd>{selected.serverPublicKey ? <Typography.Text copyable code>{selected.serverPublicKey}</Typography.Text> : "—"}</dd></div>
+              </dl>
+              <div className="wireguard-infrastructure__actions">
+                <Button onClick={async () => {
+                  try { setAgentToken((await rotateWireGuardAgentToken(selected.id)).agentToken); }
+                  catch (error) { message.error(errorMessage(error, "Не удалось сменить токен")); }
+                }}>Сменить agent token</Button>
+                <Button danger onClick={() => modal.confirm({
+                  title: "Удалить relay?",
+                  content: "Это возможно только после удаления всех устройств.",
+                  okText: "Удалить",
+                  okButtonProps: { danger: true },
+                  cancelText: "Отмена",
+                  onOk: async () => {
+                    await deleteWireGuardRelay(selected.id);
+                    await loadSnapshot(true);
+                  },
+                })}>Удалить relay</Button>
+              </div>
+            </details>
+          </>
+        ) : (
+          <div className="wireguard-empty">
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="VPN ещё не настроен" />
+            <Button type="primary" onClick={() => setCreateRelayOpen(true)}>Настроить relay</Button>
+          </div>
+        )}
+      </section>
+
+      <Modal
+        open={createPeerOpen}
+        title="Добавить устройство"
+        okText="Создать и показать конфиг"
+        cancelText="Отмена"
+        okButtonProps={{ disabled: !peerName.trim() }}
+        onOk={() => void createPeer()}
+        onCancel={() => { setCreatePeerOpen(false); setPeerName(""); }}
+        destroyOnHidden
+      >
+        <Input
+          autoFocus
+          value={peerName}
+          maxLength={120}
+          placeholder="Например, Телефон"
+          onChange={(event) => setPeerName(event.target.value)}
+          onPressEnter={() => void createPeer()}
+        />
+      </Modal>
+      <Modal open={createRelayOpen} title="Настроить WireGuard relay" footer={null} onCancel={() => setCreateRelayOpen(false)}>
+        <Form
+          form={relayForm}
+          layout="vertical"
+          onFinish={(values) => void createRelay(values)}
+          initialValues={{ name: "utils → veesp", publicEndpoint: "51.250.112.232:51820", clientCidr: "10.89.0.0/24", clientDns: "1.1.1.1" }}
+        >
+          <Form.Item name="name" label="Название" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="publicEndpoint" label="Публичный адрес VPN" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="clientCidr" label="Адресная сеть устройств (CIDR)" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="clientDns" label="DNS" rules={[{ required: true }]}><Input /></Form.Item>
+          <Button type="primary" htmlType="submit">Создать</Button>
+        </Form>
+      </Modal>
+      <Modal open={agentToken !== null} title="Одноразовый agent token" onCancel={() => setAgentToken(null)} onOk={() => setAgentToken(null)}>
+        <Typography.Paragraph type="warning">Сохраните в root-only файл: после закрытия API его больше не покажет.</Typography.Paragraph>
+        <Input.TextArea readOnly rows={3} value={agentToken ?? ""} />
+      </Modal>
       <WireGuardCredentialsModal open={credentials !== null} credentials={credentials} onClose={() => setCredentials(null)} />
+      <WireGuardPeerMetricsDrawer relayId={selected?.id ?? null} peer={metricsPeer} onClose={() => setMetricsPeer(null)} />
     </PageLayout>
   );
 }

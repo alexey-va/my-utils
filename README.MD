@@ -30,7 +30,10 @@ The Grafana tab opens the `Workout Visitors` dashboard by default.
 
 WireGuard credentials are fetched only on demand. The QR is rendered locally
 in the browser, never sent to an external QR service, and cleared from page
-state when its modal closes. Host topology and installation scripts live in
+state when its modal closes. The VPN page polls live peer counters, shows
+download/upload history for up to 30 days, and reports whether Russian IPv4
+destinations use the direct `utils` route while other traffic uses Veesp. Host
+topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.

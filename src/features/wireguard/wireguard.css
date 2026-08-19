@@ -1,10 +1,224 @@
-.wireguard-page { display: grid; gap: 24px; }
-.wireguard-relay-tabs { display: flex; flex-wrap: wrap; gap: 12px; }
-.wireguard-relay-tabs .ant-tag { margin-inline: 6px 0; }
-.wireguard-relay-actions { margin-top: 24px; }
-.wireguard-peer-create { width: min(680px, 100%); margin-bottom: 24px; }
+.wireguard-page {
+  width: min(1120px, 100%);
+  min-height: 420px;
+}
+
+.wireguard-status-strip {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  padding: 4px 0 18px;
+  color: var(--linear-ink-secondary);
+  font-size: 13px;
+}
+
+.wireguard-status,
+.wireguard-route,
+.wireguard-updated {
+  white-space: nowrap;
+}
+
+.wireguard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--linear-ink-secondary);
+}
+
+.wireguard-status i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--linear-ink-quaternary);
+}
+
+.wireguard-status--online i { background: var(--linear-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--linear-green) 14%, transparent); }
+.wireguard-status--syncing i { background: var(--linear-blue); }
+.wireguard-status--error i { background: var(--linear-red); }
+.wireguard-status--disabled { color: var(--linear-ink-quaternary); }
+.wireguard-route--direct { color: var(--linear-green); }
+.wireguard-route--pending { color: var(--linear-yellow); }
+.wireguard-updated { margin-left: auto; color: var(--linear-ink-muted); }
+
+.wireguard-peer-list {
+  min-height: 104px;
+  border-top: 1px solid var(--linear-hairline);
+}
+
+.wireguard-peer {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(140px, 1fr) minmax(250px, 1.35fr) auto;
+  min-height: 92px;
+  align-items: center;
+  gap: 16px 28px;
+  border-bottom: 1px solid var(--linear-hairline);
+}
+
+.wireguard-peer__identity {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.wireguard-peer__identity strong {
+  overflow: hidden;
+  color: var(--linear-ink);
+  font-size: 15px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wireguard-peer__identity code {
+  color: var(--linear-ink-muted);
+  font: 12px/1.4 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.wireguard-peer__traffic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(108px, 1fr));
+  gap: 20px;
+}
+
+.wireguard-traffic {
+  font: 500 13px/1.4 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wireguard-traffic b { font-size: 15px; font-weight: 650; }
+.wireguard-traffic--download { color: var(--linear-blue); }
+.wireguard-traffic--upload { color: var(--linear-green); }
+
+.wireguard-peer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.wireguard-peer__actions .ant-btn-text { color: var(--linear-ink-muted); }
+.wireguard-peer__actions .ant-btn-text:hover { color: var(--linear-ink); }
+
+.wireguard-infrastructure {
+  margin-top: 46px;
+  border-top: 1px solid var(--linear-hairline);
+  color: var(--linear-ink-secondary);
+}
+
+.wireguard-infrastructure summary {
+  width: fit-content;
+  padding: 18px 0;
+  color: var(--linear-ink-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 560;
+  list-style-position: outside;
+}
+
+.wireguard-infrastructure summary:hover { color: var(--linear-ink); }
+
+.wireguard-infrastructure dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 48px;
+  margin: 2px 0 28px;
+}
+
+.wireguard-infrastructure dl > div {
+  display: grid;
+  grid-template-columns: minmax(155px, 0.75fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 10px 0;
+}
+
+.wireguard-infrastructure dt { color: var(--linear-ink-muted); font-size: 12px; }
+.wireguard-infrastructure dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 13px; }
+.wireguard-infrastructure code { color: var(--linear-ink-secondary); font-size: 12px; }
+.wireguard-infrastructure__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 24px; }
+
+.wireguard-loading-shell {
+  display: grid;
+  min-height: 280px;
+  align-content: start;
+  gap: 28px;
+  padding-top: 8px;
+}
+
+.wireguard-loading-line {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--linear-surface-2), var(--linear-surface-3), var(--linear-surface-2));
+  background-size: 200% 100%;
+  animation: wireguard-loading 1.4s ease-in-out infinite;
+}
+
+.wireguard-loading-line--status { width: min(620px, 86%); height: 14px; }
+.wireguard-loading-line--peer { width: 100%; height: 72px; border-radius: 6px; }
+
+@keyframes wireguard-loading {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.wireguard-empty {
+  display: grid;
+  min-height: 300px;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+}
+
+.wireguard-metrics-summary {
+  display: flex;
+  gap: 30px;
+  padding: 28px 2px 10px;
+}
+
+.wireguard-chart {
+  display: grid;
+  min-height: 330px;
+  place-items: center;
+  padding-top: 12px;
+}
+
+.wireguard-chart .recharts-default-tooltip {
+  border: 1px solid var(--linear-hairline-strong) !important;
+  border-radius: 8px;
+  background: var(--linear-surface-2) !important;
+}
+
 .wireguard-credentials { display: grid; justify-items: center; gap: 16px; }
 .wireguard-credentials__qr { padding: 12px; border-radius: var(--linear-radius-md); background: var(--linear-on-primary); transition: filter 160ms ease; }
 .wireguard-credentials__qr--masked { filter: blur(10px); user-select: none; pointer-events: none; }
 .wireguard-credentials__config { width: 100%; font-family: "JetBrains Mono", monospace; }
-@media (max-width: 640px) { .wireguard-peer-create { display: grid; } }
+
+@media (max-width: 860px) {
+  .wireguard-peer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 18px;
+    padding: 18px 0;
+  }
+  .wireguard-peer__traffic { grid-column: 1; }
+  .wireguard-peer__actions { grid-column: 2; grid-row: 2; }
+  .wireguard-infrastructure dl { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .wireguard-status-strip { gap: 8px 16px; }
+  .wireguard-updated { width: 100%; margin-left: 0; }
+  .wireguard-peer { grid-template-columns: 1fr auto; }
+  .wireguard-peer > .wireguard-status { grid-column: 1 / -1; grid-row: 2; }
+  .wireguard-peer__traffic { grid-column: 1 / -1; grid-row: 3; }
+  .wireguard-peer__actions { grid-column: 2; grid-row: 1; }
+  .wireguard-infrastructure dl > div { grid-template-columns: 1fr; gap: 3px; }
+  .wireguard-metrics-summary { gap: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wireguard-loading-line { animation: none; }
+  .wireguard-credentials__qr { transition: none; }
+}
