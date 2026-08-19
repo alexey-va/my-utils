@@ -11,7 +11,6 @@ import {
 } from "@ant-design/icons";
 import { useMenu, useTranslate } from "@refinedev/core";
 import { APP_NAME } from "../config/appBranding";
-import type { AuthUser } from "../api/types";
 import { PATH_ACCOUNT, PATH_HOME } from "../config/paths";
 import { SIDER_EXPANDED_WIDTH, SIDER_RAIL_WIDTH } from "../config/sidebar";
 import { useConfirmLogout } from "../shared/hooks/useConfirmLogout";
@@ -20,14 +19,14 @@ import AppTitle from "./AppTitle";
 import SiderFooterButton from "./SiderFooterButton";
 import { loginPathWithRedirect } from "./authNavigation";
 import { renderSiderMenu } from "./sider/renderSiderMenu";
-import { readStoredUser } from "../auth/session";
+import { useStoredUser } from "../auth/useStoredUser";
 
 export default function AppSider() {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const onGrafanaTab = location.pathname === "/observability";
-  const identity: AuthUser | null = readStoredUser();
+  const identity = useStoredUser();
   const translate = useTranslate();
   const { menuItems, selectedKey, defaultOpenKeys } = useMenu();
   const confirmLogout = useConfirmLogout();
