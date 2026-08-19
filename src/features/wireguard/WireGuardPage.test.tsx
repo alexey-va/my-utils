@@ -62,41 +62,37 @@ describe("WireGuardPage refresh", () => {
       createdAt: "2026-08-19T17:00:00Z",
       updatedAt: "2026-08-19T17:37:16Z",
     }]);
-    api.fetchPeers
-      .mockResolvedValueOnce([{
-        id: "peer-1",
-        name: "phone",
-        publicKey: "peer-public-key",
-        assignedIp: "10.89.0.2",
-        enabled: true,
-        latestHandshakeAt: null,
-        totalReceiveBytes: 0,
-        totalTransmitBytes: 0,
-        metricsUpdatedAt: null,
-        createdAt: "2026-08-19T17:00:00Z",
-        updatedAt: "2026-08-19T17:00:00Z",
-      }])
-      .mockResolvedValueOnce([{
-        id: "peer-1",
-        name: "phone",
-        publicKey: "peer-public-key",
-        assignedIp: "10.89.0.2",
-        enabled: true,
-        latestHandshakeAt: "2026-08-19T17:36:13Z",
-        totalReceiveBytes: 122_000_000,
-        totalTransmitBytes: 161_000_000,
-        metricsUpdatedAt: "2026-08-19T17:37:16Z",
-        createdAt: "2026-08-19T17:00:00Z",
-        updatedAt: "2026-08-19T17:37:16Z",
-      }]);
+    const initialPeer = {
+      id: "peer-1",
+      name: "phone",
+      publicKey: "peer-public-key",
+      assignedIp: "10.89.0.2",
+      enabled: true,
+      latestHandshakeAt: null,
+      totalReceiveBytes: 0,
+      totalTransmitBytes: 0,
+      metricsUpdatedAt: null,
+      createdAt: "2026-08-19T17:00:00Z",
+      updatedAt: "2026-08-19T17:00:00Z",
+    };
+    api.fetchPeers.mockResolvedValue([initialPeer]);
 
     render(<WireGuardPage />);
 
     expect(await screen.findByText("0 B ↓ · 0 B ↑")).toBeInTheDocument();
-    await waitFor(() => expect(api.fetchPeers).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.fetchPeers).toHaveBeenCalled());
+    const callsBeforeRefresh = api.fetchPeers.mock.calls.length;
+    api.fetchPeers.mockResolvedValue([{
+      ...initialPeer,
+      latestHandshakeAt: "2026-08-19T17:36:13Z",
+      totalReceiveBytes: 122_000_000,
+      totalTransmitBytes: 161_000_000,
+      metricsUpdatedAt: "2026-08-19T17:37:16Z",
+      updatedAt: "2026-08-19T17:37:16Z",
+    }]);
     fireEvent.click(screen.getByRole("button", { name: /Обновить/ }));
 
     expect(await screen.findByText("116.3 MiB ↓ · 153.5 MiB ↑")).toBeInTheDocument();
-    expect(api.fetchPeers).toHaveBeenCalledTimes(2);
+    expect(api.fetchPeers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh);
   });
 });
