@@ -1,8 +1,8 @@
 import { Empty, Drawer, Segmented, Spin, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -143,32 +143,14 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           </>
         )}
       </div>
-      <div className="wireguard-chart" aria-label="График трафика">
+      <div className="wireguard-chart" aria-label="Гистограмма трафика">
         {loading ? (
           <Spin />
         ) : rows.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="За этот период трафика ещё нет" />
         ) : (
           <ResponsiveContainer width="100%" height={300} debounce={0}>
-            <AreaChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }}>
-              <defs>
-                <linearGradient id="wg-download" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={linearTokens.semanticBlue} stopOpacity={0.22} />
-                  <stop offset="100%" stopColor={linearTokens.semanticBlue} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="wg-upload" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={linearTokens.semanticGreen} stopOpacity={0.18} />
-                  <stop offset="100%" stopColor={linearTokens.semanticGreen} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="wg-ru" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={linearTokens.semanticGreen} stopOpacity={0.2} />
-                  <stop offset="100%" stopColor={linearTokens.semanticGreen} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="wg-non-ru" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={linearTokens.semanticIndigo} stopOpacity={0.22} />
-                  <stop offset="100%" stopColor={linearTokens.semanticIndigo} stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">
               <CartesianGrid stroke={linearTokens.hairline} vertical={false} strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
@@ -199,46 +181,46 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                 }}
               />
               {view === "DIRECTION" && (
-                <Area
-                  type="monotone"
+                <Bar
                   dataKey="downloadBytes"
-                  stroke={linearTokens.semanticBlue}
-                  fill="url(#wg-download)"
-                  strokeWidth={2}
+                  fill={linearTokens.semanticBlue}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               )}
               {view === "DIRECTION" && (
-                <Area
-                  type="monotone"
+                <Bar
                   dataKey="uploadBytes"
-                  stroke={linearTokens.semanticGreen}
-                  fill="url(#wg-upload)"
-                  strokeWidth={2}
+                  fill={linearTokens.semanticGreen}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               )}
               {view === "ROUTE" && (
-                <Area
-                  type="monotone"
+                <Bar
                   dataKey="ruBytes"
-                  stroke={linearTokens.semanticGreen}
-                  fill="url(#wg-ru)"
-                  strokeWidth={2}
+                  fill={linearTokens.semanticGreen}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               )}
               {view === "ROUTE" && (
-                <Area
-                  type="monotone"
+                <Bar
                   dataKey="nonRuBytes"
-                  stroke={linearTokens.semanticIndigo}
-                  fill="url(#wg-non-ru)"
-                  strokeWidth={2}
+                  fill={linearTokens.semanticIndigo}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
                   isAnimationActive={false}
                 />
               )}
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         )}
       </div>

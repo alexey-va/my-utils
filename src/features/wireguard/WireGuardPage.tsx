@@ -14,24 +14,35 @@ import {
   deleteWireGuardPeer,
   deleteWireGuardRelay,
   fetchWireGuardPeerCredentials,
+  fetchWireGuardPeerMetrics,
   fetchWireGuardPeers,
   fetchWireGuardRelays,
   rotateWireGuardAgentToken,
   setWireGuardPeerEnabled,
 } from "./api";
-import type { CreateWireGuardRelay, WireGuardPeer, WireGuardPeerCredentials, WireGuardRelay } from "./types";
+import type {
+  CreateWireGuardRelay,
+  WireGuardPeer,
+  WireGuardPeerCredentials,
+  WireGuardPeerMetricPoint,
+  WireGuardRelay,
+} from "./types";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 import WireGuardPeerMetricsDrawer from "./WireGuardPeerMetricsDrawer";
 import "./wireguard.css";
 
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 5_000;
+const PREVIEW_INTERVAL_MS = 60_000;
 const ONLINE_WINDOW_MS = 3 * 60_000;
+
+type PeerSpeed = { download: number; upload: number };
+type PeerCounterSnapshot = Pick<WireGuardPeer, "metricsUpdatedAt" | "totalReceiveBytes" | "totalTransmitBytes">;
 
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError ? error.message : fallback;
 
 function bytes(value: number): string {
-  if (value < 1024) return `${value} B`;
+  if (value < 1024) return `${Math.round(value)} B`;
   const units = ["KiB", "MiB", "GiB", "TiB"];
   let amount = value / 1024;
   let unit = units[0];
@@ -40,6 +51,55 @@ function bytes(value: number): string {
     unit = units[index];
   }
   return `${amount.toFixed(amount >= 10 ? 1 : 2)} ${unit}`;
+}
+
+function speed(value: number | undefined): string {
+  return value === undefined ? "считается" : `${bytes(value)}/s`;
+}
+
+function PeerTrafficPreview({ peerName, points }: { peerName: string; points: WireGuardPeerMetricPoint[] }) {
+  const buckets = points.slice(-18);
+  const width = 126;
+  const height = 34;
+  const gap = 2;
+  const barWidth = buckets.length === 0 ? 0 : (width - gap * (buckets.length - 1)) / buckets.length;
+  const maximum = Math.max(1, ...buckets.map((point) => point.downloadBytes + point.uploadBytes));
+  return (
+    <svg
+      className="wireguard-peer__preview"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`Превью трафика ${peerName}`}
+    >
+      {buckets.length === 0 ? <line x1="0" y1={height - 1} x2={width} y2={height - 1} /> : null}
+      {buckets.map((point, index) => {
+        const downloadHeight = (point.downloadBytes / maximum) * height;
+        const uploadHeight = (point.uploadBytes / maximum) * height;
+        const x = index * (barWidth + gap);
+        return (
+          <g key={point.bucketStart}>
+            <rect
+              className="wireguard-peer__preview-download"
+              x={x}
+              y={height - downloadHeight}
+              width={barWidth}
+              height={downloadHeight}
+              rx="1"
+            />
+            <rect
+              className="wireguard-peer__preview-upload"
+              x={x}
+              y={Math.max(0, height - downloadHeight - uploadHeight)}
+              width={barWidth}
+              height={uploadHeight}
+              rx="1"
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 function date(value: string | null): string {
@@ -108,6 +168,8 @@ function snapshotErrorMessage(error: unknown): string {
 export default function WireGuardPage() {
   const [relays, setRelays] = useState<WireGuardRelay[]>([]);
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
+  const [peerSpeeds, setPeerSpeeds] = useState<Record<string, PeerSpeed>>({});
+  const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetricPoint[]>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
@@ -119,7 +181,10 @@ export default function WireGuardPage() {
   const [relayForm] = Form.useForm<CreateWireGuardRelay>();
   const [modal, modalContext] = Modal.useModal();
   const snapshotInFlight = useRef(false);
+  const peerCounterSnapshots = useRef<Record<string, PeerCounterSnapshot>>({});
   const selected = relays[0] ?? null;
+  const selectedRelayId = selected?.id ?? null;
+  const peerIdsKey = peers.map((peer) => peer.id).join(",");
 
   const loadSnapshot = useCallback(async () => {
     if (snapshotInFlight.current) return;
@@ -128,6 +193,39 @@ export default function WireGuardPage() {
       const nextRelays = await fetchWireGuardRelays();
       const nextRelay = nextRelays[0] ?? null;
       const nextPeers = nextRelay ? await fetchWireGuardPeers(nextRelay.id) : [];
+      const previousSnapshots = peerCounterSnapshots.current;
+      setPeerSpeeds((current) => {
+        const next: Record<string, PeerSpeed> = {};
+        nextPeers.forEach((peer) => {
+          const previous = previousSnapshots[peer.id];
+          const previousSpeed = current[peer.id];
+          if (
+            previous?.metricsUpdatedAt &&
+            peer.metricsUpdatedAt &&
+            previous.metricsUpdatedAt !== peer.metricsUpdatedAt
+          ) {
+            const elapsedSeconds = (
+              new Date(peer.metricsUpdatedAt).getTime() - new Date(previous.metricsUpdatedAt).getTime()
+            ) / 1000;
+            const downloadDelta = peer.totalTransmitBytes - previous.totalTransmitBytes;
+            const uploadDelta = peer.totalReceiveBytes - previous.totalReceiveBytes;
+            if (elapsedSeconds > 0 && downloadDelta >= 0 && uploadDelta >= 0) {
+              next[peer.id] = {
+                download: downloadDelta / elapsedSeconds,
+                upload: uploadDelta / elapsedSeconds,
+              };
+              return;
+            }
+          }
+          if (previousSpeed) next[peer.id] = previousSpeed;
+        });
+        return next;
+      });
+      peerCounterSnapshots.current = Object.fromEntries(nextPeers.map((peer) => [peer.id, {
+        metricsUpdatedAt: peer.metricsUpdatedAt,
+        totalReceiveBytes: peer.totalReceiveBytes,
+        totalTransmitBytes: peer.totalTransmitBytes,
+      }]));
       setRelays(nextRelays);
       setPeers(nextPeers);
       setLoadFailure(null);
@@ -154,6 +252,34 @@ export default function WireGuardPage() {
       document.removeEventListener("visibilitychange", poll);
     };
   }, [loadSnapshot]);
+
+  useEffect(() => {
+    if (!selectedRelayId || !peerIdsKey) {
+      setMetricPreviews({});
+      return;
+    }
+    const previewPeerIds = peerIdsKey.split(",");
+    let active = true;
+    const loadPreviews = async () => {
+      const results = await Promise.allSettled(
+        previewPeerIds.map((peerId) => fetchWireGuardPeerMetrics(selectedRelayId, peerId, "HOUR")),
+      );
+      if (!active) return;
+      const next: Record<string, WireGuardPeerMetricPoint[]> = {};
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") next[previewPeerIds[index]] = result.value.points;
+      });
+      setMetricPreviews(next);
+    };
+    void loadPreviews();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadPreviews();
+    }, PREVIEW_INTERVAL_MS);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [peerIdsKey, selectedRelayId]);
 
   const createRelay = async (values: CreateWireGuardRelay) => {
     try {
@@ -244,7 +370,7 @@ export default function WireGuardPage() {
                 RU → {selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "напрямую" : "через Veesp"}
               </span>
               <span className="wireguard-route">Остальное → Veesp</span>
-              <span className="wireguard-auto-refresh" aria-label="Автообновление каждые 15 секунд" title="Автообновление каждые 15 секунд">
+              <span className="wireguard-auto-refresh" aria-label="Автообновление каждые 5 секунд" title="Автообновление каждые 5 секунд">
                 <i aria-hidden="true" /> авто
               </span>
               <span className="wireguard-updated">Обновлено {relativeTime(selected.lastSeenAt)}</span>
@@ -281,6 +407,7 @@ export default function WireGuardPage() {
                 const presence = peerPresence(peer);
                 const download = bytes(peer.totalTransmitBytes);
                 const upload = bytes(peer.totalReceiveBytes);
+                const currentSpeed = peerSpeeds[peer.id];
                 return (
                   <article className="wireguard-peer" role="listitem" key={peer.id}>
                     <div className="wireguard-peer__identity">
@@ -291,19 +418,30 @@ export default function WireGuardPage() {
                       <i aria-hidden="true" /> {presence.label}
                     </span>
                     <div className="wireguard-peer__traffic">
-                      <span
-                        className="wireguard-traffic wireguard-traffic--download"
-                        aria-label={`Скачано ${download}`}
-                      >
-                        <b aria-hidden="true">↓</b> {download}
+                      <span className="wireguard-peer__traffic-value">
+                        <span
+                          className="wireguard-traffic wireguard-traffic--download"
+                          aria-label={`Скачано ${download}`}
+                        >
+                          <b aria-hidden="true">↓</b> {download}
+                        </span>
+                        <small aria-label={`Текущая скорость скачивания ${speed(currentSpeed?.download)}`}>
+                          {speed(currentSpeed?.download)}
+                        </small>
                       </span>
-                      <span
-                        className="wireguard-traffic wireguard-traffic--upload"
-                        aria-label={`Отдано ${upload}`}
-                      >
-                        <b aria-hidden="true">↑</b> {upload}
+                      <span className="wireguard-peer__traffic-value">
+                        <span
+                          className="wireguard-traffic wireguard-traffic--upload"
+                          aria-label={`Отдано ${upload}`}
+                        >
+                          <b aria-hidden="true">↑</b> {upload}
+                        </span>
+                        <small aria-label={`Текущая скорость отдачи ${speed(currentSpeed?.upload)}`}>
+                          {speed(currentSpeed?.upload)}
+                        </small>
                       </span>
                     </div>
+                    <PeerTrafficPreview peerName={peer.name} points={metricPreviews[peer.id] ?? []} />
                     <div className="wireguard-peer__actions">
                       <Button type="text" onClick={() => setMetricsPeer(peer)} aria-label={`График ${peer.name}`}>
                         График

@@ -59,7 +59,7 @@ const peer: WireGuardPeer = {
   latestHandshakeAt: new Date().toISOString(),
   totalReceiveBytes: 122_000_000,
   totalTransmitBytes: 161_000_000,
-  metricsUpdatedAt: new Date().toISOString(),
+  metricsUpdatedAt: "2026-08-19T17:59:00Z",
   createdAt: "2026-08-19T17:00:00Z",
   updatedAt: "2026-08-19T17:37:16Z",
 };
@@ -118,7 +118,7 @@ describe("WireGuardPage", () => {
     expect(screen.getByLabelText("Veesp: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
     const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
     expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
-    expect(screen.getByLabelText("Автообновление каждые 15 секунд")).toBeInTheDocument();
+    expect(screen.getByLabelText("Автообновление каждые 5 секунд")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Обновить данные" })).not.toBeInTheDocument();
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
     expect(container.querySelector(".app-panel")).not.toBeInTheDocument();
@@ -136,10 +136,10 @@ describe("WireGuardPage", () => {
     expect(upload).toHaveTextContent("↑");
   });
 
-  it("refreshes relay and peer data every 15 seconds while the tab is visible", async () => {
+  it("refreshes relay and peer data every 5 seconds while the tab is visible", async () => {
     let poll: (() => void) | undefined;
     vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
-      if (timeout === 15_000 && typeof handler === "function") poll = handler as () => void;
+      if (timeout === 5_000 && typeof handler === "function") poll = handler as () => void;
       return 1;
     }) as typeof setInterval);
     render(<WireGuardPage />);
@@ -153,11 +153,33 @@ describe("WireGuardPage", () => {
     expect(api.fetchRelays.mock.calls.length).toBeGreaterThan(1);
   });
 
+  it("shows an inline traffic preview and rates from consecutive agent samples", async () => {
+    let poll: (() => void) | undefined;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 5_000 && typeof handler === "function") poll = handler as () => void;
+      return 1;
+    }) as typeof setInterval);
+    render(<WireGuardPage />);
+
+    expect(await screen.findByLabelText("Превью трафика grophone")).toBeInTheDocument();
+    api.fetchPeers.mockResolvedValue([{
+      ...peer,
+      totalTransmitBytes: peer.totalTransmitBytes + 60 * 1024,
+      totalReceiveBytes: peer.totalReceiveBytes + 30 * 1024,
+      metricsUpdatedAt: "2026-08-19T18:00:00Z",
+    }]);
+    await act(async () => { poll?.(); });
+
+    expect(await screen.findByLabelText("Текущая скорость скачивания 1.00 KiB/s")).toBeInTheDocument();
+    expect(screen.getByLabelText("Текущая скорость отдачи 512 B/s")).toBeInTheDocument();
+  });
+
   it("opens a traffic drawer and loads all selectable time ranges", async () => {
     render(<WireGuardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "График grophone" }));
     expect(await screen.findByRole("dialog", { name: "Трафик grophone" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Гистограмма трафика")).toBeInTheDocument();
     expect(api.fetchMetrics).toHaveBeenCalledWith(relay.id, peer.id, "HOUR");
     expect(screen.getByRole("radio", { name: "1ч" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "24ч" })).toBeInTheDocument();

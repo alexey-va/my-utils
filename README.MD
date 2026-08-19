@@ -34,7 +34,9 @@ state when its modal closes. The VPN page polls live peer counters, shows
 download/upload history for up to 30 days, and reports whether Russian IPv4
 destinations use the direct `utils` route while other traffic uses Veesp. The
 history can switch between direction and RU/non-RU route splits; the page also
-shows the relay's current route loss and RTT probes. Host
+shows the relay's current route loss and RTT probes. Peer rows refresh every
+five seconds, derive live transfer rates from consecutive agent timestamps,
+and show a compact one-hour traffic preview. Host
 topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
 
