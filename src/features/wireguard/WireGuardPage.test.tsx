@@ -41,6 +41,11 @@ const relay: WireGuardRelay = {
   routingMode: "RU_DIRECT_AWG_DEFAULT",
   ruPrefixCount: 8_642,
   routingUpdatedAt: "2026-08-19T18:00:00Z",
+  routeQuality: {
+    measuredAt: "2026-08-19T18:00:00Z",
+    direct: { target: "77.88.8.8", packetLossPercent: 0, averageRttMs: 2.7 },
+    veesp: { target: "185.242.106.81", packetLossPercent: 0, averageRttMs: 26.6 },
+  },
   createdAt: "2026-08-19T17:00:00Z",
   updatedAt: "2026-08-19T17:37:16Z",
 };
@@ -81,7 +86,15 @@ beforeEach(() => {
     range: "HOUR",
     from: "2026-08-19T17:00:00Z",
     to: "2026-08-19T18:00:00Z",
-    points: [{ bucketStart: "2026-08-19T17:59:00Z", downloadBytes: 4096, uploadBytes: 2048 }],
+    points: [{
+      bucketStart: "2026-08-19T17:59:00Z",
+      downloadBytes: 4096,
+      uploadBytes: 2048,
+      ruDownloadBytes: 1024,
+      ruUploadBytes: 512,
+      nonRuDownloadBytes: 3072,
+      nonRuUploadBytes: 1536,
+    }],
   });
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
@@ -101,8 +114,12 @@ describe("WireGuardPage", () => {
     expect(await screen.findByRole("heading", { name: "VPN" })).toBeInTheDocument();
     expect(screen.getByText("RU → напрямую")).toBeInTheDocument();
     expect(screen.getByText("Остальное → Veesp")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Добавить устройство" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Обновить данные" })).toBeInTheDocument();
+    expect(screen.getByLabelText("RU напрямую: потери 0%, задержка 2.7 мс")).toBeInTheDocument();
+    expect(screen.getByLabelText("Veesp: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
+    const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
+    expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
+    expect(screen.getByLabelText("Автообновление каждые 15 секунд")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Обновить данные" })).not.toBeInTheDocument();
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
     expect(container.querySelector(".app-panel")).not.toBeInTheDocument();
     expect(container.querySelector(".ant-table")).not.toBeInTheDocument();
@@ -149,6 +166,10 @@ describe("WireGuardPage", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "24ч" }));
     await waitFor(() => expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "DAY"));
+
+    fireEvent.click(screen.getByRole("radio", { name: "RU / не RU" }));
+    expect(screen.getByLabelText("RU трафик 1.50 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Не RU трафик через Veesp 4.50 KiB")).toBeInTheDocument();
   });
 
   it("keeps a fixed loading shell until the first response arrives", () => {

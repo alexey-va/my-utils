@@ -31,6 +31,13 @@ const rangeOptions: Array<{ label: string; value: WireGuardPeerMetricsRange }> =
   { label: "30д", value: "MONTH" },
 ];
 
+type MetricsView = "DIRECTION" | "ROUTE";
+
+const viewOptions: Array<{ label: string; value: MetricsView }> = [
+  { label: "↓ / ↑", value: "DIRECTION" },
+  { label: "RU / не RU", value: "ROUTE" },
+];
+
 const formatBytes = (value: number): string => {
   if (value < 1024) return `${Math.round(value)} B`;
   const units = ["KiB", "MiB", "GiB", "TiB"];
@@ -45,6 +52,7 @@ const formatBytes = (value: number): string => {
 
 export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: Props) {
   const [range, setRange] = useState<WireGuardPeerMetricsRange>("HOUR");
+  const [view, setView] = useState<MetricsView>("DIRECTION");
   const [metrics, setMetrics] = useState<WireGuardPeerMetrics | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,12 +72,18 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
   useEffect(() => {
     if (!peer) {
       setRange("HOUR");
+      setView("DIRECTION");
       setMetrics(null);
     }
   }, [peer]);
 
   const rows = useMemo(
-    () => metrics?.points.map((point) => ({ ...point, time: new Date(point.bucketStart).getTime() })) ?? [],
+    () => metrics?.points.map((point) => ({
+      ...point,
+      time: new Date(point.bucketStart).getTime(),
+      ruBytes: point.ruDownloadBytes + point.ruUploadBytes,
+      nonRuBytes: point.nonRuDownloadBytes + point.nonRuUploadBytes,
+    })) ?? [],
     [metrics],
   );
   const totals = useMemo(
@@ -77,8 +91,10 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
       (sum, point) => ({
         download: sum.download + point.downloadBytes,
         upload: sum.upload + point.uploadBytes,
+        ru: sum.ru + point.ruBytes,
+        nonRu: sum.nonRu + point.nonRuBytes,
       }),
-      { download: 0, upload: 0 },
+      { download: 0, upload: 0, ru: 0, nonRu: 0 },
     ),
     [rows],
   );
@@ -92,16 +108,40 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
       destroyOnHidden
       className="wireguard-metrics-drawer"
     >
-      <Segmented<WireGuardPeerMetricsRange>
-        block
-        value={range}
-        options={rangeOptions}
-        onChange={setRange}
-        aria-label="Период графика"
-      />
+      <div className="wireguard-metrics-controls">
+        <Segmented<WireGuardPeerMetricsRange>
+          block
+          name="wireguard-metrics-range"
+          value={range}
+          options={rangeOptions}
+          onChange={setRange}
+          aria-label="Период графика"
+        />
+        <Segmented<MetricsView>
+          block
+          name="wireguard-metrics-view"
+          value={view}
+          options={viewOptions}
+          onChange={setView}
+          aria-label="Разрез графика"
+        />
+      </div>
       <div className="wireguard-metrics-summary" aria-live="polite">
-        <span className="wireguard-traffic wireguard-traffic--download">↓ {formatBytes(totals.download)}</span>
-        <span className="wireguard-traffic wireguard-traffic--upload">↑ {formatBytes(totals.upload)}</span>
+        {view === "DIRECTION" ? (
+          <>
+            <span className="wireguard-traffic wireguard-traffic--download">↓ {formatBytes(totals.download)}</span>
+            <span className="wireguard-traffic wireguard-traffic--upload">↑ {formatBytes(totals.upload)}</span>
+          </>
+        ) : (
+          <>
+            <span className="wireguard-traffic wireguard-traffic--ru" aria-label={`RU трафик ${formatBytes(totals.ru)}`}>
+              RU напрямую {formatBytes(totals.ru)}
+            </span>
+            <span className="wireguard-traffic wireguard-traffic--non-ru" aria-label={`Не RU трафик через Veesp ${formatBytes(totals.nonRu)}`}>
+              Не RU · Veesp {formatBytes(totals.nonRu)}
+            </span>
+          </>
+        )}
       </div>
       <div className="wireguard-chart" aria-label="График трафика">
         {loading ? (
@@ -119,6 +159,14 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                 <linearGradient id="wg-upload" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={linearTokens.semanticGreen} stopOpacity={0.18} />
                   <stop offset="100%" stopColor={linearTokens.semanticGreen} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="wg-ru" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={linearTokens.semanticGreen} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={linearTokens.semanticGreen} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="wg-non-ru" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={linearTokens.semanticIndigo} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={linearTokens.semanticIndigo} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={linearTokens.hairline} vertical={false} strokeDasharray="3 3" />
@@ -140,24 +188,55 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
               />
               <Tooltip
                 labelFormatter={(value) => new Date(Number(value)).toLocaleString("ru-RU")}
-                formatter={(value, name) => [formatBytes(Number(value)), name === "downloadBytes" ? "Скачано" : "Отдано"]}
+                formatter={(value, name) => {
+                  const labels: Record<string, string> = {
+                    downloadBytes: "Скачано",
+                    uploadBytes: "Отдано",
+                    ruBytes: "RU напрямую",
+                    nonRuBytes: "Не RU через Veesp",
+                  };
+                  return [formatBytes(Number(value)), labels[String(name)] ?? String(name)];
+                }}
               />
-              <Area
-                type="monotone"
-                dataKey="downloadBytes"
-                stroke={linearTokens.semanticBlue}
-                fill="url(#wg-download)"
-                strokeWidth={2}
-                isAnimationActive={false}
-              />
-              <Area
-                type="monotone"
-                dataKey="uploadBytes"
-                stroke={linearTokens.semanticGreen}
-                fill="url(#wg-upload)"
-                strokeWidth={2}
-                isAnimationActive={false}
-              />
+              {view === "DIRECTION" ? (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="downloadBytes"
+                    stroke={linearTokens.semanticBlue}
+                    fill="url(#wg-download)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="uploadBytes"
+                    stroke={linearTokens.semanticGreen}
+                    fill="url(#wg-upload)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                </>
+              ) : (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="ruBytes"
+                    stroke={linearTokens.semanticGreen}
+                    fill="url(#wg-ru)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="nonRuBytes"
+                    stroke={linearTokens.semanticIndigo}
+                    fill="url(#wg-non-ru)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                </>
+              )}
             </AreaChart>
           </ResponsiveContainer>
         )}

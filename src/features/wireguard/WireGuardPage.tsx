@@ -3,10 +3,9 @@ import {
   EllipsisOutlined,
   KeyOutlined,
   PlusOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import { Button, Dropdown, Empty, Form, Input, Modal, Typography, message } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/errors";
 import PageLayout from "../../shared/components/PageLayout";
 import {
@@ -77,6 +76,22 @@ function relayHealth(relay: WireGuardRelay): { label: string; tone: string } {
   }
 }
 
+function compactNumber(value: number): string {
+  return Number(value.toFixed(1)).toString();
+}
+
+function routeQualityLabel(name: string, loss: number, rtt: number | null): string {
+  const lossLabel = compactNumber(loss);
+  const rttLabel = rtt === null ? "задержка недоступна" : `задержка ${compactNumber(rtt)} мс`;
+  return `${name}: потери ${lossLabel}%, ${rttLabel}`;
+}
+
+function routeQualityTone(loss: number): string {
+  if (loss >= 10) return "error";
+  if (loss > 0) return "warning";
+  return "healthy";
+}
+
 function snapshotErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401 || error.status === 403) {
@@ -94,7 +109,6 @@ export default function WireGuardPage() {
   const [relays, setRelays] = useState<WireGuardRelay[]>([]);
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
   const [createPeerOpen, setCreatePeerOpen] = useState(false);
@@ -104,10 +118,12 @@ export default function WireGuardPage() {
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [relayForm] = Form.useForm<CreateWireGuardRelay>();
   const [modal, modalContext] = Modal.useModal();
+  const snapshotInFlight = useRef(false);
   const selected = relays[0] ?? null;
 
-  const loadSnapshot = useCallback(async (background = false) => {
-    if (background) setRefreshing(true);
+  const loadSnapshot = useCallback(async () => {
+    if (snapshotInFlight.current) return;
+    snapshotInFlight.current = true;
     try {
       const nextRelays = await fetchWireGuardRelays();
       const nextRelay = nextRelays[0] ?? null;
@@ -121,7 +137,7 @@ export default function WireGuardPage() {
       message.error(failure);
     } finally {
       setInitialLoading(false);
-      if (background) setRefreshing(false);
+      snapshotInFlight.current = false;
     }
   }, []);
 
@@ -129,7 +145,7 @@ export default function WireGuardPage() {
 
   useEffect(() => {
     const poll = () => {
-      if (document.visibilityState === "visible") void loadSnapshot(true);
+      if (document.visibilityState === "visible") void loadSnapshot();
     };
     const interval = window.setInterval(poll, POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", poll);
@@ -145,7 +161,7 @@ export default function WireGuardPage() {
       setCreateRelayOpen(false);
       setAgentToken(created.agentToken);
       relayForm.resetFields();
-      await loadSnapshot(true);
+      await loadSnapshot();
     } catch (error) {
       message.error(errorMessage(error, "Не удалось создать relay"));
     }
@@ -158,7 +174,7 @@ export default function WireGuardPage() {
       setPeerName("");
       setCreatePeerOpen(false);
       setCredentials(created);
-      await loadSnapshot(true);
+      await loadSnapshot();
     } catch (error) {
       message.error(errorMessage(error, "Не удалось добавить устройство"));
     }
@@ -178,7 +194,7 @@ export default function WireGuardPage() {
     try {
       const updated = await setWireGuardPeerEnabled(selected.id, peer.id, enabled);
       setPeers((items) => items.map((item) => item.id === updated.id ? updated : item));
-      void loadSnapshot(true);
+      void loadSnapshot();
     } catch (error) {
       message.error(errorMessage(error, "Не удалось изменить устройство"));
     }
@@ -195,7 +211,7 @@ export default function WireGuardPage() {
       onOk: async () => {
         try {
           await deleteWireGuardPeer(selected.id, peer.id);
-          await loadSnapshot(true);
+          await loadSnapshot();
         } catch (error) {
           message.error(errorMessage(error, "Не удалось удалить устройство"));
           throw error;
@@ -204,29 +220,8 @@ export default function WireGuardPage() {
     });
   };
 
-  const actions = (
-    <>
-      <Button
-        aria-label="Обновить данные"
-        title="Обновить данные"
-        icon={<ReloadOutlined />}
-        loading={refreshing}
-        onClick={() => void loadSnapshot(true)}
-      />
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        aria-label="Добавить устройство"
-        disabled={!selected || selected.status === "WAITING_FOR_AGENT"}
-        onClick={() => setCreatePeerOpen(true)}
-      >
-        Добавить устройство
-      </Button>
-    </>
-  );
-
   return (
-    <PageLayout title="VPN" subtitle="WireGuard на utils · защищённый выход через Veesp" actions={actions}>
+    <PageLayout title="VPN" subtitle="WireGuard на utils · защищённый выход через Veesp">
       {modalContext}
       <section className="wireguard-page" aria-label="Состояние VPN">
         {initialLoading ? (
@@ -249,13 +244,40 @@ export default function WireGuardPage() {
                 RU → {selected.routingMode === "RU_DIRECT_AWG_DEFAULT" ? "напрямую" : "через Veesp"}
               </span>
               <span className="wireguard-route">Остальное → Veesp</span>
+              <span className="wireguard-auto-refresh" aria-label="Автообновление каждые 15 секунд" title="Автообновление каждые 15 секунд">
+                <i aria-hidden="true" /> авто
+              </span>
               <span className="wireguard-updated">Обновлено {relativeTime(selected.lastSeenAt)}</span>
             </header>
 
+            {selected.routeQuality ? (
+              <div className="wireguard-quality-strip" aria-label="Качество маршрутов">
+                {([
+                  ["RU напрямую", selected.routeQuality.direct],
+                  ["Veesp", selected.routeQuality.veesp],
+                ] as const).map(([name, probe]) => {
+                  const label = routeQualityLabel(name, probe.packetLossPercent, probe.averageRttMs);
+                  return (
+                    <span
+                      key={name}
+                      className={`wireguard-quality wireguard-quality--${routeQualityTone(probe.packetLossPercent)}`}
+                      aria-label={label}
+                      title={`Проверка ${probe.target} · ${relativeTime(selected.routeQuality?.measuredAt ?? null)}`}
+                    >
+                      <i aria-hidden="true" />
+                      <b>{name}</b>
+                      <span>{compactNumber(probe.packetLossPercent)}% потерь</span>
+                      <span>{probe.averageRttMs === null ? "RTT —" : `${compactNumber(probe.averageRttMs)} мс`}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="wireguard-quality-pending">Проверка качества маршрутов накапливается</div>
+            )}
+
             <div className="wireguard-peer-list" role="list" aria-label="Устройства">
-              {peers.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Устройств пока нет" />
-              ) : peers.map((peer) => {
+              {peers.map((peer) => {
                 const presence = peerPresence(peer);
                 const download = bytes(peer.totalTransmitBytes);
                 const upload = bytes(peer.totalReceiveBytes);
@@ -308,6 +330,20 @@ export default function WireGuardPage() {
                   </article>
                 );
               })}
+              <article className="wireguard-peer-add" role="listitem">
+                <button
+                  type="button"
+                  disabled={selected.status === "WAITING_FOR_AGENT"}
+                  onClick={() => setCreatePeerOpen(true)}
+                  aria-label="Добавить устройство"
+                >
+                  <span className="wireguard-peer-add__icon" aria-hidden="true"><PlusOutlined /></span>
+                  <span>
+                    <strong>Добавить устройство</strong>
+                    <small>Создать новый WireGuard-профиль</small>
+                  </span>
+                </button>
+              </article>
             </div>
 
             <details className="wireguard-infrastructure">
@@ -334,7 +370,7 @@ export default function WireGuardPage() {
                   cancelText: "Отмена",
                   onOk: async () => {
                     await deleteWireGuardRelay(selected.id);
-                    await loadSnapshot(true);
+                    await loadSnapshot();
                   },
                 })}>Удалить relay</Button>
               </div>
@@ -344,7 +380,7 @@ export default function WireGuardPage() {
           <div className="wireguard-empty wireguard-load-error" role="alert">
             <strong>VPN API временно недоступен</strong>
             <span>{loadFailure}</span>
-            <Button onClick={() => void loadSnapshot(true)}>Повторить</Button>
+            <Button onClick={() => void loadSnapshot()}>Повторить</Button>
           </div>
         ) : (
           <div className="wireguard-empty">

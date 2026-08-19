@@ -1,6 +1,18 @@
 export type WireGuardRelayStatus = "WAITING_FOR_AGENT" | "SYNCING" | "READY" | "STALE";
 export type WireGuardRoutingMode = "AWG_ONLY" | "RU_DIRECT_AWG_DEFAULT";
 
+export type WireGuardRouteProbe = {
+  target: string;
+  packetLossPercent: number;
+  averageRttMs: number | null;
+};
+
+export type WireGuardRouteQuality = {
+  measuredAt: string;
+  direct: WireGuardRouteProbe;
+  veesp: WireGuardRouteProbe;
+};
+
 export type WireGuardRelay = {
   id: string;
   name: string;
@@ -16,6 +28,7 @@ export type WireGuardRelay = {
   routingMode: WireGuardRoutingMode;
   ruPrefixCount: number;
   routingUpdatedAt: string | null;
+  routeQuality: WireGuardRouteQuality | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -56,6 +69,10 @@ export type WireGuardPeerMetricPoint = {
   bucketStart: string;
   downloadBytes: number;
   uploadBytes: number;
+  ruDownloadBytes: number;
+  ruUploadBytes: number;
+  nonRuDownloadBytes: number;
+  nonRuUploadBytes: number;
 };
 
 export type WireGuardPeerMetrics = {
