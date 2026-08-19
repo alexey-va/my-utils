@@ -321,7 +321,7 @@ body {
   min-width: 0;
 }
 
-.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content > div {
+.ant-layout.ant-layout-has-sider > .ant-layout > .ant-layout-content > div:not(.app-page) {
   padding: 0 !important;
   min-height: auto !important;
   width: 100%;

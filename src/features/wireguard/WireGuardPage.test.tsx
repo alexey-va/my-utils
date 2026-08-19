@@ -1,7 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WireGuardPeer, WireGuardRelay } from "./types";
 import WireGuardPage from "./WireGuardPage";
+
+const appStyles = readFileSync("src/index.css", "utf8");
 
 const api = vi.hoisted(() => ({
   fetchRelays: vi.fn(),
@@ -83,6 +86,14 @@ beforeEach(() => {
 });
 
 describe("WireGuardPage", () => {
+  it("keeps the shared page inset when rendered directly inside the app content", async () => {
+    render(<WireGuardPage />);
+
+    await screen.findByRole("heading", { name: "VPN" });
+    expect(appStyles).toMatch(/\.ant-layout-content > div:not\(\.app-page\)/);
+    expect(appStyles).not.toMatch(/\.ant-layout-content > div\s*\{[^}]*padding:\s*0\s*!important/);
+  });
+
   it("renders a flat operational surface with the route status and no nested cards or table", async () => {
     const { container } = render(<WireGuardPage />);
 
