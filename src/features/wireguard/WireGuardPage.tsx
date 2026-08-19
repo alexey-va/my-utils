@@ -77,6 +77,10 @@ export default function WireGuardPage() {
     catch (error) { message.error(errorMessage(error, "Не удалось загрузить пиры")); }
   }, []);
 
+  const refresh = useCallback(async () => {
+    await Promise.all([loadRelays(), loadPeers(relayId)]);
+  }, [loadPeers, loadRelays, relayId]);
+
   useEffect(() => { void loadRelays(); }, [loadRelays]);
   useEffect(() => { void loadPeers(relayId); }, [loadPeers, relayId]);
 
@@ -103,7 +107,7 @@ export default function WireGuardPage() {
   };
 
   return (
-    <PageLayout title="WireGuard" subtitle="Клиенты входят на utils и выходят через AmneziaWG на Veesp" actions={<><Button aria-label="Обновить relays" title="Обновить relays" icon={<ReloadOutlined />} loading={loading} onClick={() => void loadRelays()} /><Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateRelayOpen(true)}>Новый relay</Button></>}>
+    <PageLayout title="WireGuard" subtitle="Клиенты входят на utils и выходят через AmneziaWG на Veesp" actions={<><Button aria-label="Обновить relays" title="Обновить relays" icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()} /><Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateRelayOpen(true)}>Новый relay</Button></>}>
       <div className="wireguard-page">
         {relays.length ? <div className="wireguard-relay-tabs">{relays.map((relay) => { const [label, color] = statusLabels[relay.status]; return <Button key={relay.id} type={relay.id === relayId ? "primary" : "default"} onClick={() => setRelayId(relay.id)}>{relay.name} <Tag color={color}>{label}</Tag></Button>; })}</div> : null}
         {selected ? <AppPanel title={selected.name}><Descriptions column={{ xs: 1, md: 2 }} size="small" items={[{ key: "endpoint", label: "Endpoint", children: selected.publicEndpoint }, { key: "cidr", label: "Client CIDR", children: selected.clientCidr }, { key: "revision", label: "Ревизия", children: `${selected.appliedRevision ?? "—"} / ${selected.desiredRevision}` }, { key: "seen", label: "Heartbeat", children: date(selected.lastSeenAt) }, { key: "key", label: "Server key", children: selected.serverPublicKey ? <Typography.Text copyable code>{selected.serverPublicKey}</Typography.Text> : "—" }]} /><Space wrap className="wireguard-relay-actions"><Button onClick={async () => { try { setAgentToken((await rotateWireGuardAgentToken(selected.id)).agentToken); } catch (error) { message.error(errorMessage(error, "Не удалось сменить токен")); } }}>Сменить agent token</Button><Popconfirm title="Удалить пустой relay?" onConfirm={async () => { try { await deleteWireGuardRelay(selected.id); await loadRelays(); } catch (error) { message.error(errorMessage(error, "Не удалось удалить relay")); } }}><Button danger>Удалить relay</Button></Popconfirm></Space></AppPanel> : <AppPanel><Empty description="Relay ещё не создан" /></AppPanel>}
