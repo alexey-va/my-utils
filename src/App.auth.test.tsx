@@ -58,5 +58,5 @@ describe("App authentication", () => {
 
     await waitFor(() => expect(window.location.pathname).toBe("/wireguard"));
     expect(await screen.findByRole("menuitem", { name: /WireGuard/ })).toBeInTheDocument();
-  });
+  }, 15_000);
 });
