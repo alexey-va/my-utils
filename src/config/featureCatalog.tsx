@@ -5,6 +5,7 @@ import {
   ScheduleOutlined,
   SettingOutlined,
   TrophyOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import type { ReactNode } from "react";
 
@@ -41,6 +42,13 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     path: "/agents",
     label: "Agents",
     icon: <MessageOutlined />,
+    requiresAdmin: true,
+  },
+  {
+    id: "wireguard",
+    path: "/wireguard",
+    label: "WireGuard",
+    icon: <SafetyCertificateOutlined />,
     requiresAdmin: true,
   },
   {

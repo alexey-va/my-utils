@@ -6,6 +6,7 @@ const pagesById: Record<string, AppFeature["Page"]> = {
   workout: lazy(() => import("../features/workout/WorkoutPage")),
   properties: lazy(() => import("../features/properties/PropertiesPage")),
   agents: lazy(() => import("../features/agents/AgentsPage")),
+  wireguard: lazy(() => import("../features/wireguard/WireGuardPage")),
   observability: lazy(() => import("../features/observability/GrafanaPage")),
   temporal: lazy(() => import("../features/temporal/TemporalPage")),
   dashboard: lazy(() => import("../features/admin/AdminPage")),

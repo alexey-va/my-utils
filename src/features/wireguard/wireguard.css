@@ -1,0 +1,10 @@
+.wireguard-page { display: grid; gap: 16px; }
+.wireguard-relay-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.wireguard-relay-tabs .ant-tag { margin-inline: 6px 0; }
+.wireguard-relay-actions { margin-top: 18px; }
+.wireguard-peer-create { width: min(680px, 100%); margin-bottom: 18px; }
+.wireguard-credentials { display: grid; justify-items: center; gap: 16px; }
+.wireguard-credentials__qr { padding: 12px; border-radius: var(--linear-radius-md); background: var(--linear-on-primary); transition: filter 160ms ease; }
+.wireguard-credentials__qr--masked { filter: blur(10px); user-select: none; pointer-events: none; }
+.wireguard-credentials__config { width: 100%; font-family: "JetBrains Mono", monospace; }
+@media (max-width: 640px) { .wireguard-peer-create { display: grid; } }

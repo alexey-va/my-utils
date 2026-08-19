@@ -20,6 +20,17 @@ export const apiEndpoints = {
       `/api/admin/agent-test-chats/${encodeURIComponent(id)}`,
     agentTestChatMessages: (id: string) =>
       `/api/admin/agent-test-chats/${encodeURIComponent(id)}/messages`,
+    wireguardRelays: "/api/admin/wireguard/relays",
+    wireguardRelay: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}`,
+    wireguardRelayToken: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/rotate-token`,
+    wireguardPeers: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers`,
+    wireguardPeer: (relayId: string, peerId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}`,
+    wireguardPeerCredentials: (relayId: string, peerId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}/credentials`,
   },
   workouts: {
     exercises: "/api/workouts/exercises",

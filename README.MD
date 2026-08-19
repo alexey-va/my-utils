@@ -11,6 +11,7 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 | Workout | `/` | Public | Training grid and progress views backed by the API. |
 | Properties | `/properties` | Administrator | Runtime application settings. |
 | Agents | `/agents` | Administrator | Isolated Workout AI sandbox chats, tool calls, and agent memory. |
+| WireGuard | `/wireguard` | Administrator | Relay, peer credentials, handshake, and traffic management. |
 | Grafana | `/observability` | Administrator | Same-origin Grafana and Loki logs. |
 | Temporal | `/workflows` | Administrator | Embedded Temporal UI. |
 | Admin panel | `/admin` | Administrator | User and service administration. |
@@ -26,6 +27,11 @@ event to `/api/client-events`. The backend enriches it with the verified IP and
 browser headers for the `Workout Visitors` Grafana dashboard. A failed
 telemetry request is ignored and never blocks the UI.
 The Grafana tab opens the `Workout Visitors` dashboard by default.
+
+WireGuard credentials are fetched only on demand. The QR is rendered locally
+in the browser, never sent to an external QR service, and cleared from page
+state when its modal closes. Host topology and installation scripts live in
+[`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 
