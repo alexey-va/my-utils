@@ -24,7 +24,7 @@ import type {
   CreateWireGuardRelay,
   WireGuardPeer,
   WireGuardPeerCredentials,
-  WireGuardPeerMetricPoint,
+  WireGuardPeerMetrics,
   WireGuardPeerMetricsRange,
   WireGuardRelay,
 } from "./types";
@@ -32,9 +32,18 @@ import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 import WireGuardPeerMetricsDrawer from "./WireGuardPeerMetricsDrawer";
 import "./wireguard.css";
 
-const POLL_INTERVAL_MS = 5_000;
-const PREVIEW_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 3_000;
+const PREVIEW_INTERVAL_MS = 3_000;
 const ONLINE_WINDOW_MS = 3 * 60_000;
+const PREVIEW_WIDTH = 180;
+const PREVIEW_HEIGHT = 34;
+
+const previewBucketCounts: Record<WireGuardPeerMetricsRange, number> = {
+  HOUR: 60,
+  DAY: 96,
+  WEEK: 168,
+  MONTH: 120,
+};
 
 const trafficRangeOptions: Array<{ label: string; value: WireGuardPeerMetricsRange }> = [
   { label: "1ч", value: "HOUR" },
@@ -68,53 +77,64 @@ function speed(value: number): string {
 
 function PeerTrafficPreview({
   peerName,
-  points,
+  metrics,
+  range,
   maximum,
 }: {
   peerName: string;
-  points: WireGuardPeerMetricPoint[];
+  metrics?: WireGuardPeerMetrics;
+  range: WireGuardPeerMetricsRange;
   maximum: number;
 }) {
-  const buckets = points.slice(-18);
-  const width = 126;
-  const height = 34;
-  const gap = 2;
-  const barWidth = buckets.length === 0 ? 0 : (width - gap * (buckets.length - 1)) / buckets.length;
+  const from = metrics ? new Date(metrics.from).getTime() : Number.NaN;
+  const to = metrics ? new Date(metrics.to).getTime() : Number.NaN;
+  const duration = to - from;
+  const barWidth = Math.max(1, Math.min(4, (PREVIEW_WIDTH / previewBucketCounts[range]) * 0.8));
+  const buckets = duration > 0 ? metrics?.points ?? [] : [];
   return (
-    <svg
-      className="wireguard-peer__preview"
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={`Превью трафика ${peerName}`}
-    >
-      {buckets.length === 0 ? <line x1="0" y1={height - 1} x2={width} y2={height - 1} /> : null}
-      {buckets.map((point, index) => {
-        const downloadHeight = (point.downloadBytes / maximum) * height;
-        const uploadHeight = (point.uploadBytes / maximum) * height;
-        const x = index * (barWidth + gap);
-        return (
-          <g key={point.bucketStart}>
-            <rect
-              className="wireguard-peer__preview-download"
-              x={x}
-              y={height - downloadHeight}
-              width={barWidth}
-              height={downloadHeight}
-              rx="1"
-            />
-            <rect
-              className="wireguard-peer__preview-upload"
-              x={x}
-              y={Math.max(0, height - downloadHeight - uploadHeight)}
-              width={barWidth}
-              height={uploadHeight}
-              rx="1"
-            />
-          </g>
-        );
-      })}
-    </svg>
+    <div className="wireguard-peer__preview-wrap">
+      <svg
+        className="wireguard-peer__preview"
+        viewBox={`0 0 ${PREVIEW_WIDTH} ${PREVIEW_HEIGHT}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Превью трафика ${peerName}`}
+      >
+        <line className="wireguard-peer__preview-baseline" x1="0" y1={PREVIEW_HEIGHT - 1} x2={PREVIEW_WIDTH} y2={PREVIEW_HEIGHT - 1} />
+        <line className="wireguard-peer__preview-edge" x1="0" y1={PREVIEW_HEIGHT - 5} x2="0" y2={PREVIEW_HEIGHT} />
+        <line className="wireguard-peer__preview-edge" x1={PREVIEW_WIDTH} y1={PREVIEW_HEIGHT - 5} x2={PREVIEW_WIDTH} y2={PREVIEW_HEIGHT} />
+        {buckets.map((point) => {
+          const downloadHeight = (point.downloadBytes / maximum) * PREVIEW_HEIGHT;
+          const uploadHeight = (point.uploadBytes / maximum) * PREVIEW_HEIGHT;
+          const position = (new Date(point.bucketStart).getTime() - from) / duration;
+          const x = Math.max(0, Math.min(PREVIEW_WIDTH - barWidth, position * PREVIEW_WIDTH));
+          return (
+            <g key={point.bucketStart}>
+              <rect
+                className="wireguard-peer__preview-download"
+                x={x}
+                y={PREVIEW_HEIGHT - downloadHeight}
+                width={barWidth}
+                height={downloadHeight}
+                rx="1"
+              />
+              <rect
+                className="wireguard-peer__preview-upload"
+                x={x}
+                y={Math.max(0, PREVIEW_HEIGHT - downloadHeight - uploadHeight)}
+                width={barWidth}
+                height={uploadHeight}
+                rx="1"
+              />
+            </g>
+          );
+        })}
+      </svg>
+      <div className="wireguard-peer__preview-axis" aria-label={`Период превью: ${trafficRangeLabel(range)} назад — сейчас`}>
+        <span>{trafficRangeLabel(range)} назад</span>
+        <span>сейчас</span>
+      </div>
+    </div>
   );
 }
 
@@ -194,7 +214,7 @@ export default function WireGuardPage() {
   const [relays, setRelays] = useState<WireGuardRelay[]>([]);
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
   const [trafficRange, setTrafficRange] = useState<WireGuardPeerMetricsRange>("HOUR");
-  const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetricPoint[]>>({});
+  const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetrics>>({});
   const [now, setNow] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
@@ -211,8 +231,8 @@ export default function WireGuardPage() {
   const selectedRelayId = selected?.id ?? null;
   const peerIdsKey = peers.map((peer) => peer.id).join(",");
   const previewMaximum = useMemo(
-    () => Math.max(1, ...Object.values(metricPreviews).flatMap((points) => (
-      points.slice(-18).map((point) => point.downloadBytes + point.uploadBytes)
+    () => Math.max(1, ...Object.values(metricPreviews).flatMap((metrics) => (
+      metrics.points.map((point) => point.downloadBytes + point.uploadBytes)
     ))),
     [metricPreviews],
   );
@@ -275,14 +295,18 @@ export default function WireGuardPage() {
     }
     const previewPeerIds = peerIdsKey.split(",");
     let active = true;
+    let loading = false;
     const loadPreviews = async () => {
+      if (loading) return;
+      loading = true;
       const results = await Promise.allSettled(
         previewPeerIds.map((peerId) => fetchWireGuardPeerMetrics(selectedRelayId, peerId, trafficRange)),
       );
+      loading = false;
       if (!active) return;
-      const next: Record<string, WireGuardPeerMetricPoint[]> = {};
+      const next: Record<string, WireGuardPeerMetrics> = {};
       results.forEach((result, index) => {
-        if (result.status === "fulfilled") next[previewPeerIds[index]] = result.value.points;
+        if (result.status === "fulfilled") next[previewPeerIds[index]] = result.value;
       });
       setMetricPreviews(next);
     };
@@ -491,7 +515,8 @@ export default function WireGuardPage() {
                     </div>
                     <PeerTrafficPreview
                       peerName={peer.name}
-                      points={metricPreviews[peer.id] ?? []}
+                      metrics={metricPreviews[peer.id]}
+                      range={trafficRange}
                       maximum={previewMaximum}
                     />
                     <div className="wireguard-peer__actions">

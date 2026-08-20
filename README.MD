@@ -35,9 +35,11 @@ download/upload history for up to 30 days, and reports whether Russian IPv4
 destinations use the direct `utils` route while other traffic uses Veesp. The
 history uses separate `RU` and `Внешние` tabs with download/upload bars on one
 shared scale; compact peer previews also share a scale so their heights remain
-comparable. The page shows the relay's current route loss and RTT probes. Peer
-rows refresh every five seconds and use backend-persisted transfer rates. The
-main period selector changes the global totals, every peer total, and compact
+comparable. Sparse compact previews keep their buckets on the real selected
+timeline and label its beginning and current edge. The page shows the relay's
+current route loss and RTT probes. Peer rows and compact previews refresh every
+three seconds and use backend-persisted transfer rates. The main period
+selector changes the global totals, every peer total, and compact
 previews together; the detailed peer drawer keeps its own period. Host
 topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).

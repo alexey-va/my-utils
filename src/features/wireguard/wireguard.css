@@ -95,7 +95,7 @@
 
 .wireguard-peer {
   display: grid;
-  grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 0.8fr) minmax(220px, 1.1fr) 126px auto;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 0.8fr) minmax(220px, 1.1fr) 180px auto;
   min-height: 92px;
   align-items: center;
   gap: 16px 28px;
@@ -139,15 +139,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+.wireguard-peer__preview-wrap {
+  display: grid;
+  width: 180px;
+  gap: 4px;
+}
+
 .wireguard-peer__preview {
-  width: 126px;
+  width: 100%;
   height: 34px;
   overflow: visible;
 }
 
-.wireguard-peer__preview line { stroke: var(--linear-hairline-strong); stroke-dasharray: 2 3; }
+.wireguard-peer__preview-baseline { stroke: var(--linear-hairline-strong); stroke-dasharray: 2 3; }
+.wireguard-peer__preview-edge { stroke: var(--linear-ink-quaternary); }
 .wireguard-peer__preview-download { fill: var(--linear-blue); opacity: 0.72; }
 .wireguard-peer__preview-upload { fill: var(--linear-green); opacity: 0.78; }
+
+.wireguard-peer__preview-axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--linear-ink-muted);
+  font: 500 9px/1.2 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 .wireguard-traffic {
   font: 500 13px/1.4 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -368,7 +384,7 @@
   }
   .wireguard-peer > .wireguard-status { grid-column: 1; grid-row: 2; }
   .wireguard-peer__traffic { grid-column: 1; grid-row: 3; }
-  .wireguard-peer__preview { grid-column: 2; grid-row: 3; }
+  .wireguard-peer__preview-wrap { grid-column: 2; grid-row: 3; }
   .wireguard-peer__actions { grid-column: 2; grid-row: 1; }
   .wireguard-infrastructure dl { grid-template-columns: 1fr; }
 }
@@ -383,7 +399,7 @@
   .wireguard-peer { grid-template-columns: 1fr auto; }
   .wireguard-peer > .wireguard-status { grid-column: 1 / -1; grid-row: 2; }
   .wireguard-peer__traffic { grid-column: 1 / -1; grid-row: 3; }
-  .wireguard-peer__preview { grid-column: 1 / -1; grid-row: 4; width: 100%; }
+  .wireguard-peer__preview-wrap { grid-column: 1 / -1; grid-row: 4; width: 100%; }
   .wireguard-peer__actions { grid-column: 2; grid-row: 1; }
   .wireguard-infrastructure dl > div { grid-template-columns: 1fr; gap: 3px; }
   .wireguard-metrics-summary { gap: 18px; }

@@ -162,18 +162,18 @@ describe("WireGuardPage", () => {
     expect(screen.queryByText(/считается/i)).not.toBeInTheDocument();
   });
 
-  it("refreshes relay and peer data every 5 seconds while the tab is visible", async () => {
-    let poll: (() => void) | undefined;
+  it("refreshes relay and peer data every 3 seconds while the tab is visible", async () => {
+    const polls: Array<() => void> = [];
     vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
-      if (timeout === 5_000 && typeof handler === "function") poll = handler as () => void;
+      if (timeout === 3_000 && typeof handler === "function") polls.push(handler as () => void);
       return 1;
     }) as typeof setInterval);
     render(<WireGuardPage />);
 
     expect(await screen.findByLabelText("Скачано за 1ч 4.00 KiB")).toBeInTheDocument();
-    expect(poll).toBeTypeOf("function");
+    expect(polls.length).toBeGreaterThan(0);
     api.fetchPeers.mockResolvedValue([{ ...peer, traffic: { ...peer.traffic, downloadBytes: 8192 } }]);
-    await act(async () => { poll?.(); });
+    await act(async () => { polls.forEach((poll) => poll()); });
 
     expect(await screen.findByLabelText("Скачано за 1ч 8.00 KiB")).toBeInTheDocument();
     expect(api.fetchRelays.mock.calls.length).toBeGreaterThan(1);
@@ -266,6 +266,65 @@ describe("WireGuardPage", () => {
       expect(fastHeight).toBe(34);
       expect(slowHeight).toBeLessThan(1);
     });
+  });
+
+  it("places a fresh sparse bucket near the end of the selected preview timeline", async () => {
+    api.fetchMetrics.mockImplementation(async (_relayId: string, peerId: string, range: string) => ({
+      peerId,
+      range,
+      from: range === "WEEK" ? "2026-08-13T12:00:00Z" : "2026-08-20T11:00:00Z",
+      to: "2026-08-20T12:00:00Z",
+      summary: {
+        downloadBytes: 4096,
+        uploadBytes: 0,
+        ruDownloadBytes: 4096,
+        ruUploadBytes: 0,
+        nonRuDownloadBytes: 0,
+        nonRuUploadBytes: 0,
+      },
+      points: [{
+        bucketStart: "2026-08-20T11:30:00Z",
+        downloadBytes: 4096,
+        uploadBytes: 0,
+        ruDownloadBytes: 4096,
+        ruUploadBytes: 0,
+        nonRuDownloadBytes: 0,
+        nonRuUploadBytes: 0,
+      }],
+    }));
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("radio", { name: "7д" }));
+    const preview = await screen.findByLabelText("Превью трафика grophone");
+
+    await waitFor(() => {
+      expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "WEEK");
+      expect(screen.getByText("7д назад")).toBeInTheDocument();
+      expect(screen.getByText("сейчас")).toBeInTheDocument();
+      const bar = preview.querySelector(".wireguard-peer__preview-download");
+      expect(Number(bar?.getAttribute("x"))).toBeGreaterThan(120);
+      expect(Number(bar?.getAttribute("width"))).toBeLessThan(4);
+    });
+  });
+
+  it("refreshes compact traffic previews every 3 seconds", async () => {
+    const threeSecondPolls: Array<() => void> = [];
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 3_000 && typeof handler === "function") {
+        threeSecondPolls.push(handler as () => void);
+      }
+      return 1;
+    }) as typeof setInterval);
+    render(<WireGuardPage />);
+
+    await screen.findByLabelText("Превью трафика grophone");
+    await waitFor(() => expect(threeSecondPolls).toHaveLength(2));
+    const callsBeforePoll = api.fetchMetrics.mock.calls.length;
+    await act(async () => {
+      threeSecondPolls.forEach((poll) => poll());
+    });
+
+    await waitFor(() => expect(api.fetchMetrics.mock.calls.length).toBeGreaterThan(callsBeforePoll));
   });
 
   it("opens a traffic drawer and loads all selectable time ranges", async () => {
