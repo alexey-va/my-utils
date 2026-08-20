@@ -283,8 +283,6 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
             onPointerUp={finishZoom}
             onPointerCancel={() => setDragSelection(null)}
             onDoubleClick={resetZoom}
-            onKeyDown={(event) => { if (event.key === "Escape") resetZoom(); }}
-            tabIndex={0}
           >
           <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
             <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">

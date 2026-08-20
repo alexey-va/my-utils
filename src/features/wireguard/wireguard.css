@@ -398,12 +398,6 @@
   user-select: none;
 }
 
-.wireguard-chart__plot:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid var(--linear-primary);
-  outline-offset: 2px;
-}
-
 .wireguard-chart__plot--dragging { cursor: zoom-in; }
 
 .wireguard-chart__selection {
