@@ -175,7 +175,7 @@
 .wireguard-health-history__bucket--degraded { background: var(--linear-yellow); }
 .wireguard-health-history__bucket--down { background: var(--linear-red); }
 .wireguard-health-history__event { margin: 4px 0 0 82px; color: var(--linear-yellow); font-size: 10px; }
-.wireguard-health-history__chart { width: 100%; min-width: 0; padding-top: 8px; }
+.wireguard-health-history__chart { width: 100%; min-width: 0; overflow: hidden; padding-top: 8px; }
 .wireguard-health-history__empty { margin: 0; padding: 8px 0 16px; color: var(--linear-ink-muted); font-size: 12px; }
 
 .wireguard-guide {
