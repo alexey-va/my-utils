@@ -338,9 +338,39 @@
   padding-top: 12px;
 }
 
+.wireguard-chart__zoom-toolbar {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--linear-ink-muted);
+  font-size: 11px;
+}
+
+.wireguard-chart__zoom-toolbar .ant-btn { padding-inline: 0; }
+
 .wireguard-chart__plot {
+  position: relative;
   width: 100%;
   min-width: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.wireguard-chart__plot--dragging { cursor: zoom-in; }
+
+.wireguard-chart__selection {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 1px solid var(--linear-primary);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--linear-primary) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--linear-primary) 12%, transparent);
+  pointer-events: none;
 }
 
 .wireguard-chart__time-range {

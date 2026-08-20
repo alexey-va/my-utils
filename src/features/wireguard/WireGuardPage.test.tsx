@@ -356,6 +356,39 @@ describe("WireGuardPage", () => {
     expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
   });
 
+  it("zooms the detailed chart on both axes by dragging and keeps the zoom between route tabs", async () => {
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "График grophone" }));
+    const drawer = await screen.findByRole("dialog", { name: "Трафик grophone" });
+    const drawerQueries = within(drawer);
+    const chart = await drawerQueries.findByLabelText("Интерактивный график RU");
+    vi.spyOn(chart, "getBoundingClientRect").mockReturnValue({
+      x: 100,
+      y: 50,
+      left: 100,
+      top: 50,
+      right: 600,
+      bottom: 350,
+      width: 500,
+      height: 300,
+      toJSON: () => undefined,
+    });
+
+    fireEvent.pointerDown(chart, { button: 0, pointerId: 1, clientX: 274, clientY: 112 });
+    fireEvent.pointerMove(chart, { pointerId: 1, clientX: 486, clientY: 262 });
+    expect(drawerQueries.getByLabelText("Выбранная область масштаба")).toBeInTheDocument();
+    fireEvent.pointerUp(chart, { pointerId: 1, clientX: 486, clientY: 262 });
+
+    expect(drawerQueries.getByText("Масштаб выбранного участка")).toBeInTheDocument();
+    expect(drawerQueries.getByRole("button", { name: "Сбросить масштаб" })).toBeInTheDocument();
+    fireEvent.click(drawerQueries.getByRole("tab", { name: "Внешние" }));
+    expect(drawerQueries.getByRole("button", { name: "Сбросить масштаб" })).toBeInTheDocument();
+
+    fireEvent.doubleClick(chart);
+    expect(drawerQueries.queryByRole("button", { name: "Сбросить масштаб" })).not.toBeInTheDocument();
+  });
+
   it("keeps a fixed loading shell until the first response arrives", () => {
     api.fetchRelays.mockImplementation(() => new Promise(() => undefined));
     const { container } = render(<WireGuardPage />);

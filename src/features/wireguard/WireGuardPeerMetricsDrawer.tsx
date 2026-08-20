@@ -1,5 +1,6 @@
-import { Empty, Drawer, Segmented, Spin, Tabs, message } from "antd";
+import { Button, Empty, Drawer, Segmented, Spin, Tabs, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   Bar,
   BarChart,
@@ -12,6 +13,12 @@ import {
 import { ApiError } from "../../api/errors";
 import { linearTokens } from "../../design/linearTokens";
 import { fetchWireGuardPeerMetrics } from "./api";
+import {
+  selectionToZoomDomain,
+  type ChartPoint,
+  type ChartSize,
+  type ChartZoomDomain,
+} from "./chartZoom";
 import type {
   WireGuardPeer,
   WireGuardPeerMetrics,
@@ -38,6 +45,15 @@ const routeTabs: Array<{ label: string; key: MetricsRoute }> = [
   { label: "Внешние", key: "EXTERNAL" },
 ];
 
+const CHART_HEIGHT = 300;
+const CHART_INSET = { top: 12, right: 8, bottom: 38, left: 68 };
+
+type DragSelection = {
+  start: ChartPoint;
+  current: ChartPoint;
+  size: ChartSize;
+};
+
 const formatBytes = (value: number): string => {
   if (value < 1024) return `${Math.round(value)} B`;
   const units = ["KiB", "MiB", "GiB", "TiB"];
@@ -55,6 +71,8 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
   const [route, setRoute] = useState<MetricsRoute>("RU");
   const [metrics, setMetrics] = useState<WireGuardPeerMetrics | null>(null);
   const [loading, setLoading] = useState(false);
+  const [zoom, setZoom] = useState<ChartZoomDomain | null>(null);
+  const [dragSelection, setDragSelection] = useState<DragSelection | null>(null);
 
   useEffect(() => {
     if (!relayId || !peer) return;
@@ -76,6 +94,11 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
       setMetrics(null);
     }
   }, [peer]);
+
+  useEffect(() => {
+    setZoom(null);
+    setDragSelection(null);
+  }, [metrics?.from, metrics?.to, peer?.id, range]);
 
   const rows = useMemo(
     () => metrics?.points.map((point) => ({
@@ -102,12 +125,66 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
     : metrics?.summary.nonRuUploadBytes ?? 0;
   const rangeStart = metrics ? new Date(metrics.from).getTime() : 0;
   const rangeEnd = metrics ? new Date(metrics.to).getTime() : 0;
+  const xDomain: [number, number] = zoom?.x ?? [rangeStart, rangeEnd];
+  const yDomain: [number, number] = zoom?.y ?? [0, scaleMaximum];
+  const visibleFrom = zoom ? new Date(xDomain[0]).toISOString() : metrics?.from ?? "";
+  const visibleTo = zoom ? new Date(xDomain[1]).toISOString() : metrics?.to ?? "";
   const formatRangeEdge = (value: number) => new Date(value).toLocaleString("ru-RU", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const plotPoint = (event: ReactPointerEvent<HTMLDivElement>): { point: ChartPoint; size: ChartSize } | null => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const size = {
+      width: Math.max(0, bounds.width - CHART_INSET.left - CHART_INSET.right),
+      height: Math.max(0, bounds.height - CHART_INSET.top - CHART_INSET.bottom),
+    };
+    const point = {
+      x: event.clientX - bounds.left - CHART_INSET.left,
+      y: event.clientY - bounds.top - CHART_INSET.top,
+    };
+    if (point.x < 0 || point.x > size.width || point.y < 0 || point.y > size.height) return null;
+    return { point, size };
+  };
+
+  const beginZoom = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const selection = plotPoint(event);
+    if (!selection) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setDragSelection({ start: selection.point, current: selection.point, size: selection.size });
+  };
+
+  const updateZoom = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragSelection) return;
+    const selection = plotPoint(event);
+    if (!selection) return;
+    setDragSelection((current) => current ? { ...current, current: selection.point } : null);
+  };
+
+  const finishZoom = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragSelection) return;
+    const selection = plotPoint(event);
+    const nextZoom = selectionToZoomDomain(
+      dragSelection.start,
+      selection?.point ?? dragSelection.current,
+      dragSelection.size,
+      { x: xDomain, y: yDomain },
+    );
+    if (nextZoom) setZoom(nextZoom);
+    setDragSelection(null);
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  const selectionStyle = dragSelection ? {
+    left: CHART_INSET.left + Math.min(dragSelection.start.x, dragSelection.current.x),
+    top: CHART_INSET.top + Math.min(dragSelection.start.y, dragSelection.current.y),
+    width: Math.abs(dragSelection.current.x - dragSelection.start.x),
+    height: Math.abs(dragSelection.current.y - dragSelection.start.y),
+  } : undefined;
 
   return (
     <Drawer
@@ -148,6 +225,14 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           ↑ {formatBytes(routeUpload)}
         </span>
       </div>
+      <div className="wireguard-chart__zoom-toolbar">
+        <span>{zoom ? "Масштаб выбранного участка" : "Выделите участок графика, чтобы приблизить время и объём"}</span>
+        {zoom ? (
+          <Button type="link" size="small" onClick={() => setZoom(null)} aria-label="Сбросить масштаб">
+            Сбросить
+          </Button>
+        ) : null}
+      </div>
       <div className="wireguard-chart" aria-label={`Гистограмма трафика, общая шкала до ${formatBytes(scaleMaximum)}`}>
         {loading ? (
           <Spin />
@@ -155,15 +240,24 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="За этот период трафика ещё нет" />
         ) : (
           <>
-          <div className="wireguard-chart__plot">
-          <ResponsiveContainer width="100%" height={300} debounce={0}>
+          <div
+            className={`wireguard-chart__plot${dragSelection ? " wireguard-chart__plot--dragging" : ""}`}
+            aria-label={`Интерактивный график ${routeLabel}`}
+            onPointerDown={beginZoom}
+            onPointerMove={updateZoom}
+            onPointerUp={finishZoom}
+            onPointerCancel={() => setDragSelection(null)}
+            onDoubleClick={() => setZoom(null)}
+          >
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
             <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">
               <CartesianGrid stroke={linearTokens.hairlineStrong} vertical strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
                 type="number"
-                domain={[rangeStart, rangeEnd]}
-                ticks={[rangeStart, rangeStart + (rangeEnd - rangeStart) / 2, rangeEnd]}
+                domain={xDomain}
+                ticks={[xDomain[0], xDomain[0] + (xDomain[1] - xDomain[0]) / 2, xDomain[1]]}
+                allowDataOverflow
                 axisLine={{ stroke: linearTokens.hairlineStrong }}
                 tickLine={{ stroke: linearTokens.hairlineStrong }}
                 tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
@@ -175,7 +269,7 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
               />
               <YAxis
                 width={64}
-                domain={[0, scaleMaximum]}
+                domain={yDomain}
                 allowDataOverflow
                 axisLine={{ stroke: linearTokens.hairlineStrong }}
                 tickLine={{ stroke: linearTokens.hairlineStrong }}
@@ -238,13 +332,20 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
               )}
             </BarChart>
           </ResponsiveContainer>
+          {dragSelection ? (
+            <span
+              className="wireguard-chart__selection"
+              style={selectionStyle}
+              aria-label="Выбранная область масштаба"
+            />
+          ) : null}
           </div>
           <div className="wireguard-chart__time-range">
-            <span aria-label={`Начало периода ${metrics?.from ?? ""}`}>
-              <small>Начало</small>{formatRangeEdge(rangeStart)}
+            <span aria-label={`Начало периода ${visibleFrom}`}>
+              <small>Начало</small>{formatRangeEdge(xDomain[0])}
             </span>
-            <span aria-label={`Конец периода ${metrics?.to ?? ""}`}>
-              <small>Конец</small>{formatRangeEdge(rangeEnd)}
+            <span aria-label={`Конец периода ${visibleTo}`}>
+              <small>Конец</small>{formatRangeEdge(xDomain[1])}
             </span>
           </div>
           </>

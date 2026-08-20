@@ -43,6 +43,8 @@ selector changes the global totals, every peer total, and compact
 previews together; the detailed peer drawer keeps its own period. Host
 topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
+The detailed RU and external histograms support rectangular drag-to-zoom over
+both the time and traffic axes, with an explicit reset and double-click reset.
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 
