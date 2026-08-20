@@ -140,10 +140,38 @@
 }
 
 .wireguard-peer__preview-wrap {
+  position: relative;
   display: grid;
   width: 180px;
+  box-sizing: border-box;
   gap: 4px;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 7px;
+  outline-offset: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  transition: background-color 120ms ease;
 }
+
+.wireguard-peer__preview-wrap:hover { background: var(--linear-surface-2); }
+.wireguard-peer__preview-wrap:focus-visible { outline: 2px solid var(--linear-primary); }
+
+.wireguard-peer__preview-expand {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 5px;
+  color: var(--linear-ink-secondary);
+  font-size: 12px;
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+.wireguard-peer__preview-wrap:hover .wireguard-peer__preview-expand,
+.wireguard-peer__preview-wrap:focus-visible .wireguard-peer__preview-expand { opacity: 1; }
 
 .wireguard-peer__preview {
   width: 100%;
@@ -349,7 +377,17 @@
   font-size: 11px;
 }
 
-.wireguard-chart__zoom-toolbar .ant-btn { padding-inline: 0; }
+.wireguard-chart__zoom-state,
+.wireguard-chart__zoom-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.wireguard-chart__zoom-state { min-width: 0; }
+.wireguard-chart__zoom-state .anticon { flex: 0 0 auto; color: var(--linear-primary); }
+.wireguard-chart__zoom-actions { margin-left: auto; }
+.wireguard-chart__zoom-actions .ant-btn { color: var(--linear-ink-secondary); }
 
 .wireguard-chart__plot {
   position: relative;
@@ -358,6 +396,12 @@
   cursor: crosshair;
   touch-action: none;
   user-select: none;
+}
+
+.wireguard-chart__plot:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--linear-primary);
+  outline-offset: 2px;
 }
 
 .wireguard-chart__plot--dragging { cursor: zoom-in; }
@@ -433,10 +477,14 @@
   .wireguard-peer__actions { grid-column: 2; grid-row: 1; }
   .wireguard-infrastructure dl > div { grid-template-columns: 1fr; gap: 3px; }
   .wireguard-metrics-summary { gap: 18px; }
+  .wireguard-chart__zoom-toolbar { align-items: flex-start; flex-direction: column; }
+  .wireguard-chart__zoom-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
   .wireguard-chart__time-range { padding-left: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .wireguard-loading-line { animation: none; }
   .wireguard-credentials__qr { transition: none; }
+  .wireguard-peer__preview-wrap,
+  .wireguard-peer__preview-expand { transition: none; }
 }

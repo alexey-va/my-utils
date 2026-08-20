@@ -44,7 +44,8 @@ previews together; the detailed peer drawer keeps its own period. Host
 topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
 The detailed RU and external histograms support rectangular drag-to-zoom over
-both the time and traffic axes, with an explicit reset and double-click reset.
+both the time and traffic axes. Clicking a compact preview opens the detailed
+chart; repeated zooms can be undone one by one or reset to the full period.
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 

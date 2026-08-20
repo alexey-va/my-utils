@@ -1,6 +1,7 @@
 import {
   DeleteOutlined,
   EllipsisOutlined,
+  ExpandAltOutlined,
   KeyOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
@@ -80,11 +81,13 @@ function PeerTrafficPreview({
   metrics,
   range,
   maximum,
+  onOpen,
 }: {
   peerName: string;
   metrics?: WireGuardPeerMetrics;
   range: WireGuardPeerMetricsRange;
   maximum: number;
+  onOpen: () => void;
 }) {
   const from = metrics ? new Date(metrics.from).getTime() : Number.NaN;
   const to = metrics ? new Date(metrics.to).getTime() : Number.NaN;
@@ -92,7 +95,14 @@ function PeerTrafficPreview({
   const barWidth = Math.max(1, Math.min(4, (PREVIEW_WIDTH / previewBucketCounts[range]) * 0.8));
   const buckets = duration > 0 ? metrics?.points ?? [] : [];
   return (
-    <div className="wireguard-peer__preview-wrap">
+    <button
+      type="button"
+      className="wireguard-peer__preview-wrap"
+      onClick={onOpen}
+      aria-label={`Открыть график ${peerName}`}
+      title="Открыть подробный график"
+    >
+      <ExpandAltOutlined className="wireguard-peer__preview-expand" aria-hidden="true" />
       <svg
         className="wireguard-peer__preview"
         viewBox={`0 0 ${PREVIEW_WIDTH} ${PREVIEW_HEIGHT}`}
@@ -134,7 +144,7 @@ function PeerTrafficPreview({
         <span>{trafficRangeLabel(range)} назад</span>
         <span>сейчас</span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -518,11 +528,9 @@ export default function WireGuardPage() {
                       metrics={metricPreviews[peer.id]}
                       range={trafficRange}
                       maximum={previewMaximum}
+                      onOpen={() => setMetricsPeer(peer)}
                     />
                     <div className="wireguard-peer__actions">
-                      <Button type="text" onClick={() => setMetricsPeer(peer)} aria-label={`График ${peer.name}`}>
-                        График
-                      </Button>
                       <Dropdown
                         trigger={["click"]}
                         menu={{

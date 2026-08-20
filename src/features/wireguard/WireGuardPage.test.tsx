@@ -330,7 +330,9 @@ describe("WireGuardPage", () => {
   it("opens a traffic drawer and loads all selectable time ranges", async () => {
     render(<WireGuardPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "График grophone" }));
+    const graphTrigger = await screen.findByRole("button", { name: "Открыть график grophone" });
+    expect(screen.queryByRole("button", { name: "График grophone" })).not.toBeInTheDocument();
+    fireEvent.click(graphTrigger);
     const drawer = await screen.findByRole("dialog", { name: "Трафик grophone" });
     const drawerQueries = within(drawer);
     expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
@@ -359,7 +361,7 @@ describe("WireGuardPage", () => {
   it("zooms the detailed chart on both axes by dragging and keeps the zoom between route tabs", async () => {
     render(<WireGuardPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "График grophone" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Открыть график grophone" }));
     const drawer = await screen.findByRole("dialog", { name: "Трафик grophone" });
     const drawerQueries = within(drawer);
     const chart = await drawerQueries.findByLabelText("Интерактивный график RU");
@@ -378,15 +380,25 @@ describe("WireGuardPage", () => {
     fireEvent.pointerDown(chart, { button: 0, pointerId: 1, clientX: 274, clientY: 112 });
     fireEvent.pointerMove(chart, { pointerId: 1, clientX: 486, clientY: 262 });
     expect(drawerQueries.getByLabelText("Выбранная область масштаба")).toBeInTheDocument();
+    expect(drawerQueries.getByText(/Выбрано:/)).toBeInTheDocument();
     fireEvent.pointerUp(chart, { pointerId: 1, clientX: 486, clientY: 262 });
 
-    expect(drawerQueries.getByText("Масштаб выбранного участка")).toBeInTheDocument();
-    expect(drawerQueries.getByRole("button", { name: "Сбросить масштаб" })).toBeInTheDocument();
+    expect(drawerQueries.getByText(/Приближение ×/)).toBeInTheDocument();
+    expect(drawerQueries.getByRole("button", { name: "Назад по масштабу" })).toBeInTheDocument();
+    expect(drawerQueries.getByRole("button", { name: "Показать весь период" })).toBeInTheDocument();
     fireEvent.click(drawerQueries.getByRole("tab", { name: "Внешние" }));
-    expect(drawerQueries.getByRole("button", { name: "Сбросить масштаб" })).toBeInTheDocument();
+    expect(drawerQueries.getByRole("button", { name: "Показать весь период" })).toBeInTheDocument();
+
+    const firstZoomStart = drawerQueries.getByText("Начало").parentElement?.getAttribute("aria-label");
+    fireEvent.pointerDown(chart, { button: 0, pointerId: 2, clientX: 274, clientY: 112 });
+    fireEvent.pointerMove(chart, { pointerId: 2, clientX: 486, clientY: 262 });
+    fireEvent.pointerUp(chart, { pointerId: 2, clientX: 486, clientY: 262 });
+    expect(drawerQueries.getByText("Начало").parentElement?.getAttribute("aria-label")).not.toBe(firstZoomStart);
+    fireEvent.click(drawerQueries.getByRole("button", { name: "Назад по масштабу" }));
+    expect(drawerQueries.getByText("Начало").parentElement?.getAttribute("aria-label")).toBe(firstZoomStart);
 
     fireEvent.doubleClick(chart);
-    expect(drawerQueries.queryByRole("button", { name: "Сбросить масштаб" })).not.toBeInTheDocument();
+    expect(drawerQueries.queryByRole("button", { name: "Показать весь период" })).not.toBeInTheDocument();
   });
 
   it("keeps a fixed loading shell until the first response arrives", () => {

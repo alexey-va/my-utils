@@ -1,3 +1,4 @@
+import { FullscreenExitOutlined, UndoOutlined, ZoomInOutlined } from "@ant-design/icons";
 import { Button, Empty, Drawer, Segmented, Spin, Tabs, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
@@ -66,13 +67,16 @@ const formatBytes = (value: number): string => {
   return `${amount.toFixed(amount >= 10 ? 1 : 2)} ${unit}`;
 };
 
+const formatZoomRatio = (value: number): string => value >= 10 ? Math.round(value).toString() : value.toFixed(1);
+
 export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: Props) {
   const [range, setRange] = useState<WireGuardPeerMetricsRange>("HOUR");
   const [route, setRoute] = useState<MetricsRoute>("RU");
   const [metrics, setMetrics] = useState<WireGuardPeerMetrics | null>(null);
   const [loading, setLoading] = useState(false);
-  const [zoom, setZoom] = useState<ChartZoomDomain | null>(null);
+  const [zoomHistory, setZoomHistory] = useState<ChartZoomDomain[]>([]);
   const [dragSelection, setDragSelection] = useState<DragSelection | null>(null);
+  const zoom = zoomHistory.at(-1) ?? null;
 
   useEffect(() => {
     if (!relayId || !peer) return;
@@ -96,7 +100,7 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
   }, [peer]);
 
   useEffect(() => {
-    setZoom(null);
+    setZoomHistory([]);
     setDragSelection(null);
   }, [metrics?.from, metrics?.to, peer?.id, range]);
 
@@ -174,10 +178,29 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
       dragSelection.size,
       { x: xDomain, y: yDomain },
     );
-    if (nextZoom) setZoom(nextZoom);
+    if (nextZoom) setZoomHistory((current) => [...current, nextZoom]);
     setDragSelection(null);
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
+
+  const undoZoom = () => setZoomHistory((current) => current.slice(0, -1));
+  const resetZoom = () => {
+    setZoomHistory([]);
+    setDragSelection(null);
+  };
+
+  const dragDomain = dragSelection ? selectionToZoomDomain(
+    dragSelection.start,
+    dragSelection.current,
+    dragSelection.size,
+    { x: xDomain, y: yDomain },
+  ) : null;
+  const zoomXRatio = zoom && rangeEnd > rangeStart
+    ? (rangeEnd - rangeStart) / Math.max(1, xDomain[1] - xDomain[0])
+    : 1;
+  const zoomYRatio = zoom
+    ? scaleMaximum / Math.max(1, yDomain[1] - yDomain[0])
+    : 1;
 
   const selectionStyle = dragSelection ? {
     left: CHART_INSET.left + Math.min(dragSelection.start.x, dragSelection.current.x),
@@ -226,11 +249,23 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
         </span>
       </div>
       <div className="wireguard-chart__zoom-toolbar">
-        <span>{zoom ? "Масштаб выбранного участка" : "Выделите участок графика, чтобы приблизить время и объём"}</span>
-        {zoom ? (
-          <Button type="link" size="small" onClick={() => setZoom(null)} aria-label="Сбросить масштаб">
-            Сбросить
-          </Button>
+        <span className="wireguard-chart__zoom-state" aria-live="polite">
+          <ZoomInOutlined aria-hidden="true" />
+          {dragDomain
+            ? `Выбрано: ${formatRangeEdge(dragDomain.x[0])} — ${formatRangeEdge(dragDomain.x[1])} · ${formatBytes(dragDomain.y[0])} — ${formatBytes(dragDomain.y[1])}`
+            : zoom
+              ? `Приближение ×${formatZoomRatio(zoomXRatio)} по времени · ×${formatZoomRatio(zoomYRatio)} по объёму`
+              : "Потяните рамку по графику, чтобы приблизить"}
+        </span>
+        {zoomHistory.length > 0 ? (
+          <span className="wireguard-chart__zoom-actions">
+            <Button type="text" size="small" icon={<UndoOutlined />} onClick={undoZoom} aria-label="Назад по масштабу">
+              Назад
+            </Button>
+            <Button type="text" size="small" icon={<FullscreenExitOutlined />} onClick={resetZoom} aria-label="Показать весь период">
+              Весь период
+            </Button>
+          </span>
         ) : null}
       </div>
       <div className="wireguard-chart" aria-label={`Гистограмма трафика, общая шкала до ${formatBytes(scaleMaximum)}`}>
@@ -247,7 +282,9 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
             onPointerMove={updateZoom}
             onPointerUp={finishZoom}
             onPointerCancel={() => setDragSelection(null)}
-            onDoubleClick={() => setZoom(null)}
+            onDoubleClick={resetZoom}
+            onKeyDown={(event) => { if (event.key === "Escape") resetZoom(); }}
+            tabIndex={0}
           >
           <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
             <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">
@@ -276,7 +313,7 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                 tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                 tickFormatter={formatBytes}
               />
-              <Tooltip
+              {!dragSelection ? <Tooltip
                 labelFormatter={(value) => new Date(Number(value)).toLocaleString("ru-RU")}
                 formatter={(value, name) => {
                   const labels: Record<string, string> = {
@@ -289,7 +326,7 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   };
                   return [formatBytes(Number(value)), labels[String(name)] ?? String(name)];
                 }}
-              />
+              /> : null}
               {route === "RU" && (
                 <Bar
                   dataKey="ruDownloadBytes"
