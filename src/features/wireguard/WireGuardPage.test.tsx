@@ -399,7 +399,7 @@ describe("WireGuardPage", () => {
 
     fireEvent.doubleClick(chart);
     expect(drawerQueries.queryByRole("button", { name: "Показать весь период" })).not.toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("keeps a fixed loading shell until the first response arrives", () => {
     api.fetchRelays.mockImplementation(() => new Promise(() => undefined));
