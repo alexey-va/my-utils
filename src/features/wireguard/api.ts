@@ -9,6 +9,7 @@ import type {
   WireGuardPeerMetrics,
   WireGuardPeerMetricsRange,
   WireGuardRelay,
+  WireGuardSnapshot,
 } from "./types";
 
 export const fetchWireGuardRelays = () =>
@@ -22,6 +23,12 @@ export const deleteWireGuardRelay = (relayId: string) =>
 
 export const rotateWireGuardAgentToken = (relayId: string) =>
   apiClient.post<WireGuardAgentToken>(apiEndpoints.admin.wireguardRelayToken(relayId));
+
+export const fetchWireGuardSnapshot = (relayId: string, range: WireGuardPeerMetricsRange) =>
+  apiClient.get<WireGuardSnapshot>(
+    `${apiEndpoints.admin.wireguardSnapshot(relayId)}?range=${range}`,
+    { cache: "no-store" },
+  );
 
 export const fetchWireGuardPeers = (relayId: string, range: WireGuardPeerMetricsRange) =>
   apiClient.get<WireGuardPeer[]>(

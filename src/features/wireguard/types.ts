@@ -128,3 +128,30 @@ export type WireGuardPeerMetrics = {
   summary: WireGuardTrafficTotals;
   points: WireGuardPeerMetricPoint[];
 };
+
+export type WireGuardExitHealthMetricPoint = {
+  bucketStart: string;
+  primaryAvailabilityPercent: number;
+  secondaryAvailabilityPercent: number;
+  primaryAverageLatencyMs: number | null;
+  secondaryAverageLatencyMs: number | null;
+  primaryFailureReason: string | null;
+  secondaryFailureReason: string | null;
+  activeExit: WireGuardExitId | null;
+  overallStatus: "HEALTHY" | "DEGRADED" | "DOWN";
+  samples: number;
+};
+
+export type WireGuardExitHealthHistory = {
+  range: WireGuardPeerMetricsRange;
+  from: string;
+  to: string;
+  points: WireGuardExitHealthMetricPoint[];
+};
+
+export type WireGuardSnapshot = {
+  relay: WireGuardRelay;
+  peers: WireGuardPeer[];
+  peerMetrics: Record<string, WireGuardPeerMetrics>;
+  exitHealthHistory: WireGuardExitHealthHistory;
+};

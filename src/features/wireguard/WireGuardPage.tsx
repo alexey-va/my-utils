@@ -15,9 +15,8 @@ import {
   deleteWireGuardPeer,
   deleteWireGuardRelay,
   fetchWireGuardPeerCredentials,
-  fetchWireGuardPeerMetrics,
-  fetchWireGuardPeers,
   fetchWireGuardRelays,
+  fetchWireGuardSnapshot,
   rotateWireGuardAgentToken,
   setWireGuardPeerEnabled,
 } from "./api";
@@ -25,16 +24,19 @@ import type {
   CreateWireGuardRelay,
   WireGuardPeer,
   WireGuardPeerCredentials,
+  WireGuardExitHealthHistory,
   WireGuardPeerMetrics,
   WireGuardPeerMetricsRange,
   WireGuardRelay,
 } from "./types";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
+import WireGuardExitHealthChart from "./WireGuardExitHealthChart";
 import WireGuardPeerMetricsDrawer from "./WireGuardPeerMetricsDrawer";
+import WireGuardRoutingOverview from "./WireGuardRoutingOverview";
+import WireGuardSystemGuide from "./WireGuardSystemGuide";
 import "./wireguard.css";
 
 const POLL_INTERVAL_MS = 3_000;
-const PREVIEW_INTERVAL_MS = 3_000;
 const ONLINE_WINDOW_MS = 3 * 60_000;
 const PREVIEW_WIDTH = 180;
 const PREVIEW_HEIGHT = 34;
@@ -234,6 +236,7 @@ export default function WireGuardPage() {
   const [peers, setPeers] = useState<WireGuardPeer[]>([]);
   const [trafficRange, setTrafficRange] = useState<WireGuardPeerMetricsRange>("HOUR");
   const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetrics>>({});
+  const [exitHealthHistory, setExitHealthHistory] = useState<WireGuardExitHealthHistory | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
@@ -245,10 +248,10 @@ export default function WireGuardPage() {
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [relayForm] = Form.useForm<CreateWireGuardRelay>();
   const [modal, modalContext] = Modal.useModal();
-  const snapshotInFlight = useRef(false);
+  const snapshotInFlight = useRef<string | null>(null);
+  const snapshotGeneration = useRef(0);
   const selected = relays[0] ?? null;
   const selectedRelayId = selected?.id ?? null;
-  const peerIdsKey = peers.map((peer) => peer.id).join(",");
   const previewMaximum = useMemo(
     () => Math.max(1, ...Object.values(metricPreviews).flatMap((metrics) => (
       metrics.points.map((point) => point.downloadBytes + point.uploadBytes)
@@ -268,27 +271,50 @@ export default function WireGuardPage() {
     [peers],
   );
 
-  const loadSnapshot = useCallback(async () => {
-    if (snapshotInFlight.current) return;
-    snapshotInFlight.current = true;
+  const loadSnapshot = useCallback(async (
+    relayId = selectedRelayId,
+    range = trafficRange,
+  ) => {
+    if (!relayId) return;
+    const requestKey = `${relayId}:${range}`;
+    if (snapshotInFlight.current === requestKey) return;
+    snapshotInFlight.current = requestKey;
+    const generation = ++snapshotGeneration.current;
     try {
-      const nextRelays = await fetchWireGuardRelays();
-      const nextRelay = nextRelays[0] ?? null;
-      const nextPeers = nextRelay ? await fetchWireGuardPeers(nextRelay.id, trafficRange) : [];
-      setRelays(nextRelays);
-      setPeers(nextPeers);
+      const snapshot = await fetchWireGuardSnapshot(relayId, range);
+      if (generation !== snapshotGeneration.current) return;
+      setRelays((current) => current.map((relay) => relay.id === snapshot.relay.id ? snapshot.relay : relay));
+      setPeers(snapshot.peers);
+      setMetricPreviews(snapshot.peerMetrics);
+      setExitHealthHistory(snapshot.exitHealthHistory);
       setLoadFailure(null);
     } catch (error) {
       const failure = snapshotErrorMessage(error);
       setLoadFailure(failure);
       message.error(failure);
     } finally {
-      setInitialLoading(false);
-      snapshotInFlight.current = false;
+      if (generation === snapshotGeneration.current) setInitialLoading(false);
+      if (snapshotInFlight.current === requestKey) snapshotInFlight.current = null;
     }
-  }, [trafficRange]);
+  }, [selectedRelayId, trafficRange]);
 
-  useEffect(() => { void loadSnapshot(); }, [loadSnapshot]);
+  const loadRelays = useCallback(async () => {
+    try {
+      const nextRelays = await fetchWireGuardRelays();
+      setRelays(nextRelays);
+      if (nextRelays.length === 0) setInitialLoading(false);
+      setLoadFailure(null);
+    } catch (error) {
+      const failure = snapshotErrorMessage(error);
+      setLoadFailure(failure);
+      setInitialLoading(false);
+      message.error(failure);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRelays();
+  }, [loadRelays]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1_000);
@@ -296,48 +322,18 @@ export default function WireGuardPage() {
   }, []);
 
   useEffect(() => {
+    if (!selectedRelayId) return;
     const poll = () => {
-      if (document.visibilityState === "visible") void loadSnapshot();
+      if (document.visibilityState === "visible") void loadSnapshot(selectedRelayId, trafficRange);
     };
+    poll();
     const interval = window.setInterval(poll, POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", poll);
     return () => {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", poll);
     };
-  }, [loadSnapshot]);
-
-  useEffect(() => {
-    if (!selectedRelayId || !peerIdsKey) {
-      setMetricPreviews({});
-      return;
-    }
-    const previewPeerIds = peerIdsKey.split(",");
-    let active = true;
-    let loading = false;
-    const loadPreviews = async () => {
-      if (loading) return;
-      loading = true;
-      const results = await Promise.allSettled(
-        previewPeerIds.map((peerId) => fetchWireGuardPeerMetrics(selectedRelayId, peerId, trafficRange)),
-      );
-      loading = false;
-      if (!active) return;
-      const next: Record<string, WireGuardPeerMetrics> = {};
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") next[previewPeerIds[index]] = result.value;
-      });
-      setMetricPreviews(next);
-    };
-    void loadPreviews();
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadPreviews();
-    }, PREVIEW_INTERVAL_MS);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, [peerIdsKey, selectedRelayId, trafficRange]);
+  }, [loadSnapshot, selectedRelayId, trafficRange]);
 
   const createRelay = async (values: CreateWireGuardRelay) => {
     try {
@@ -345,7 +341,8 @@ export default function WireGuardPage() {
       setCreateRelayOpen(false);
       setAgentToken(created.agentToken);
       relayForm.resetFields();
-      await loadSnapshot();
+      setRelays([created]);
+      await loadSnapshot(created.id, trafficRange);
     } catch (error) {
       message.error(errorMessage(error, "Не удалось создать relay"));
     }
@@ -358,7 +355,7 @@ export default function WireGuardPage() {
       setPeerName("");
       setCreatePeerOpen(false);
       setCredentials(created);
-      await loadSnapshot();
+      await loadSnapshot(selected.id, trafficRange);
     } catch (error) {
       message.error(errorMessage(error, "Не удалось добавить устройство"));
     }
@@ -378,7 +375,7 @@ export default function WireGuardPage() {
     try {
       const updated = await setWireGuardPeerEnabled(selected.id, peer.id, enabled);
       setPeers((items) => items.map((item) => item.id === updated.id ? updated : item));
-      void loadSnapshot();
+      void loadSnapshot(selected.id, trafficRange);
     } catch (error) {
       message.error(errorMessage(error, "Не удалось изменить устройство"));
     }
@@ -395,7 +392,7 @@ export default function WireGuardPage() {
       onOk: async () => {
         try {
           await deleteWireGuardPeer(selected.id, peer.id);
-          await loadSnapshot();
+          await loadSnapshot(selected.id, trafficRange);
         } catch (error) {
           message.error(errorMessage(error, "Не удалось удалить устройство"));
           throw error;
@@ -460,6 +457,9 @@ export default function WireGuardPage() {
             ) : (
               <div className="wireguard-quality-pending">Проверка качества маршрутов накапливается</div>
             )}
+
+            <WireGuardRoutingOverview health={selected.exitHealth} now={now} />
+            <WireGuardExitHealthChart history={exitHealthHistory} />
 
             <section className="wireguard-traffic-overview" aria-label="Суммарный трафик VPN">
               <div className="wireguard-traffic-overview__values">
@@ -587,7 +587,16 @@ export default function WireGuardPage() {
                 <div><dt>Ревизия агента</dt><dd>{selected.appliedRevision ?? "—"} / {selected.desiredRevision}</dd></div>
                 <div><dt>Heartbeat</dt><dd>{date(selected.lastSeenAt)}</dd></div>
                 <div><dt>RU-префиксов</dt><dd>{selected.ruPrefixCount.toLocaleString("ru-RU")}</dd></div>
-                <div><dt>Server key</dt><dd>{selected.serverPublicKey ? <Typography.Text copyable code>{selected.serverPublicKey}</Typography.Text> : "—"}</dd></div>
+                <div className="wireguard-infrastructure__wide"><dt>Server key</dt><dd>{selected.serverPublicKey ? (
+                  <Typography.Text
+                    className="wireguard-server-key"
+                    copyable={{ text: selected.serverPublicKey }}
+                    code
+                    ellipsis={{ tooltip: selected.serverPublicKey }}
+                  >
+                    {selected.serverPublicKey}
+                  </Typography.Text>
+                ) : "—"}</dd></div>
               </dl>
               <div className="wireguard-infrastructure__actions">
                 <Button onClick={async () => {
@@ -602,17 +611,22 @@ export default function WireGuardPage() {
                   cancelText: "Отмена",
                   onOk: async () => {
                     await deleteWireGuardRelay(selected.id);
-                    await loadSnapshot();
+                    snapshotGeneration.current += 1;
+                    setRelays([]);
+                    setPeers([]);
+                    setMetricPreviews({});
+                    setExitHealthHistory(null);
                   },
                 })}>Удалить relay</Button>
               </div>
             </details>
+            <WireGuardSystemGuide relay={selected} />
           </>
         ) : loadFailure ? (
           <div className="wireguard-empty wireguard-load-error" role="alert">
             <strong>VPN API временно недоступен</strong>
             <span>{loadFailure}</span>
-            <Button onClick={() => void loadSnapshot()}>Повторить</Button>
+            <Button onClick={() => void loadRelays()}>Повторить</Button>
           </div>
         ) : (
           <div className="wireguard-empty">

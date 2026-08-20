@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../api/errors";
-import type { WireGuardPeer, WireGuardRelay } from "./types";
+import type { WireGuardPeer, WireGuardPeerMetrics, WireGuardRelay } from "./types";
 import WireGuardPage from "./WireGuardPage";
 
 const appStyles = readFileSync("src/index.css", "utf8");
@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   fetchRelays: vi.fn(),
   fetchPeers: vi.fn(),
   fetchMetrics: vi.fn(),
+  fetchSnapshot: vi.fn(),
 }));
 
 vi.mock("./api", () => ({
@@ -22,6 +23,7 @@ vi.mock("./api", () => ({
   fetchWireGuardPeerMetrics: api.fetchMetrics,
   fetchWireGuardPeers: api.fetchPeers,
   fetchWireGuardRelays: api.fetchRelays,
+  fetchWireGuardSnapshot: api.fetchSnapshot,
   rotateWireGuardAgentToken: vi.fn(),
   setWireGuardPeerEnabled: vi.fn(),
 }));
@@ -95,6 +97,73 @@ const peer: WireGuardPeer = {
   updatedAt: "2026-08-19T17:37:16Z",
 };
 
+const peerMetrics = {
+  peerId: peer.id,
+  range: "HOUR" as const,
+  from: "2026-08-19T17:00:00Z",
+  to: "2026-08-19T18:00:00Z",
+  summary: {
+    downloadBytes: 4096,
+    uploadBytes: 2048,
+    ruDownloadBytes: 1024,
+    ruUploadBytes: 512,
+    nonRuDownloadBytes: 3072,
+    nonRuUploadBytes: 1536,
+  },
+  points: [{
+    bucketStart: "2026-08-19T17:59:00Z",
+    downloadBytes: 4096,
+    uploadBytes: 2048,
+    ruDownloadBytes: 1024,
+    ruUploadBytes: 512,
+    nonRuDownloadBytes: 3072,
+    nonRuUploadBytes: 1536,
+  }],
+};
+
+const exitHealthHistory = {
+  range: "HOUR" as const,
+  from: "2026-08-19T17:00:00Z",
+  to: "2026-08-19T18:00:00Z",
+  points: [
+    {
+      bucketStart: "2026-08-19T17:58:00Z",
+      primaryAvailabilityPercent: 100,
+      secondaryAvailabilityPercent: 100,
+      primaryAverageLatencyMs: 25,
+      secondaryAverageLatencyMs: 35,
+      primaryFailureReason: null,
+      secondaryFailureReason: null,
+      activeExit: "primary" as const,
+      overallStatus: "HEALTHY" as const,
+      samples: 1,
+    },
+    {
+      bucketStart: "2026-08-19T17:59:00Z",
+      primaryAvailabilityPercent: 0,
+      secondaryAvailabilityPercent: 100,
+      primaryAverageLatencyMs: null,
+      secondaryAverageLatencyMs: 36,
+      primaryFailureReason: "egress_probe_failed",
+      secondaryFailureReason: null,
+      activeExit: "secondary" as const,
+      overallStatus: "DEGRADED" as const,
+      samples: 1,
+    },
+  ],
+};
+
+const snapshot = (
+  nextRelay: WireGuardRelay = relay,
+  nextPeers: WireGuardPeer[] = [peer],
+  nextMetrics: Record<string, WireGuardPeerMetrics> = { [peer.id]: peerMetrics },
+) => ({
+  relay: nextRelay,
+  peers: nextPeers,
+  peerMetrics: nextMetrics,
+  exitHealthHistory,
+});
+
 beforeAll(() => {
   globalThis.ResizeObserver = class {
     observe() {}
@@ -112,29 +181,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   api.fetchRelays.mockResolvedValue([relay]);
   api.fetchPeers.mockResolvedValue([peer]);
-  api.fetchMetrics.mockResolvedValue({
-    peerId: peer.id,
-    range: "HOUR",
-    from: "2026-08-19T17:00:00Z",
-    to: "2026-08-19T18:00:00Z",
-    summary: {
-      downloadBytes: 4096,
-      uploadBytes: 2048,
-      ruDownloadBytes: 1024,
-      ruUploadBytes: 512,
-      nonRuDownloadBytes: 3072,
-      nonRuUploadBytes: 1536,
-    },
-    points: [{
-      bucketStart: "2026-08-19T17:59:00Z",
-      downloadBytes: 4096,
-      uploadBytes: 2048,
-      ruDownloadBytes: 1024,
-      ruUploadBytes: 512,
-      nonRuDownloadBytes: 3072,
-      nonRuUploadBytes: 1536,
-    }],
-  });
+  api.fetchMetrics.mockResolvedValue(peerMetrics);
+  api.fetchSnapshot.mockResolvedValue(snapshot());
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
 
@@ -151,7 +199,7 @@ describe("WireGuardPage", () => {
     const { container } = render(<WireGuardPage />);
 
     expect(await screen.findByRole("heading", { name: "VPN" })).toBeInTheDocument();
-    expect(screen.getByText("VPN работает")).toBeInTheDocument();
+    expect(await screen.findByText("VPN работает")).toBeInTheDocument();
     expect(screen.getByText("Маршрутизация работает")).toBeInTheDocument();
     expect(screen.queryByText("RU → напрямую")).not.toBeInTheDocument();
     expect(screen.queryByText("Остальное → Veesp")).not.toBeInTheDocument();
@@ -168,7 +216,7 @@ describe("WireGuardPage", () => {
 
   it("shows reserve operation and broken routing instead of a false green status", async () => {
     const secondary = relay.exitHealth?.exits.secondary;
-    api.fetchRelays.mockResolvedValue([{
+    const brokenRelay: WireGuardRelay = {
       ...relay,
       status: "DEGRADED",
       routingHealthy: false,
@@ -183,7 +231,9 @@ describe("WireGuardPage", () => {
           secondary: secondary!,
         },
       },
-    }]);
+    };
+    api.fetchRelays.mockResolvedValue([brokenRelay]);
+    api.fetchSnapshot.mockResolvedValue(snapshot(brokenRelay));
 
     render(<WireGuardPage />);
 
@@ -216,11 +266,56 @@ describe("WireGuardPage", () => {
 
     expect(await screen.findByLabelText("Скачано за 1ч 4.00 KiB")).toBeInTheDocument();
     expect(polls.length).toBeGreaterThan(0);
-    api.fetchPeers.mockResolvedValue([{ ...peer, traffic: { ...peer.traffic, downloadBytes: 8192 } }]);
+    const updatedPeer = { ...peer, traffic: { ...peer.traffic, downloadBytes: 8192 } };
+    api.fetchSnapshot.mockResolvedValue(snapshot(relay, [updatedPeer], { [peer.id]: peerMetrics }));
     await act(async () => { polls.forEach((poll) => poll()); });
 
     expect(await screen.findByLabelText("Скачано за 1ч 8.00 KiB")).toBeInTheDocument();
-    expect(api.fetchRelays.mock.calls.length).toBeGreaterThan(1);
+    expect(api.fetchSnapshot.mock.calls.length).toBeGreaterThan(1);
+    expect(api.fetchRelays).toHaveBeenCalledTimes(1);
+  });
+
+  it("polls one batched snapshot instead of fan-out requests for peers and previews", async () => {
+    const polls: Array<() => void> = [];
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 3_000 && typeof handler === "function") polls.push(handler as () => void);
+      return 1;
+    }) as typeof setInterval);
+
+    render(<WireGuardPage />);
+
+    await screen.findByLabelText("Превью трафика grophone");
+    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "HOUR");
+    expect(polls).toHaveLength(1);
+    const metricsCallsBeforePoll = api.fetchMetrics.mock.calls.length;
+    await act(async () => { polls[0](); });
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenCalledTimes(2));
+    expect(api.fetchMetrics).toHaveBeenCalledTimes(metricsCallsBeforePoll);
+  });
+
+  it("shows both exits, the active path and the detailed routing guide", async () => {
+    render(<WireGuardPage />);
+
+    expect(await screen.findByRole("region", { name: "Выходы в интернет" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Основной exit" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Резервный exit" })).toBeInTheDocument();
+    expect(screen.getByText("Активен")).toBeInTheDocument();
+    expect(screen.getByText("91.197.0.191")).toBeInTheDocument();
+    expect(screen.getByText("153.76.223.117")).toBeInTheDocument();
+    expect(screen.getByText("Как устроен VPN и маршрутизация")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Путь запроса" })).toBeInTheDocument();
+    expect(screen.getByText(/трёх последовательных сбоев/)).toBeInTheDocument();
+    expect(screen.getByText(/RU-префиксами/)).toBeInTheDocument();
+  });
+
+  it("shows persisted real exit checks with outages and active-exit changes", async () => {
+    render(<WireGuardPage />);
+
+    const history = await screen.findByRole("region", { name: "История healthcheck туннелей" });
+    expect(within(history).getByLabelText("Основной exit: доступность 50%")).toBeInTheDocument();
+    expect(within(history).getByLabelText("Резервный exit: доступность 100%")).toBeInTheDocument();
+    expect(within(history).getByLabelText("Сбой основного exit: egress_probe_failed")).toBeInTheDocument();
+    expect(within(history).getByText("Переключение на резервный exit")).toBeInTheDocument();
   });
 
   it("updates the relative heartbeat age every second without another API request", async () => {
@@ -228,6 +323,7 @@ describe("WireGuardPage", () => {
     const lastSeenMs = new Date(lastSeenAt).getTime();
     let clockTick: (() => void) | undefined;
     api.fetchRelays.mockResolvedValue([{ ...relay, lastSeenAt }]);
+    api.fetchSnapshot.mockResolvedValue(snapshot({ ...relay, lastSeenAt }));
     vi.spyOn(Date, "now").mockReturnValue(lastSeenMs + 11_000);
     vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
       if (timeout === 1_000 && typeof handler === "function") clockTick = handler as () => void;
@@ -252,23 +348,27 @@ describe("WireGuardPage", () => {
       name: "tablet",
       assignedIp: "10.89.0.3",
     };
-    api.fetchPeers.mockResolvedValue([peer, secondPeer]);
+    api.fetchSnapshot.mockResolvedValue(snapshot(relay, [peer, secondPeer], {
+      [peer.id]: peerMetrics,
+      [secondPeer.id]: { ...peerMetrics, peerId: secondPeer.id },
+    }));
     render(<WireGuardPage />);
 
     expect(await screen.findByLabelText("Суммарная скорость скачивания 2.00 KiB/s")).toBeInTheDocument();
     expect(screen.getByLabelText("Суммарная скорость отдачи 1.00 KiB/s")).toBeInTheDocument();
     expect(screen.getByLabelText("Скачано всеми устройствами за 1ч 8.00 KiB")).toBeInTheDocument();
     expect(screen.getByLabelText("Отдано всеми устройствами за 1ч 4.00 KiB")).toBeInTheDocument();
-    expect(api.fetchPeers).toHaveBeenCalledWith(relay.id, "HOUR");
+    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "HOUR");
 
     fireEvent.click(screen.getByRole("radio", { name: "24ч" }));
-    await waitFor(() => expect(api.fetchPeers).toHaveBeenLastCalledWith(relay.id, "DAY"));
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenLastCalledWith(relay.id, "DAY"));
   });
 
   it("uses only the compact relative last-seen text for an offline peer", async () => {
     const handshake = new Date("2026-08-19T18:00:00Z");
     vi.spyOn(Date, "now").mockReturnValue(handshake.getTime() + 26 * 60_000);
-    api.fetchPeers.mockResolvedValue([{ ...peer, latestHandshakeAt: handshake.toISOString() }]);
+    const offlinePeer = { ...peer, latestHandshakeAt: handshake.toISOString() };
+    api.fetchSnapshot.mockResolvedValue(snapshot(relay, [offlinePeer]));
 
     render(<WireGuardPage />);
 
@@ -283,21 +383,30 @@ describe("WireGuardPage", () => {
       name: "slowphone",
       assignedIp: "10.89.0.3",
     };
-    api.fetchPeers.mockResolvedValue([peer, slowPeer]);
-    api.fetchMetrics.mockImplementation(async (_relayId: string, peerId: string) => ({
-      peerId,
+    const fastMetrics: WireGuardPeerMetrics = {
+      ...peerMetrics,
+      peerId: peer.id,
       range: "HOUR",
       from: "2026-08-19T17:00:00Z",
       to: "2026-08-19T18:00:00Z",
       points: [{
         bucketStart: "2026-08-19T17:59:00Z",
-        downloadBytes: peerId === peer.id ? 60_000 : 60,
+        downloadBytes: 60_000,
         uploadBytes: 0,
         ruDownloadBytes: 0,
         ruUploadBytes: 0,
-        nonRuDownloadBytes: peerId === peer.id ? 60_000 : 60,
+        nonRuDownloadBytes: 60_000,
         nonRuUploadBytes: 0,
       }],
+    };
+    const slowMetrics = {
+      ...fastMetrics,
+      peerId: slowPeer.id,
+      points: [{ ...fastMetrics.points[0], downloadBytes: 60, nonRuDownloadBytes: 60 }],
+    };
+    api.fetchSnapshot.mockResolvedValue(snapshot(relay, [peer, slowPeer], {
+      [peer.id]: fastMetrics,
+      [slowPeer.id]: slowMetrics,
     }));
 
     render(<WireGuardPage />);
@@ -313,9 +422,10 @@ describe("WireGuardPage", () => {
   });
 
   it("places a fresh sparse bucket near the end of the selected preview timeline", async () => {
-    api.fetchMetrics.mockImplementation(async (_relayId: string, peerId: string, range: string) => ({
-      peerId,
-      range,
+    api.fetchSnapshot.mockImplementation(async (_relayId: string, range: string) => {
+      const rangeMetrics = {
+      peerId: peer.id,
+      range: range as "HOUR" | "WEEK",
       from: range === "WEEK" ? "2026-08-13T12:00:00Z" : "2026-08-20T11:00:00Z",
       to: "2026-08-20T12:00:00Z",
       summary: {
@@ -335,14 +445,16 @@ describe("WireGuardPage", () => {
         nonRuDownloadBytes: 0,
         nonRuUploadBytes: 0,
       }],
-    }));
+      };
+      return snapshot(relay, [peer], { [peer.id]: rangeMetrics });
+    });
     render(<WireGuardPage />);
 
     fireEvent.click(await screen.findByRole("radio", { name: "7д" }));
     const preview = await screen.findByLabelText("Превью трафика grophone");
 
     await waitFor(() => {
-      expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "WEEK");
+      expect(api.fetchSnapshot).toHaveBeenLastCalledWith(relay.id, "WEEK");
       expect(screen.getByText("7д назад")).toBeInTheDocument();
       expect(screen.getByText("сейчас")).toBeInTheDocument();
       const bar = preview.querySelector(".wireguard-peer__preview-download");
@@ -351,7 +463,7 @@ describe("WireGuardPage", () => {
     });
   });
 
-  it("refreshes compact traffic previews every 3 seconds", async () => {
+  it("refreshes compact traffic previews through the single snapshot timer", async () => {
     const threeSecondPolls: Array<() => void> = [];
     vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
       if (timeout === 3_000 && typeof handler === "function") {
@@ -362,13 +474,13 @@ describe("WireGuardPage", () => {
     render(<WireGuardPage />);
 
     await screen.findByLabelText("Превью трафика grophone");
-    await waitFor(() => expect(threeSecondPolls).toHaveLength(2));
-    const callsBeforePoll = api.fetchMetrics.mock.calls.length;
+    await waitFor(() => expect(threeSecondPolls).toHaveLength(1));
+    const callsBeforePoll = api.fetchSnapshot.mock.calls.length;
     await act(async () => {
       threeSecondPolls.forEach((poll) => poll());
     });
 
-    await waitFor(() => expect(api.fetchMetrics.mock.calls.length).toBeGreaterThan(callsBeforePoll));
+    await waitFor(() => expect(api.fetchSnapshot.mock.calls.length).toBeGreaterThan(callsBeforePoll));
   });
 
   it("opens a traffic drawer and loads all selectable time ranges", async () => {
