@@ -137,8 +137,8 @@ describe("WireGuardPage", () => {
     expect(screen.getByText("Маршрутизация работает")).toBeInTheDocument();
     expect(screen.queryByText("RU → напрямую")).not.toBeInTheDocument();
     expect(screen.queryByText("Остальное → Veesp")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("RU напрямую: потери 0%, задержка 2.7 мс")).toBeInTheDocument();
-    expect(screen.getByLabelText("Veesp: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
+    expect(screen.getByLabelText("Internal: потери 0%, задержка 2.7 мс")).toBeInTheDocument();
+    expect(screen.getByLabelText("External: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
     const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
     expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
     expect(screen.queryByLabelText("Автообновление каждые 5 секунд")).not.toBeInTheDocument();

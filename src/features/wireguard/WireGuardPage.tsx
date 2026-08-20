@@ -396,7 +396,7 @@ export default function WireGuardPage() {
   };
 
   return (
-    <PageLayout title="VPN" subtitle="WireGuard на utils · защищённый выход через Veesp">
+    <PageLayout title="VPN">
       {modalContext}
       <section className="wireguard-page" aria-label="Состояние VPN">
         {initialLoading ? (
@@ -429,8 +429,8 @@ export default function WireGuardPage() {
             {selected.routeQuality ? (
               <div className="wireguard-quality-strip" aria-label="Качество маршрутов">
                 {([
-                  ["RU напрямую", selected.routeQuality.direct],
-                  ["Veesp", selected.routeQuality.veesp],
+                  ["Internal", selected.routeQuality.direct],
+                  ["External", selected.routeQuality.veesp],
                 ] as const).map(([name, probe]) => {
                   const label = routeQualityLabel(name, probe.packetLossPercent, probe.averageRttMs);
                   return (
