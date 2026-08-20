@@ -176,15 +176,24 @@ function peerPresence(peer: WireGuardPeer, now: number): { label: string; tone: 
 function relayHealth(relay: WireGuardRelay): { label: string; tone: string } {
   switch (relay.status) {
     case "READY": return { label: "VPN работает", tone: "online" };
+    case "DEGRADED":
+      return relay.exitHealth?.activeExit === "secondary"
+        ? { label: "VPN работает через резерв", tone: "warning" }
+        : { label: "VPN работает с ограничениями", tone: "warning" };
+    case "DOWN": return { label: "VPN не работает", tone: "error" };
     case "SYNCING": return { label: "VPN синхронизируется", tone: "syncing" };
     case "STALE": return { label: "VPN: агент не отвечает", tone: "error" };
     default: return { label: "VPN ждёт агента", tone: "idle" };
   }
 }
 
-function routingHealth(relay: WireGuardRelay): { label: string; tone: string } {
+function routingHealth(relay: WireGuardRelay, now = Date.now()): { label: string; tone: string } {
   if (relay.status === "STALE") return { label: "Маршрутизация недоступна", tone: "error" };
-  if (relay.status !== "READY") return { label: "Маршрутизация настраивается", tone: "syncing" };
+  if (relay.routingHealthy === false) return { label: "Маршрутизация не работает", tone: "error" };
+  if (!relay.routingCheckedAt || now - new Date(relay.routingCheckedAt).getTime() > 45_000) {
+    return { label: "Маршрутизация недоступна", tone: "error" };
+  }
+  if (relay.routingHealthy !== true) return { label: "Маршрутизация настраивается", tone: "syncing" };
   if (relay.routingMode === "RU_DIRECT_AWG_DEFAULT") {
     return { label: "Маршрутизация работает", tone: "online" };
   }
@@ -416,7 +425,7 @@ export default function WireGuardPage() {
                 );
               })()}
               {(() => {
-                const health = routingHealth(selected);
+                const health = routingHealth(selected, now);
                 return (
                   <span className={`wireguard-status wireguard-status--${health.tone}`}>
                     <i aria-hidden="true" /> {health.label}

@@ -1,5 +1,29 @@
-export type WireGuardRelayStatus = "WAITING_FOR_AGENT" | "SYNCING" | "READY" | "STALE";
+export type WireGuardRelayStatus = "WAITING_FOR_AGENT" | "SYNCING" | "READY" | "DEGRADED" | "DOWN" | "STALE";
 export type WireGuardRoutingMode = "AWG_ONLY" | "RU_DIRECT_AWG_DEFAULT";
+export type WireGuardExitId = "primary" | "secondary";
+
+export type WireGuardExitProbeHealth = {
+  id: WireGuardExitId;
+  interface: string;
+  healthy: boolean;
+  reason: string | null;
+  expectedEgressIp: string;
+  observedEgressIp: string | null;
+  handshakeAtEpoch: number;
+  handshakeAgeSeconds: number | null;
+  latencyMs: number | null;
+};
+
+export type WireGuardExitHealth = {
+  schemaVersion: 1;
+  checkedAt: string;
+  overallStatus: "HEALTHY" | "DEGRADED" | "DOWN";
+  activeExit: WireGuardExitId | null;
+  activeInterface: string | null;
+  changed: boolean;
+  counters: Record<WireGuardExitId, { successes: number; failures: number }>;
+  exits: Record<WireGuardExitId, WireGuardExitProbeHealth>;
+};
 
 export type WireGuardRouteProbe = {
   target: string;
@@ -28,7 +52,10 @@ export type WireGuardRelay = {
   routingMode: WireGuardRoutingMode;
   ruPrefixCount: number;
   routingUpdatedAt: string | null;
+  routingHealthy: boolean | null;
+  routingCheckedAt: string | null;
   routeQuality: WireGuardRouteQuality | null;
+  exitHealth: WireGuardExitHealth | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -41,6 +41,24 @@ const relay: WireGuardRelay = {
   routingMode: "RU_DIRECT_AWG_DEFAULT",
   ruPrefixCount: 8_642,
   routingUpdatedAt: "2026-08-19T18:00:00Z",
+  routingHealthy: true,
+  routingCheckedAt: new Date().toISOString(),
+  exitHealth: {
+    schemaVersion: 1,
+    checkedAt: new Date().toISOString(),
+    overallStatus: "HEALTHY",
+    activeExit: "primary",
+    activeInterface: "awg-exit",
+    changed: false,
+    counters: {
+      primary: { successes: 4, failures: 0 },
+      secondary: { successes: 4, failures: 0 },
+    },
+    exits: {
+      primary: { id: "primary", interface: "awg-exit", healthy: true, reason: null, expectedEgressIp: "91.197.0.191", observedEgressIp: "91.197.0.191", handshakeAtEpoch: 1_800_000_000, handshakeAgeSeconds: 5, latencyMs: 25 },
+      secondary: { id: "secondary", interface: "awg-exit-b", healthy: true, reason: null, expectedEgressIp: "153.76.223.117", observedEgressIp: "153.76.223.117", handshakeAtEpoch: 1_800_000_000, handshakeAgeSeconds: 5, latencyMs: 35 },
+    },
+  },
   routeQuality: {
     measuredAt: "2026-08-19T18:00:00Z",
     direct: { target: "77.88.8.8", packetLossPercent: 0, averageRttMs: 2.7 },
@@ -146,6 +164,32 @@ describe("WireGuardPage", () => {
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
     expect(container.querySelector(".app-panel")).not.toBeInTheDocument();
     expect(container.querySelector(".ant-table")).not.toBeInTheDocument();
+  });
+
+  it("shows reserve operation and broken routing instead of a false green status", async () => {
+    const secondary = relay.exitHealth?.exits.secondary;
+    api.fetchRelays.mockResolvedValue([{
+      ...relay,
+      status: "DEGRADED",
+      routingHealthy: false,
+      exitHealth: {
+        ...relay.exitHealth!,
+        overallStatus: "DEGRADED",
+        activeExit: "secondary",
+        activeInterface: "awg-exit-b",
+        exits: {
+          ...relay.exitHealth!.exits,
+          primary: { ...relay.exitHealth!.exits.primary, healthy: false, reason: "interface_missing", observedEgressIp: null, handshakeAtEpoch: 0, handshakeAgeSeconds: null, latencyMs: null },
+          secondary: secondary!,
+        },
+      },
+    }]);
+
+    render(<WireGuardPage />);
+
+    expect(await screen.findByText("VPN работает через резерв")).toBeInTheDocument();
+    expect(screen.getByText("Маршрутизация не работает")).toBeInTheDocument();
+    expect(screen.queryByText("VPN работает")).not.toBeInTheDocument();
   });
 
   it("shows backend rates beside arrows and period traffic underneath without a calculating state", async () => {

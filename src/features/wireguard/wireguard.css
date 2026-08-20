@@ -36,6 +36,7 @@
 
 .wireguard-status--online i { background: var(--linear-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--linear-green) 14%, transparent); }
 .wireguard-status--syncing i { background: var(--linear-blue); }
+.wireguard-status--warning i { background: var(--linear-yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--linear-yellow) 14%, transparent); }
 .wireguard-status--error i { background: var(--linear-red); }
 .wireguard-status--disabled { color: var(--linear-ink-quaternary); }
 .wireguard-updated { margin-left: auto; color: var(--linear-ink-muted); }
