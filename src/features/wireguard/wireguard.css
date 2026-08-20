@@ -69,6 +69,25 @@
 .wireguard-quality--error { color: var(--linear-red); }
 .wireguard-quality-pending { padding: 0 0 18px; color: var(--linear-ink-muted); font-size: 12px; }
 
+.wireguard-traffic-overview {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 28px;
+  border-top: 1px solid var(--linear-hairline);
+}
+
+.wireguard-traffic-overview__values {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.wireguard-traffic-overview .ant-segmented {
+  flex: 0 0 auto;
+}
+
 .wireguard-peer-list {
   min-height: 104px;
   border-top: 1px solid var(--linear-hairline);
@@ -298,10 +317,37 @@
 
 .wireguard-chart {
   display: grid;
-  min-height: 330px;
+  min-height: 352px;
   place-items: center;
   padding-top: 12px;
 }
+
+.wireguard-chart__plot {
+  width: 100%;
+  min-width: 0;
+}
+
+.wireguard-chart__time-range {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 2px 8px 0 66px;
+  color: var(--linear-ink-secondary);
+  font: 500 11px/1.35 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.wireguard-chart__time-range span {
+  display: grid;
+  gap: 2px;
+}
+
+.wireguard-chart__time-range span:last-child { justify-items: end; text-align: right; }
+.wireguard-chart__time-range small { color: var(--linear-ink-muted); font: inherit; }
+
+.wireguard-chart .recharts-cartesian-axis-tick-value { fill: var(--linear-ink-secondary); }
 
 .wireguard-chart .recharts-default-tooltip {
   border: 1px solid var(--linear-hairline-strong) !important;
@@ -331,6 +377,9 @@
   .wireguard-status-strip { gap: 8px 16px; }
   .wireguard-quality-strip { display: grid; gap: 8px; }
   .wireguard-updated { width: 100%; margin-left: 0; }
+  .wireguard-traffic-overview { align-items: stretch; flex-direction: column; padding: 16px 0; }
+  .wireguard-traffic-overview__values { justify-content: space-between; gap: 12px; }
+  .wireguard-traffic-overview .ant-segmented { width: 100%; }
   .wireguard-peer { grid-template-columns: 1fr auto; }
   .wireguard-peer > .wireguard-status { grid-column: 1 / -1; grid-row: 2; }
   .wireguard-peer__traffic { grid-column: 1 / -1; grid-row: 3; }
@@ -338,6 +387,7 @@
   .wireguard-peer__actions { grid-column: 2; grid-row: 1; }
   .wireguard-infrastructure dl > div { grid-template-columns: 1fr; gap: 3px; }
   .wireguard-metrics-summary { gap: 18px; }
+  .wireguard-chart__time-range { padding-left: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

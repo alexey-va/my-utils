@@ -84,18 +84,6 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
     })) ?? [],
     [metrics],
   );
-  const totals = useMemo(
-    () => rows.reduce(
-      (sum, point) => ({
-        ruDownload: sum.ruDownload + point.ruDownloadBytes,
-        ruUpload: sum.ruUpload + point.ruUploadBytes,
-        externalDownload: sum.externalDownload + point.nonRuDownloadBytes,
-        externalUpload: sum.externalUpload + point.nonRuUploadBytes,
-      }),
-      { ruDownload: 0, ruUpload: 0, externalDownload: 0, externalUpload: 0 },
-    ),
-    [rows],
-  );
   const scaleMaximum = useMemo(
     () => Math.max(1, ...rows.flatMap((point) => [
       point.ruDownloadBytes,
@@ -106,8 +94,20 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
     [rows],
   );
   const routeLabel = route === "RU" ? "RU" : "Внешние";
-  const routeDownload = route === "RU" ? totals.ruDownload : totals.externalDownload;
-  const routeUpload = route === "RU" ? totals.ruUpload : totals.externalUpload;
+  const routeDownload = route === "RU"
+    ? metrics?.summary.ruDownloadBytes ?? 0
+    : metrics?.summary.nonRuDownloadBytes ?? 0;
+  const routeUpload = route === "RU"
+    ? metrics?.summary.ruUploadBytes ?? 0
+    : metrics?.summary.nonRuUploadBytes ?? 0;
+  const rangeStart = metrics ? new Date(metrics.from).getTime() : 0;
+  const rangeEnd = metrics ? new Date(metrics.to).getTime() : 0;
+  const formatRangeEdge = (value: number) => new Date(value).toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <Drawer
@@ -154,13 +154,18 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
         ) : rows.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="За этот период трафика ещё нет" />
         ) : (
+          <>
+          <div className="wireguard-chart__plot">
           <ResponsiveContainer width="100%" height={300} debounce={0}>
             <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">
-              <CartesianGrid stroke={linearTokens.hairline} vertical={false} strokeDasharray="3 3" />
+              <CartesianGrid stroke={linearTokens.hairlineStrong} vertical strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
                 type="number"
-                domain={["dataMin", "dataMax"]}
+                domain={[rangeStart, rangeEnd]}
+                ticks={[rangeStart, rangeStart + (rangeEnd - rangeStart) / 2, rangeEnd]}
+                axisLine={{ stroke: linearTokens.hairlineStrong }}
+                tickLine={{ stroke: linearTokens.hairlineStrong }}
                 tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                 tickFormatter={(value: number) => new Date(value).toLocaleString("ru-RU", {
                   hour: "2-digit",
@@ -172,6 +177,8 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                 width={64}
                 domain={[0, scaleMaximum]}
                 allowDataOverflow
+                axisLine={{ stroke: linearTokens.hairlineStrong }}
+                tickLine={{ stroke: linearTokens.hairlineStrong }}
                 tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
                 tickFormatter={formatBytes}
               />
@@ -231,6 +238,16 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
               )}
             </BarChart>
           </ResponsiveContainer>
+          </div>
+          <div className="wireguard-chart__time-range">
+            <span aria-label={`Начало периода ${metrics?.from ?? ""}`}>
+              <small>Начало</small>{formatRangeEdge(rangeStart)}
+            </span>
+            <span aria-label={`Конец периода ${metrics?.to ?? ""}`}>
+              <small>Конец</small>{formatRangeEdge(rangeEnd)}
+            </span>
+          </div>
+          </>
         )}
       </div>
     </Drawer>

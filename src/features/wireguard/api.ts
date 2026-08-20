@@ -23,8 +23,11 @@ export const deleteWireGuardRelay = (relayId: string) =>
 export const rotateWireGuardAgentToken = (relayId: string) =>
   apiClient.post<WireGuardAgentToken>(apiEndpoints.admin.wireguardRelayToken(relayId));
 
-export const fetchWireGuardPeers = (relayId: string) =>
-  apiClient.get<WireGuardPeer[]>(apiEndpoints.admin.wireguardPeers(relayId), { cache: "no-store" });
+export const fetchWireGuardPeers = (relayId: string, range: WireGuardPeerMetricsRange) =>
+  apiClient.get<WireGuardPeer[]>(
+    `${apiEndpoints.admin.wireguardPeers(relayId)}?range=${range}`,
+    { cache: "no-store" },
+  );
 
 export const fetchWireGuardPeerMetrics = (
   relayId: string,

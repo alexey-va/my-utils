@@ -45,7 +45,10 @@ export type WireGuardPeer = {
   latestHandshakeAt: string | null;
   totalReceiveBytes: number;
   totalTransmitBytes: number;
+  currentDownloadBytesPerSecond: number;
+  currentUploadBytesPerSecond: number;
   metricsUpdatedAt: string | null;
+  traffic: WireGuardPeriodTraffic;
   createdAt: string;
   updatedAt: string;
 };
@@ -65,6 +68,21 @@ export type CreateWireGuardRelay = {
 
 export type WireGuardPeerMetricsRange = "HOUR" | "DAY" | "WEEK" | "MONTH";
 
+export type WireGuardTrafficTotals = {
+  downloadBytes: number;
+  uploadBytes: number;
+  ruDownloadBytes: number;
+  ruUploadBytes: number;
+  nonRuDownloadBytes: number;
+  nonRuUploadBytes: number;
+};
+
+export type WireGuardPeriodTraffic = WireGuardTrafficTotals & {
+  range: WireGuardPeerMetricsRange;
+  from: string;
+  to: string;
+};
+
 export type WireGuardPeerMetricPoint = {
   bucketStart: string;
   downloadBytes: number;
@@ -80,5 +98,6 @@ export type WireGuardPeerMetrics = {
   range: WireGuardPeerMetricsRange;
   from: string;
   to: string;
+  summary: WireGuardTrafficTotals;
   points: WireGuardPeerMetricPoint[];
 };
