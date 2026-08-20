@@ -99,11 +99,20 @@
   font-size: 12px;
 }
 
-.wireguard-exits__title > span {
+.wireguard-exits__controls {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wireguard-exits__controls > span {
   color: var(--linear-ink-muted);
   font-size: 11px;
   white-space: nowrap;
 }
+
+.wireguard-exits__controls .ant-segmented { white-space: nowrap; }
 
 .wireguard-exits__grid {
   display: grid;
@@ -613,6 +622,8 @@
 @media (max-width: 560px) {
   .wireguard-exits__title,
   .wireguard-health-history > header { flex-direction: column; gap: 10px; }
+  .wireguard-exits__controls { width: 100%; align-items: flex-start; }
+  .wireguard-exits__controls .ant-segmented { width: 100%; }
   .wireguard-health-history__summary { justify-content: flex-start; }
   .wireguard-exit__header { align-items: flex-start; flex-direction: column; gap: 8px; }
   .wireguard-guide__flow { grid-template-columns: 1fr; gap: 16px; }

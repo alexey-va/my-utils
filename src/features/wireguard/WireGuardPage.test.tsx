@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   fetchPeers: vi.fn(),
   fetchMetrics: vi.fn(),
   fetchSnapshot: vi.fn(),
+  setExitPreference: vi.fn(),
 }));
 
 vi.mock("./api", () => ({
@@ -25,6 +26,7 @@ vi.mock("./api", () => ({
   fetchWireGuardRelays: api.fetchRelays,
   fetchWireGuardSnapshot: api.fetchSnapshot,
   rotateWireGuardAgentToken: vi.fn(),
+  setWireGuardExitPreference: api.setExitPreference,
   setWireGuardPeerEnabled: vi.fn(),
 }));
 
@@ -61,6 +63,7 @@ const relay: WireGuardRelay = {
       secondary: { id: "secondary", interface: "awg-exit-b", healthy: true, reason: null, expectedEgressIp: "153.76.223.117", observedEgressIp: "153.76.223.117", handshakeAtEpoch: 1_800_000_000, handshakeAgeSeconds: 5, latencyMs: 35 },
     },
   },
+  exitPreference: "AUTO",
   routeQuality: {
     measuredAt: "2026-08-19T18:00:00Z",
     direct: { target: "77.88.8.8", packetLossPercent: 0, averageRttMs: 2.7 },
@@ -183,6 +186,7 @@ beforeEach(() => {
   api.fetchPeers.mockResolvedValue([peer]);
   api.fetchMetrics.mockResolvedValue(peerMetrics);
   api.fetchSnapshot.mockResolvedValue(snapshot());
+  api.setExitPreference.mockResolvedValue(relay);
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
 
@@ -240,6 +244,21 @@ describe("WireGuardPage", () => {
     expect(await screen.findByText("VPN работает через резерв")).toBeInTheDocument();
     expect(screen.getByText("Маршрутизация не работает")).toBeInTheDocument();
     expect(screen.queryByText("VPN работает")).not.toBeInTheDocument();
+  });
+
+  it("lets an administrator choose the preferred exit server", async () => {
+    const updatedRelay = { ...relay, exitPreference: "SECONDARY" as const, desiredRevision: 2 };
+    api.setExitPreference.mockResolvedValue(updatedRelay);
+    api.fetchSnapshot
+      .mockResolvedValueOnce(snapshot())
+      .mockResolvedValue(snapshot(updatedRelay));
+    render(<WireGuardPage />);
+
+    const selector = await screen.findByLabelText("Главный сервер");
+    fireEvent.click(within(selector).getByRole("radio", { name: "Резерв" }));
+
+    await waitFor(() => expect(api.setExitPreference).toHaveBeenCalledWith("relay-1", "SECONDARY"));
+    expect(await within(selector).findByText("Резерв")).toBeInTheDocument();
   });
 
   it("shows backend rates beside arrows and period traffic underneath without a calculating state", async () => {

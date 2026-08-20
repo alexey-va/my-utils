@@ -40,7 +40,9 @@ timeline and label its beginning and current edge. The page shows the relay's
 current route loss and RTT probes. Peer rows and compact previews refresh every
 three seconds and use backend-persisted transfer rates. The main period
 selector changes the global totals, every peer total, and compact
-previews together; the detailed peer drawer keeps its own period. Host
+previews together; the detailed peer drawer keeps its own period. The exit
+overview lets an administrator choose `Авто`, `Основной`, or `Резерв`; a manual
+choice still keeps the safe fallback to the other healthy provider. Host
 topology and installation scripts live in
 [`../my-utils-api/ops/wireguard/`](../my-utils-api/ops/wireguard/).
 The detailed RU and external histograms support rectangular drag-to-zoom over

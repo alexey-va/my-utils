@@ -18,6 +18,7 @@ import {
   fetchWireGuardRelays,
   fetchWireGuardSnapshot,
   rotateWireGuardAgentToken,
+  setWireGuardExitPreference,
   setWireGuardPeerEnabled,
 } from "./api";
 import type {
@@ -25,6 +26,7 @@ import type {
   WireGuardPeer,
   WireGuardPeerCredentials,
   WireGuardExitHealthHistory,
+  WireGuardExitPreference,
   WireGuardPeerMetrics,
   WireGuardPeerMetricsRange,
   WireGuardRelay,
@@ -237,6 +239,7 @@ export default function WireGuardPage() {
   const [trafficRange, setTrafficRange] = useState<WireGuardPeerMetricsRange>("HOUR");
   const [metricPreviews, setMetricPreviews] = useState<Record<string, WireGuardPeerMetrics>>({});
   const [exitHealthHistory, setExitHealthHistory] = useState<WireGuardExitHealthHistory | null>(null);
+  const [exitPreferencePending, setExitPreferencePending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
@@ -381,6 +384,20 @@ export default function WireGuardPage() {
     }
   };
 
+  const changeExitPreference = async (preference: WireGuardExitPreference) => {
+    if (!selected || selected.exitPreference === preference) return;
+    setExitPreferencePending(true);
+    try {
+      const updated = await setWireGuardExitPreference(selected.id, preference);
+      setRelays((items) => items.map((item) => item.id === updated.id ? updated : item));
+      void loadSnapshot(selected.id, trafficRange);
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось переключить главный сервер"));
+    } finally {
+      setExitPreferencePending(false);
+    }
+  };
+
   const confirmDeletePeer = (peer: WireGuardPeer) => {
     if (!selected) return;
     modal.confirm({
@@ -458,7 +475,14 @@ export default function WireGuardPage() {
               <div className="wireguard-quality-pending">Проверка качества маршрутов накапливается</div>
             )}
 
-            <WireGuardRoutingOverview health={selected.exitHealth} now={now} />
+            <WireGuardRoutingOverview
+              health={selected.exitHealth}
+              now={now}
+              preference={selected.exitPreference}
+              pending={exitPreferencePending}
+              applying={selected.appliedRevision !== selected.desiredRevision}
+              onPreferenceChange={(preference) => void changeExitPreference(preference)}
+            />
             <WireGuardExitHealthChart history={exitHealthHistory} />
 
             <section className="wireguard-traffic-overview" aria-label="Суммарный трафик VPN">

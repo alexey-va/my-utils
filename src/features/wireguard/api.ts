@@ -4,6 +4,7 @@ import type {
   CreateWireGuardRelay,
   CreatedWireGuardRelay,
   WireGuardAgentToken,
+  WireGuardExitPreference,
   WireGuardPeer,
   WireGuardPeerCredentials,
   WireGuardPeerMetrics,
@@ -23,6 +24,9 @@ export const deleteWireGuardRelay = (relayId: string) =>
 
 export const rotateWireGuardAgentToken = (relayId: string) =>
   apiClient.post<WireGuardAgentToken>(apiEndpoints.admin.wireguardRelayToken(relayId));
+
+export const setWireGuardExitPreference = (relayId: string, preference: WireGuardExitPreference) =>
+  apiClient.put<WireGuardRelay>(apiEndpoints.admin.wireguardRelayExitPreference(relayId), { preference });
 
 export const fetchWireGuardSnapshot = (relayId: string, range: WireGuardPeerMetricsRange) =>
   apiClient.get<WireGuardSnapshot>(

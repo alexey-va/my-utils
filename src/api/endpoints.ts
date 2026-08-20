@@ -25,6 +25,8 @@ export const apiEndpoints = {
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}`,
     wireguardRelayToken: (relayId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/rotate-token`,
+    wireguardRelayExitPreference: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/exit-preference`,
     wireguardSnapshot: (relayId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/snapshot`,
     wireguardPeers: (relayId: string) =>

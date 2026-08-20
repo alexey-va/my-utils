@@ -1,12 +1,18 @@
+import { Segmented } from "antd";
 import type {
   WireGuardExitHealth,
   WireGuardExitId,
+  WireGuardExitPreference,
   WireGuardExitProbeHealth,
 } from "./types";
 
 type Props = {
   health: WireGuardExitHealth | null;
   now: number;
+  preference: WireGuardExitPreference;
+  pending: boolean;
+  applying: boolean;
+  onPreferenceChange: (preference: WireGuardExitPreference) => void;
 };
 
 const exitNames: Record<WireGuardExitId, string> = {
@@ -85,15 +91,38 @@ function ExitColumn({
   );
 }
 
-export default function WireGuardRoutingOverview({ health, now }: Props) {
+export default function WireGuardRoutingOverview({
+  health,
+  now,
+  preference,
+  pending,
+  applying,
+  onPreferenceChange,
+}: Props) {
+  const preferenceDescription = preference === "AUTO"
+    ? "External-трафик автоматически уходит через исправный exit"
+    : "Выбранный exit используется первым; при сбое включится исправный резерв";
   return (
     <section className="wireguard-exits" aria-label="Выходы в интернет">
       <header className="wireguard-exits__title">
         <div>
           <h2>Выходы в интернет</h2>
-          <p>External-трафик автоматически уходит через исправный exit</p>
+          <p>{preferenceDescription}</p>
         </div>
-        <span>{health ? `Проверено ${checkedAgo(health.checkedAt, now)}` : "Ожидаем данные агента"}</span>
+        <div className="wireguard-exits__controls">
+          <Segmented<WireGuardExitPreference>
+            aria-label="Главный сервер"
+            value={preference}
+            disabled={pending}
+            onChange={onPreferenceChange}
+            options={[
+              { label: "Авто", value: "AUTO" },
+              { label: "Основной", value: "PRIMARY", disabled: health ? !health.exits.primary.healthy : true },
+              { label: "Резерв", value: "SECONDARY", disabled: health ? !health.exits.secondary.healthy : true },
+            ]}
+          />
+          <span>{pending ? "Сохраняем…" : applying ? "Применяется…" : health ? `Проверено ${checkedAgo(health.checkedAt, now)}` : "Ожидаем данные агента"}</span>
+        </div>
       </header>
       {health ? (
         <div className="wireguard-exits__grid">

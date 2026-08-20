@@ -1,6 +1,7 @@
 export type WireGuardRelayStatus = "WAITING_FOR_AGENT" | "SYNCING" | "READY" | "DEGRADED" | "DOWN" | "STALE";
 export type WireGuardRoutingMode = "AWG_ONLY" | "RU_DIRECT_AWG_DEFAULT";
 export type WireGuardExitId = "primary" | "secondary";
+export type WireGuardExitPreference = "AUTO" | "PRIMARY" | "SECONDARY";
 
 export type WireGuardExitProbeHealth = {
   id: WireGuardExitId;
@@ -56,6 +57,7 @@ export type WireGuardRelay = {
   routingCheckedAt: string | null;
   routeQuality: WireGuardRouteQuality | null;
   exitHealth: WireGuardExitHealth | null;
+  exitPreference: WireGuardExitPreference;
   createdAt: string;
   updatedAt: string;
 };
