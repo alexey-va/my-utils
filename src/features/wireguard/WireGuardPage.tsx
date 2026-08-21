@@ -614,7 +614,6 @@ export default function WireGuardPage() {
                   <Typography.Text
                     className="wireguard-server-key"
                     copyable={{ text: selected.serverPublicKey }}
-                    code
                     ellipsis={{ tooltip: selected.serverPublicKey }}
                   >
                     {selected.serverPublicKey}

@@ -324,6 +324,14 @@ describe("WireGuardPage", () => {
     expect(screen.queryByText("Как устроен VPN и маршрутизация")).not.toBeInTheDocument();
   });
 
+  it("renders the server key as plain copyable text instead of a boxed code field", async () => {
+    render(<WireGuardPage />);
+
+    const serverKey = await screen.findByText("server-public-key");
+    expect(serverKey).toHaveClass("wireguard-server-key");
+    expect(serverKey.querySelector("code")).toBeNull();
+  });
+
   it("shows persisted real exit checks with outages and active-exit changes", async () => {
     render(<WireGuardPage />);
 

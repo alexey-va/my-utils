@@ -405,8 +405,7 @@
 
 .wireguard-infrastructure dl > .wireguard-infrastructure__wide { grid-column: 1 / -1; }
 .wireguard-infrastructure__wide dd { overflow: hidden; }
-.wireguard-server-key { display: inline-flex; width: min(100%, 520px); min-width: 0; align-items: center; white-space: nowrap; }
-.wireguard-server-key code { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wireguard-server-key { display: inline-flex; width: min(100%, 520px); min-width: 0; align-items: center; color: var(--linear-ink-secondary); font: 12px "JetBrains Mono", monospace; white-space: nowrap; }
 .wireguard-server-key .ant-typography-copy { flex: 0 0 auto; }
 
 .wireguard-infrastructure dt { color: var(--linear-ink-muted); font-size: 12px; }
