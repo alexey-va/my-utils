@@ -187,39 +187,6 @@
 .wireguard-health-history__chart { width: 100%; min-width: 0; overflow: hidden; padding-top: 8px; }
 .wireguard-health-history__empty { margin: 0; padding: 8px 0 16px; color: var(--linear-ink-muted); font-size: 12px; }
 
-.wireguard-guide {
-  border-top: 1px solid var(--linear-hairline);
-  color: var(--linear-ink-secondary);
-}
-
-.wireguard-guide > summary {
-  padding: 22px 0;
-  color: var(--linear-ink-secondary);
-  cursor: pointer;
-}
-
-.wireguard-guide > summary > span { display: inline-grid; gap: 3px; margin-left: 6px; }
-.wireguard-guide > summary strong { color: var(--linear-ink); font-size: 13px; font-weight: 600; }
-.wireguard-guide > summary small { color: var(--linear-ink-muted); font-size: 11px; }
-.wireguard-guide__body { padding: 2px 0 28px; }
-.wireguard-guide__body > section { max-width: 820px; padding: 18px 0; border-bottom: 1px solid var(--linear-hairline); }
-.wireguard-guide__body > section:last-child { border-bottom: 0; }
-.wireguard-guide__body h2 { margin: 0 0 10px; color: var(--linear-ink); font-size: 13px; }
-.wireguard-guide__body p,
-.wireguard-guide__body li,
-.wireguard-guide__body dd { color: var(--linear-ink-secondary); font-size: 12px; line-height: 1.65; }
-.wireguard-guide__body p { margin: 8px 0; }
-.wireguard-guide__body code { color: var(--linear-primary-hover); font-size: 11px; }
-.wireguard-guide__flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 8px 0 12px; list-style: none; counter-reset: flow; }
-.wireguard-guide__flow li { position: relative; display: grid; min-width: 0; gap: 4px; padding: 0 24px 0 0; }
-.wireguard-guide__flow li:not(:last-child)::after { position: absolute; top: 10px; right: 8px; color: var(--linear-ink-quaternary); content: "→"; }
-.wireguard-guide__flow b { color: var(--linear-ink); font-size: 11px; }
-.wireguard-guide__flow span { color: var(--linear-ink-muted); font-size: 10px; line-height: 1.45; }
-.wireguard-guide__components { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; margin: 0; }
-.wireguard-guide__components > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 7px 0; }
-.wireguard-guide__components dt { color: var(--linear-ink); font-size: 11px; }
-.wireguard-guide__components dd { margin: 0; }
-
 .wireguard-traffic-overview {
   display: flex;
   min-height: 72px;
@@ -605,8 +572,6 @@
   .wireguard-exits__grid { grid-template-columns: 1fr; }
   .wireguard-exit { padding-right: 0; }
   .wireguard-exit + .wireguard-exit { padding-left: 0; border-top: 1px solid var(--linear-hairline); border-left: 0; }
-  .wireguard-guide__flow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 0; }
-  .wireguard-guide__flow li:nth-child(2)::after { display: none; }
   .wireguard-peer {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px 18px;
@@ -626,10 +591,6 @@
   .wireguard-exits__controls .ant-segmented { width: 100%; }
   .wireguard-health-history__summary { justify-content: flex-start; }
   .wireguard-exit__header { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .wireguard-guide__flow { grid-template-columns: 1fr; gap: 16px; }
-  .wireguard-guide__flow li:not(:last-child)::after { top: auto; right: auto; bottom: -14px; left: 2px; content: "↓"; }
-  .wireguard-guide__components { grid-template-columns: 1fr; }
-  .wireguard-guide__components > div { grid-template-columns: 100px minmax(0, 1fr); }
   .wireguard-status-strip { gap: 8px 16px; }
   .wireguard-quality-strip { display: grid; gap: 8px; }
   .wireguard-updated { width: 100%; margin-left: 0; }

@@ -312,7 +312,7 @@ describe("WireGuardPage", () => {
     expect(api.fetchMetrics).toHaveBeenCalledTimes(metricsCallsBeforePoll);
   });
 
-  it("shows both exits, the active path and the detailed routing guide", async () => {
+  it("shows both exits and the active path without the redundant routing guide", async () => {
     render(<WireGuardPage />);
 
     expect(await screen.findByRole("region", { name: "Выходы в интернет" })).toBeInTheDocument();
@@ -321,10 +321,7 @@ describe("WireGuardPage", () => {
     expect(screen.getByText("Активен")).toBeInTheDocument();
     expect(screen.getByText("91.197.0.191")).toBeInTheDocument();
     expect(screen.getByText("153.76.223.117")).toBeInTheDocument();
-    expect(screen.getByText("Как устроен VPN и маршрутизация")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Путь запроса" })).toBeInTheDocument();
-    expect(screen.getByText(/трёх последовательных сбоев/)).toBeInTheDocument();
-    expect(screen.getByText(/RU-префиксами/)).toBeInTheDocument();
+    expect(screen.queryByText("Как устроен VPN и маршрутизация")).not.toBeInTheDocument();
   });
 
   it("shows persisted real exit checks with outages and active-exit changes", async () => {

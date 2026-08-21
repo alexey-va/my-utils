@@ -35,7 +35,6 @@ import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 import WireGuardExitHealthChart from "./WireGuardExitHealthChart";
 import WireGuardPeerMetricsDrawer from "./WireGuardPeerMetricsDrawer";
 import WireGuardRoutingOverview from "./WireGuardRoutingOverview";
-import WireGuardSystemGuide from "./WireGuardSystemGuide";
 import "./wireguard.css";
 
 const POLL_INTERVAL_MS = 3_000;
@@ -644,7 +643,6 @@ export default function WireGuardPage() {
                 })}>Удалить relay</Button>
               </div>
             </details>
-            <WireGuardSystemGuide relay={selected} />
           </>
         ) : loadFailure ? (
           <div className="wireguard-empty wireguard-load-error" role="alert">
