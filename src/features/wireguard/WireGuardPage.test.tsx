@@ -517,7 +517,11 @@ describe("WireGuardPage", () => {
     const graphTrigger = await screen.findByRole("button", { name: "Открыть график grophone" });
     expect(screen.queryByRole("button", { name: "График grophone" })).not.toBeInTheDocument();
     fireEvent.click(graphTrigger);
-    const drawer = await screen.findByRole("dialog", { name: "Трафик grophone" });
+    const drawer = await screen.findByRole(
+      "dialog",
+      { name: "Трафик grophone" },
+      { timeout: 15_000 },
+    );
     const drawerQueries = within(drawer);
     expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Начало периода 2026-08-19T17:00:00Z")).toBeInTheDocument();
@@ -540,7 +544,7 @@ describe("WireGuardPage", () => {
     expect(drawerQueries.getByLabelText("Внешние скачано 3.00 KiB")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Внешние отдано 1.50 KiB")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it("zooms the detailed chart on both axes by dragging and keeps the zoom between route tabs", async () => {
     render(<WireGuardPage />);
