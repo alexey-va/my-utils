@@ -86,17 +86,10 @@
 
 .wireguard-exits__title h2,
 .wireguard-health-history h2 {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--linear-ink);
   font-size: 14px;
   font-weight: 600;
-}
-
-.wireguard-exits__title p,
-.wireguard-health-history header p {
-  margin: 0;
-  color: var(--linear-ink-muted);
-  font-size: 12px;
 }
 
 .wireguard-exits__controls {

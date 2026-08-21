@@ -99,16 +99,10 @@ export default function WireGuardRoutingOverview({
   applying,
   onPreferenceChange,
 }: Props) {
-  const preferenceDescription = preference === "AUTO"
-    ? "External-трафик автоматически уходит через исправный exit"
-    : "Выбранный exit используется первым; при сбое включится исправный резерв";
   return (
     <section className="wireguard-exits" aria-label="Выходы в интернет">
       <header className="wireguard-exits__title">
-        <div>
-          <h2>Выходы в интернет</h2>
-          <p>{preferenceDescription}</p>
-        </div>
+        <h2>Выходы в интернет</h2>
         <div className="wireguard-exits__controls">
           <Segmented<WireGuardExitPreference>
             aria-label="Главный сервер"

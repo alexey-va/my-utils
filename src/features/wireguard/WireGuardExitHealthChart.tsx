@@ -73,10 +73,7 @@ export default function WireGuardExitHealthChart({ history }: Props) {
   return (
     <section className="wireguard-health-history" role="region" aria-label="История healthcheck туннелей">
       <header>
-        <div>
-          <h2>Healthcheck туннелей</h2>
-          <p>Фактический выход в интернет через каждый AWG-интерфейс</p>
-        </div>
+        <h2>Healthcheck туннелей</h2>
         {rows.length > 0 ? (
           <div className="wireguard-health-history__summary">
             <span aria-label={`Основной exit: доступность ${percent(primaryAvailability)}`}><i className="wireguard-health-history__legend-primary" />Основной {percent(primaryAvailability)}</span>

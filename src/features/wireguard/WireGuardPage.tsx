@@ -669,9 +669,10 @@ export default function WireGuardPage() {
       >
         <Input
           autoFocus
+          aria-label="Название устройства"
           value={peerName}
           maxLength={120}
-          placeholder="Например, Телефон"
+          placeholder="Название устройства"
           onChange={(event) => setPeerName(event.target.value)}
           onPressEnter={() => void createPeer()}
         />

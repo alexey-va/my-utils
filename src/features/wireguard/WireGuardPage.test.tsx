@@ -209,8 +209,12 @@ describe("WireGuardPage", () => {
     expect(screen.queryByText("Остальное → Veesp")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Internal: потери 0%, задержка 2.7 мс")).toBeInTheDocument();
     expect(screen.getByLabelText("External: потери 0%, задержка 26.6 мс")).toBeInTheDocument();
+    expect(screen.queryByText("External-трафик автоматически уходит через исправный exit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Фактический выход в интернет через каждый AWG-интерфейс")).not.toBeInTheDocument();
     const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
     expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
+    fireEvent.click(addDevice);
+    expect(await screen.findByPlaceholderText("Название устройства")).toHaveAttribute("aria-label", "Название устройства");
     expect(screen.queryByLabelText("Автообновление каждые 5 секунд")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Обновить данные" })).not.toBeInTheDocument();
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
