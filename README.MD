@@ -22,6 +22,12 @@ All operational areas require an `ADMIN` role enforced by the API, not only by
 the browser. The bootstrap administrator must replace its initial password
 before opening administrative routes.
 
+The browser keeps an access JWT and receives a same-origin HttpOnly refresh
+cookie at login. When a protected request gets `401`, the API client refreshes
+once and transparently retries the original request. A revoked or idle-expired
+refresh session clears local auth and redirects to the login page; temporary
+refresh outages do not discard the local session.
+
 Opening the public Workout page sends one best-effort, value-free `page_view`
 event to `/api/client-events`. The backend enriches it with the verified IP and
 browser headers for the `Workout Visitors` Grafana dashboard. A failed

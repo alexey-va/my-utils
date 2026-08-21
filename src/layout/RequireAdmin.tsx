@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { readStoredUser } from "../auth/session";
+import { useStoredUser } from "../auth/useStoredUser";
 import { PATH_ACCOUNT, PATH_HOME } from "../config/paths";
 import { loginPathWithRedirect } from "./authNavigation";
 
@@ -9,7 +9,7 @@ type Props = {
 
 export default function RequireAdmin({ children }: Props) {
   const location = useLocation();
-  const user = readStoredUser();
+  const user = useStoredUser();
 
   if (!user) {
     return (

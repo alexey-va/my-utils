@@ -1,12 +1,13 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { apiClient } from "./api";
-import { storeSession } from "./auth/session";
+import { clearSession, storeSession } from "./auth/session";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  localStorage.clear();
   window.history.replaceState({}, "", "/");
 });
 
@@ -59,4 +60,23 @@ describe("App authentication", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/wireguard"));
     expect(await screen.findByRole("menuitem", { name: /WireGuard/ })).toBeInTheDocument();
   }, 15_000);
+
+  it("redirects an open administrator page when the server session expires", async () => {
+    storeSession({
+      id: "00000000-0000-0000-0000-000000000001",
+      username: "freedeeml",
+      email: "freedeeml@local.invalid",
+      role: "ADMIN",
+      mustChangePassword: false,
+    }, "expired-token");
+    window.history.replaceState({}, "", "/properties");
+    vi.spyOn(apiClient, "get").mockResolvedValue([]);
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Properties" })).toBeInTheDocument();
+
+    act(() => clearSession());
+
+    await waitFor(() => expect(window.location.pathname).toBe("/login"));
+  });
 });

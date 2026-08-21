@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { isLoggedIn } from "../auth/session";
+import { useStoredUser } from "../auth/useStoredUser";
 import { loginPathWithRedirect } from "./authNavigation";
 
 type RequireAuthProps = {
@@ -9,8 +9,9 @@ type RequireAuthProps = {
 /** Sends guests to sign-in while leaving the public Workout route untouched. */
 export default function RequireAuth({ children }: RequireAuthProps) {
   const location = useLocation();
+  const user = useStoredUser();
 
-  if (!isLoggedIn()) {
+  if (!user) {
     return (
       <Navigate
         to={loginPathWithRedirect(location.pathname)}

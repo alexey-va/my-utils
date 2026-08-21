@@ -1,5 +1,12 @@
-import { AUTH_TOKEN_KEY } from "../auth/session";
+import {
+  AUTH_TOKEN_KEY,
+  clearSession,
+  isLoggedIn,
+  storeSession,
+} from "../auth/session";
 import { ApiError } from "./errors";
+import { apiEndpoints } from "./endpoints";
+import type { LoginResponse } from "./types";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
@@ -21,19 +28,53 @@ export function buildApiUrl(path: string): string {
   return API_BASE_URL ? `${API_BASE_URL}${normalized}` : normalized;
 }
 
-function authHeaders(skipAuth?: boolean): HeadersInit {
-  if (skipAuth) {
-    return {};
+type RefreshResult = "refreshed" | "expired" | "unavailable";
+
+let refreshPromise: Promise<RefreshResult> | null = null;
+
+async function refreshSession(): Promise<RefreshResult> {
+  if (!isLoggedIn()) {
+    return "expired";
   }
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch(buildApiUrl(apiEndpoints.auth.refresh), {
+          method: "POST",
+          credentials: "include",
+        });
+        if (response.status === 401 || response.status === 403) {
+          clearSession();
+          return "expired";
+        }
+        if (!response.ok) {
+          return "unavailable";
+        }
+        const refreshed = (await response.json()) as LoginResponse;
+        if (!refreshed.token || !refreshed.user) {
+          return "unavailable";
+        }
+        storeSession(refreshed.user, refreshed.token);
+        return "refreshed";
+      } catch {
+        return "unavailable";
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
-/**
- * Typed fetch wrapper for future backend calls.
- * Set `VITE_API_BASE_URL` in `.env` when the API is available.
- */
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+type PerformedRequest = {
+  response: Response;
+  accessToken: string | null;
+};
+
+async function performRequest(
+  path: string,
+  options: ApiRequestOptions,
+): Promise<PerformedRequest> {
   const { json, skipAuth, headers: initHeaders, body: initBody, ...init } = options;
   const headers = new Headers(initHeaders);
 
@@ -41,16 +82,41 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers.set("Content-Type", "application/json");
   }
 
-  const auth = authHeaders(skipAuth);
+  const accessToken = skipAuth ? null : localStorage.getItem(AUTH_TOKEN_KEY);
+  const auth = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   for (const [key, value] of Object.entries(auth)) {
     headers.set(key, value);
   }
 
   const response = await fetch(buildApiUrl(path), {
     ...init,
+    credentials: init.credentials ?? "include",
     headers,
     body: json !== undefined ? JSON.stringify(json) : initBody,
   });
+  return { response, accessToken };
+}
+
+/**
+ * Typed fetch wrapper for future backend calls.
+ * Set `VITE_API_BASE_URL` in `.env` when the API is available.
+ */
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  let performed = await performRequest(path, options);
+  let response = performed.response;
+  if (response.status === 401 && !options.skipAuth && isLoggedIn()) {
+    const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const refreshResult = performed.accessToken && currentToken !== performed.accessToken
+      ? "refreshed"
+      : await refreshSession();
+    if (refreshResult === "refreshed") {
+      performed = await performRequest(path, options);
+      response = performed.response;
+      if (response.status === 401) {
+        clearSession();
+      }
+    }
+  }
 
   if (!response.ok) {
     const body = await response.text();
