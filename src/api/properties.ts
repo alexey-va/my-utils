@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { apiEndpoints } from "./endpoints";
 
 export type PropertyType = "BOOLEAN" | "INT" | "LONG" | "DOUBLE" | "STRING" | "OBJECT";
 
@@ -22,8 +23,5 @@ export async function fetchProperties(): Promise<RuntimeProperty[]> {
 }
 
 export async function updateProperty(key: string, value: unknown): Promise<RuntimeProperty> {
-  // Spring может «съесть» точки в @PathVariable — кодируем их явно.
-  const pathKey = key.replace(/\./g, "%2E");
-  const path = `/api/admin/settings/${pathKey}`;
-  return apiClient.put<RuntimeProperty>(path, { value });
+  return apiClient.put<RuntimeProperty>(apiEndpoints.admin.setting(key), { value });
 }
