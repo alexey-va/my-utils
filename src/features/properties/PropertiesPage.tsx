@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
-  Collapse,
   Empty,
   Input,
   InputNumber,
   Select,
+  Spin,
   Switch,
-  Table,
   Typography,
   message,
   Space,
   Tag,
 } from "antd";
 import { EditOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
 import PageLayout from "../../shared/components/PageLayout";
-import AppPanel from "../../shared/components/AppPanel";
 import {
   fetchProperties,
   updateProperty,
@@ -155,6 +152,72 @@ function matchesSearch(property: RuntimeProperty, query: string): boolean {
 
 function primaryTag(property: RuntimeProperty): string {
   return property.tags[0] ?? "other";
+}
+
+function PropertyRow({
+  property,
+  row,
+  savingAll,
+  onChange,
+  onSave,
+  onOpenTextarea,
+}: {
+  property: RuntimeProperty;
+  row: RowState;
+  savingAll: boolean;
+  onChange: (value: unknown) => void;
+  onSave: () => void;
+  onOpenTextarea: () => void;
+}) {
+  return (
+    <article
+      className={
+        row.dirty
+          ? "properties-editor__row properties-editor__row--dirty"
+          : "properties-editor__row"
+      }
+    >
+      <div className="properties-editor__identity">
+        <div className="properties-editor__key-line">
+          <code className="properties-editor__key">{property.key}</code>
+          <Tag className="properties-editor__type" color={typeColor(property.type)}>
+            {property.type}
+          </Tag>
+        </div>
+        {property.description ? (
+          <p className="properties-editor__description">{property.description}</p>
+        ) : null}
+        {property.objectType ? (
+          <span className="properties-editor__object-type">{property.objectType}</span>
+        ) : null}
+      </div>
+
+      <div className="properties-editor__value">
+        <ValueEditor
+          property={property}
+          draft={row.draft}
+          onChange={onChange}
+          onOpenTextarea={onOpenTextarea}
+        />
+      </div>
+
+      <div className="properties-editor__row-action">
+        {row.dirty || row.saving ? (
+          <Button
+            type="primary"
+            htmlType="button"
+            icon={<SaveOutlined />}
+            disabled={row.saving || savingAll}
+            loading={row.saving}
+            aria-label={`Сохранить ${property.key}`}
+            onClick={onSave}
+          >
+            Сохранить
+          </Button>
+        ) : null}
+      </div>
+    </article>
+  );
 }
 
 export default function PropertiesPage() {
@@ -304,85 +367,6 @@ export default function PropertiesPage() {
     }
   };
 
-  const columns: ColumnsType<RuntimeProperty> = [
-    {
-      title: "Ключ",
-      dataIndex: "key",
-      width: 300,
-      render: (key: string, row) => (
-        <Space direction="vertical" size={4} className="properties-editor__key-cell">
-          <Typography.Text code>{key}</Typography.Text>
-          {row.tags.length > 0 ? (
-            <Space size={[4, 4]} wrap>
-              {row.tags.map((tag) => (
-                <Tag key={tag} className="properties-editor__tag">
-                  {tagLabel(tag)}
-                </Tag>
-              ))}
-            </Space>
-          ) : null}
-          {row.description ? (
-            <Typography.Text type="secondary" className="properties-editor__description">
-              {row.description}
-            </Typography.Text>
-          ) : null}
-          {row.objectType ? (
-            <Typography.Text type="secondary" className="properties-editor__object-type">
-              {row.objectType}
-            </Typography.Text>
-          ) : null}
-        </Space>
-      ),
-    },
-    {
-      title: "Тип",
-      dataIndex: "type",
-      width: 100,
-      render: (type: PropertyType) => <Tag color={typeColor(type)}>{type}</Tag>,
-    },
-    {
-      title: "Значение",
-      key: "value",
-      width: 480,
-      render: (_, property) => {
-        const row = rows[property.key];
-        if (!row) return null;
-        return (
-          <ValueEditor
-            property={property}
-            draft={row.draft}
-            onChange={(v) => setDraft(property.key, v)}
-            onOpenTextarea={() => setTextareaKey(property.key)}
-          />
-        );
-      },
-    },
-    {
-      title: "",
-      key: "actions",
-      width: 120,
-      render: (_, property) => {
-        const row = rows[property.key];
-        if (!row) return null;
-        return (
-          <Button
-            type="primary"
-            htmlType="button"
-            icon={<SaveOutlined />}
-            disabled={!row.dirty || row.saving || savingAll}
-            loading={row.saving}
-            onClick={(e) => {
-              e.stopPropagation();
-              void saveProperty(property.key);
-            }}
-          >
-            Save
-          </Button>
-        );
-      },
-    },
-  ];
-
   const textareaProperty = textareaKey
     ? properties.find((p) => p.key === textareaKey)
     : undefined;
@@ -391,7 +375,7 @@ export default function PropertiesPage() {
   return (
     <PageLayout
       title="Properties"
-      subtitle="Runtime-настройки API (пока без авторизации)"
+      subtitle="Runtime-настройки приложения"
       actions={
         <Space>
           {dirtyCount > 0 ? (
@@ -401,17 +385,17 @@ export default function PropertiesPage() {
               loading={savingAll}
               onClick={() => void saveAllDirty()}
             >
-              Save all ({dirtyCount})
+              Сохранить всё ({dirtyCount})
             </Button>
           ) : null}
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
-            Reload
+            Обновить
           </Button>
         </Space>
       }
     >
-      <AppPanel className="properties-editor">
-        <div className="properties-editor__toolbar">
+      <section className="properties-editor" aria-label="Runtime-настройки">
+        <header className="properties-editor__toolbar">
           <Input.Search
             allowClear
             placeholder="Поиск по ключу, описанию, тегу…"
@@ -439,46 +423,45 @@ export default function PropertiesPage() {
             className="properties-editor__tag-filter"
             maxTagCount="responsive"
           />
-          {(search || typeFilter.length > 0 || tagFilter.length > 0) && (
-            <Typography.Text type="secondary">
-              {filteredProperties.length} из {properties.length}
-            </Typography.Text>
-          )}
-        </div>
+          <span className="properties-editor__result-count" aria-live="polite">
+            {filteredProperties.length} из {properties.length}
+          </span>
+        </header>
 
         <div className="properties-editor__content" aria-busy={loading}>
-          {groupedProperties.length === 0 ? (
-            <Empty description={loading ? "Загрузка свойств…" : "Нет свойств по фильтрам"} />
+          {loading && properties.length === 0 ? (
+            <div className="properties-editor__loading"><Spin /></div>
+          ) : groupedProperties.length === 0 ? (
+            <Empty description="Нет свойств по фильтрам" />
           ) : (
-            <Collapse
-              className="properties-editor__groups"
-              defaultActiveKey={groupedProperties.map((g) => g.tag)}
-              items={groupedProperties.map(({ tag, items }) => ({
-                key: tag,
-                label: (
-                  <Space>
-                    <span>{tagLabel(tag)}</span>
-                    <Tag>{items.length}</Tag>
-                  </Space>
-                ),
-                children: (
-                  <Table
-                    className="properties-editor__table"
-                    rowKey="key"
-                    columns={columns}
-                    dataSource={items}
-                    loading={loading}
-                    pagination={false}
-                    size="middle"
-                    tableLayout="fixed"
-                    scroll={{ x: 1020 }}
-                  />
-                ),
-              }))}
-            />
+            groupedProperties.map(({ tag, items }) => (
+              <section className="properties-editor__group" key={tag}>
+                <header className="properties-editor__group-head">
+                  <h2>{tagLabel(tag)}</h2>
+                  <span>{items.length}</span>
+                </header>
+                <div className="properties-editor__rows">
+                  {items.map((property) => {
+                    const row = rows[property.key];
+                    if (!row) return null;
+                    return (
+                      <PropertyRow
+                        key={property.key}
+                        property={property}
+                        row={row}
+                        savingAll={savingAll}
+                        onChange={(value) => setDraft(property.key, value)}
+                        onSave={() => void saveProperty(property.key)}
+                        onOpenTextarea={() => setTextareaKey(property.key)}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            ))
           )}
         </div>
-      </AppPanel>
+      </section>
 
       {textareaProperty && textareaRow ? (
         <PropertyTextareaModal

@@ -504,15 +504,15 @@ export default function AgentMemoryPage() {
     <div className="agent-memory">
       <aside className="agent-memory__sidebar">
         <div className="agent-memory__sidebar-head">
-          <Typography.Text className="agent-memory__sidebar-title">Chats</Typography.Text>
-          <Tooltip title="Refresh list">
+          <Typography.Text className="agent-memory__sidebar-title">Чаты</Typography.Text>
+          <Tooltip title="Обновить список">
             <Button
               type="text"
               size="small"
               icon={<ReloadOutlined />}
               loading={loading}
               onClick={() => loadChats()}
-              aria-label="Refresh chats"
+              aria-label="Обновить чаты"
             />
           </Tooltip>
         </div>
@@ -523,10 +523,10 @@ export default function AgentMemoryPage() {
         ) : null}
         {loading && chats.length === 0 ? (
           <Typography.Text type="secondary" className="agent-memory__sidebar-empty">
-            Loading…
+            Загрузка…
           </Typography.Text>
         ) : chats.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No agent chats yet" />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Чатов пока нет" />
         ) : (
           <ul className="agent-memory__chat-list">
             {chats.map((chat) => (
@@ -554,12 +554,12 @@ export default function AgentMemoryPage() {
 
       <div className="agent-memory__main">
         {!detail ? (
-          <Empty description="Select a chat" />
+          <Empty description="Выбери чат" />
         ) : (
           <>
             <MemorySection
-              title="Context"
-              meta={`${detail.recentContextMessageCount} messages in LLM context`}
+              title="Контекст"
+              meta={`${detail.recentContextMessageCount} сообщений в контексте LLM`}
             >
               <div className="agent-memory__toolbar">
                 <div className="agent-memory__toolbar-group">
@@ -607,8 +607,8 @@ export default function AgentMemoryPage() {
               <div className="agent-memory__column agent-memory__column--thread">
                 <section className="agent-memory__section agent-memory__section--chat">
                   <header className="agent-memory__section-head agent-memory__section-head--chat">
-                    <h3 className="agent-memory__section-title">History</h3>
-                    <span className="agent-memory__section-meta">{dialogHistory.length} shown</span>
+                    <h3 className="agent-memory__section-title">История</h3>
+                    <span className="agent-memory__section-meta">{dialogHistory.length} сообщений</span>
                     {systemMessages.length > 0 ? (
                       <button
                         type="button"
@@ -616,7 +616,7 @@ export default function AgentMemoryPage() {
                         aria-expanded={systemPanelOpen}
                         onClick={() => setSystemPanelOpen((open) => !open)}
                       >
-                        System ({systemMessages.length})
+                        System · {systemMessages.length}
                         {systemPanelOpen ? <CaretUpOutlined /> : <CaretDownOutlined />}
                       </button>
                     ) : null}
@@ -646,12 +646,12 @@ export default function AgentMemoryPage() {
                           loading={loadingOlder}
                           block
                         >
-                          Load older
+                          Загрузить старые сообщения
                         </Button>
                       ) : null}
                       {dialogHistory.length === 0 ? (
                         <Typography.Text type="secondary" className="agent-memory__chat-empty">
-                          No messages yet.
+                          Сообщений пока нет.
                         </Typography.Text>
                       ) : (
                         <ul className="agent-memory__thread">
@@ -700,7 +700,7 @@ export default function AgentMemoryPage() {
                                 )
                               }
                             >
-                              Remove {image.name}
+                              Убрать {image.name}
                             </Button>
                           ))}
                         </div>
@@ -727,7 +727,7 @@ export default function AgentMemoryPage() {
                         disabled={chatting || sendingMessage || pendingImages.length >= 4}
                         onClick={() => imageInputRef.current?.click()}
                       >
-                        Image
+                        Изображение
                       </Button>
                       <Button
                         type="primary"
@@ -769,12 +769,12 @@ export default function AgentMemoryPage() {
 
               <div className="agent-memory__column agent-memory__column--side">
                 <MemorySection
-                  title="Facts"
-                  meta={detail.facts.length > 0 ? `${detail.facts.length} stored` : undefined}
+                  title="Факты"
+                  meta={detail.facts.length > 0 ? `${detail.facts.length} сохранено` : undefined}
                 >
                   <div className="agent-memory__fact-add">
                     <Input
-                      placeholder="New fact…"
+                      placeholder="Новый факт…"
                       value={factDraft}
                       onChange={(e) => setFactDraft(e.target.value)}
                       onPressEnter={onAddFact}
@@ -790,11 +790,11 @@ export default function AgentMemoryPage() {
                       />
                     </Tooltip>
                     <Button type="primary" onClick={onAddFact} disabled={!factDraft.trim()}>
-                      Add
+                      Добавить
                     </Button>
                   </div>
                   {detail.facts.length === 0 ? (
-                    <Typography.Text type="secondary">No facts yet.</Typography.Text>
+                    <Typography.Text type="secondary">Фактов пока нет.</Typography.Text>
                   ) : (
                     <ul className="agent-memory__fact-list">
                       {detail.facts.map((fact) => (
@@ -844,12 +844,12 @@ export default function AgentMemoryPage() {
                 </MemorySection>
 
                 <MemorySection
-                  title="Summaries"
-                  meta={detail.summaries.length > 0 ? `${detail.summaries.length} blocks` : undefined}
+                  title="Сводки"
+                  meta={detail.summaries.length > 0 ? `${detail.summaries.length} блоков` : undefined}
                   className="agent-memory__section--summaries"
                 >
                   {detail.summaries.length === 0 ? (
-                    <Typography.Text type="secondary">No compaction blocks yet.</Typography.Text>
+                    <Typography.Text type="secondary">Сводок пока нет.</Typography.Text>
                   ) : (
                     <ul className="agent-memory__summary-list">
                       {detail.summaries.map((summary) => (
@@ -889,7 +889,7 @@ export default function AgentMemoryPage() {
       </div>
 
       <Modal
-        title="Edit fact"
+        title="Редактировать факт"
         open={editingFactId != null}
         onOk={onSaveFact}
         onCancel={() => {

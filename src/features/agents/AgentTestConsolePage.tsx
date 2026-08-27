@@ -8,7 +8,6 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import {
-  Alert,
   Button,
   Empty,
   Input,
@@ -266,17 +265,16 @@ export default function AgentTestConsolePage() {
 
   return (
     <div className="agent-test-console">
-      <Alert
-        className="agent-test-console__sandbox-alert"
-        type="success"
-        showIcon
-        message={<><strong>SANDBOX</strong> — отдельные чистые данные для каждого чата. Telegram и реальные Workout-данные не затрагиваются.</>}
-      />
+      <div className="agent-test-console__status" role="status">
+        <i aria-hidden="true" />
+        <strong>SANDBOX</strong>
+        <span>Данные каждого чата изолированы от Telegram и Workout</span>
+      </div>
 
       <div className="agent-test-console__layout">
         <aside className="agent-test-console__sidebar">
           <div className="agent-test-console__sidebar-head">
-            <Typography.Text className="agent-memory__sidebar-title">Тестовые чаты</Typography.Text>
+            <Typography.Text className="agent-memory__sidebar-title">Чаты</Typography.Text>
             <div className="agent-test-console__sidebar-actions">
               <Tooltip title="Обновить">
                 <Button
@@ -336,7 +334,7 @@ export default function AgentTestConsolePage() {
               <header className="agent-test-console__chat-head">
                 <div>
                   <h3>{selectedChat.title}</h3>
-                  <span>Отдельная история и данные · без Telegram и production-записей</span>
+                  <span>Изолированные данные · без Telegram и Workout</span>
                 </div>
                 <div className="agent-test-console__chat-actions">
                   <Tooltip title="Переименовать">

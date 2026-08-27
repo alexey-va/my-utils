@@ -6,19 +6,19 @@ import AgentTestConsolePage from "./AgentTestConsolePage";
 export default function AgentsPage() {
   return (
     <div className="agents-page">
-      <PageLayout title="Agents" subtitle="Workout AI console and memory">
+      <PageLayout title="Agents" subtitle="Изолированные проверки и память Workout-агента">
         <Tabs
           className="agents-page__tabs"
           defaultActiveKey="test-console"
           items={[
             {
               key: "test-console",
-              label: "Test console",
+              label: "Тестовые чаты",
               children: <AgentTestConsolePage />,
             },
             {
               key: "memory",
-              label: "Memory",
+              label: "Память",
               children: <AgentMemoryPage />,
             },
           ]}
