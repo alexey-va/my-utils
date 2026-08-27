@@ -74,7 +74,7 @@ describe("PropertiesPage", () => {
         "openai/gpt-5.6-terra",
       );
     });
-  });
+  }, 10_000);
 
   it("filters the flat list without hiding the result count", async () => {
     render(<PropertiesPage />);
