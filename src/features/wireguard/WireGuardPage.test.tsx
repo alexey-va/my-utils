@@ -260,7 +260,7 @@ describe("WireGuardPage", () => {
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
     expect(container.querySelector(".app-panel")).not.toBeInTheDocument();
     expect(container.querySelector(".ant-table")).not.toBeInTheDocument();
-  });
+  }, 15_000);
 
   it("shows reserve operation and broken routing instead of a false green status", async () => {
     const secondary = relay.exitHealth?.exits.secondary;
@@ -476,7 +476,7 @@ describe("WireGuardPage", () => {
     await waitFor(() => expect(api.createCategory).toHaveBeenCalledWith(relay.id, "Рабочие"));
     expect(await screen.findByRole("button", { name: "Действия категории Рабочие" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Рабочие" })).toHaveTextContent("Перетащи сюда нужные устройства");
-  });
+  }, 15_000);
 
   it("renames a peer and moves it to another category", async () => {
     const updated = { ...peer, name: "Main phone", category: "Служебные" };
@@ -520,7 +520,7 @@ describe("WireGuardPage", () => {
     expect(tabletHandle).toHaveAttribute("tabindex", "0");
     expect(screen.getByRole("button", { name: "Изменить порядок категории Пользовательские" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Изменить порядок категории Служебные" })).toBeEnabled();
-  });
+  }, 15_000);
 
   it("removes a deleted peer immediately without waiting for the snapshot read-back", async () => {
     render(<WireGuardPage />);

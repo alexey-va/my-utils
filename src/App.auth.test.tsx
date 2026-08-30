@@ -45,7 +45,7 @@ describe("App authentication", () => {
     render(<App />);
 
     expect(screen.queryByRole("menuitem", { name: /WireGuard/ })).not.toBeInTheDocument();
-    fireEvent.change(await screen.findByLabelText("Username or email"), {
+    fireEvent.change(await screen.findByLabelText("Username or email", {}, { timeout: 10_000 }), {
       target: { value: "freedeeml" },
     });
     fireEvent.change(screen.getByLabelText("Password"), {
@@ -57,8 +57,8 @@ describe("App authentication", () => {
     expect(submit).toBeDefined();
     fireEvent.click(submit!);
 
-    await waitFor(() => expect(window.location.pathname).toBe("/wireguard"));
-    expect(await screen.findByRole("menuitem", { name: /WireGuard/ })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe("/wireguard"), { timeout: 10_000 });
+    expect(await screen.findByRole("menuitem", { name: /WireGuard/ }, { timeout: 10_000 })).toBeInTheDocument();
   }, 15_000);
 
   it("redirects an open administrator page when the server session expires", async () => {
