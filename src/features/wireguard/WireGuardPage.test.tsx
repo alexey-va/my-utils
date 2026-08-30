@@ -33,7 +33,7 @@ vi.mock("./api", () => ({
 const relay: WireGuardRelay = {
   id: "relay-1",
   name: "utils → veesp",
-  publicEndpoint: "51.250.112.232:51820",
+  publicEndpoint: "utils.alexeyav.ru:51820",
   clientCidr: "10.89.0.0/24",
   clientDns: "1.1.1.1",
   interfaceName: "wg-users",

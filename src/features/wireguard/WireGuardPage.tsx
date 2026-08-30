@@ -682,7 +682,7 @@ export default function WireGuardPage() {
           form={relayForm}
           layout="vertical"
           onFinish={(values) => void createRelay(values)}
-          initialValues={{ name: "utils → veesp", publicEndpoint: "51.250.112.232:51820", clientCidr: "10.89.0.0/24", clientDns: "1.1.1.1" }}
+          initialValues={{ name: "utils → veesp", publicEndpoint: "utils.alexeyav.ru:51820", clientCidr: "10.89.0.0/24", clientDns: "1.1.1.1" }}
         >
           <Form.Item name="name" label="Название" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="publicEndpoint" label="Публичный адрес VPN" rules={[{ required: true }]}><Input /></Form.Item>
