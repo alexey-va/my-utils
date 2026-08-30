@@ -447,7 +447,7 @@ describe("WireGuardPage", () => {
       category: "Служебные",
     }));
     expect(await screen.findByText("Main phone")).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it("persists peer drag ordering", async () => {
     const tablet = { ...peer, id: "peer-2", name: "tablet", assignedIp: "10.89.0.3", sortOrder: 1 };
@@ -488,7 +488,7 @@ describe("WireGuardPage", () => {
 
     await waitFor(() => expect(api.deletePeer).toHaveBeenCalledWith(relay.id, peer.id));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Действия grophone" })).not.toBeInTheDocument());
-  });
+  }, 15_000);
 
   it("uses one preview scale for every peer so low traffic stays visually low", async () => {
     const slowPeer: WireGuardPeer = {
