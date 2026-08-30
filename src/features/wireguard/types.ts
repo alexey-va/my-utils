@@ -68,6 +68,8 @@ export type WireGuardAgentToken = { agentToken: string };
 export type WireGuardPeer = {
   id: string;
   name: string;
+  category: string;
+  sortOrder: number;
   publicKey: string;
   assignedIp: string;
   enabled: boolean;
@@ -80,6 +82,22 @@ export type WireGuardPeer = {
   traffic: WireGuardPeriodTraffic;
   createdAt: string;
   updatedAt: string;
+};
+
+export type CreateWireGuardPeer = {
+  name: string;
+  category?: string;
+};
+
+export type UpdateWireGuardPeer = {
+  name?: string;
+  category?: string;
+  enabled?: boolean;
+};
+
+export type WireGuardPeerOrderItem = {
+  peerId: string;
+  category: string;
 };
 
 export type WireGuardPeerCredentials = {

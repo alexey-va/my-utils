@@ -1,12 +1,12 @@
 import {
-  DeleteOutlined,
   EllipsisOutlined,
   ExpandAltOutlined,
-  KeyOutlined,
+  HolderOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import { Button, Dropdown, Empty, Form, Input, Modal, Segmented, Typography, message } from "antd";
+import { AutoComplete, Button, Dropdown, Empty, Form, Input, Modal, Segmented, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { ApiError } from "../../api/errors";
 import PageLayout from "../../shared/components/PageLayout";
 import {
@@ -17,9 +17,11 @@ import {
   fetchWireGuardPeerCredentials,
   fetchWireGuardRelays,
   fetchWireGuardSnapshot,
+  reorderWireGuardPeers,
   rotateWireGuardAgentToken,
   setWireGuardExitPreference,
   setWireGuardPeerEnabled,
+  updateWireGuardPeer,
 } from "./api";
 import type {
   CreateWireGuardRelay,
@@ -41,6 +43,9 @@ const POLL_INTERVAL_MS = 3_000;
 const ONLINE_WINDOW_MS = 3 * 60_000;
 const PREVIEW_WIDTH = 180;
 const PREVIEW_HEIGHT = 34;
+const DEFAULT_PEER_CATEGORY = "Пользовательские";
+const SERVICE_PEER_CATEGORY = "Служебные";
+const DEFAULT_PEER_CATEGORIES = [DEFAULT_PEER_CATEGORY, SERVICE_PEER_CATEGORY] as const;
 
 const previewBucketCounts: Record<WireGuardPeerMetricsRange, number> = {
   HOUR: 60,
@@ -164,7 +169,34 @@ function relativeTime(value: string | null, now = Date.now()): string {
   if (minutes < 60) return `${minutes} мин. назад`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} ч. назад`;
-  return date(value);
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} дн. назад`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} мес. назад`;
+  const years = Math.floor(days / 365);
+  return `${years} г. назад`;
+}
+
+function normalizePeerOrder(items: WireGuardPeer[]): WireGuardPeer[] {
+  return items.map((peer, sortOrder) => ({ ...peer, sortOrder }));
+}
+
+function movePeerBefore(
+  peers: WireGuardPeer[],
+  peerId: string,
+  targetPeerId: string | null,
+  category: string,
+): WireGuardPeer[] {
+  const peer = peers.find((item) => item.id === peerId);
+  if (!peer || targetPeerId === peerId) return peers;
+  const remaining = peers.filter((item) => item.id !== peerId);
+  let targetIndex = targetPeerId ? remaining.findIndex((item) => item.id === targetPeerId) : -1;
+  if (targetIndex < 0) {
+    const lastCategoryIndex = remaining.findLastIndex((item) => item.category === category);
+    targetIndex = lastCategoryIndex < 0 ? remaining.length : lastCategoryIndex + 1;
+  }
+  remaining.splice(targetIndex, 0, { ...peer, category });
+  return normalizePeerOrder(remaining);
 }
 
 function peerPresence(peer: WireGuardPeer, now: number): { label: string; tone: string } {
@@ -245,12 +277,20 @@ export default function WireGuardPage() {
   const [createRelayOpen, setCreateRelayOpen] = useState(false);
   const [createPeerOpen, setCreatePeerOpen] = useState(false);
   const [peerName, setPeerName] = useState("");
+  const [peerCategory, setPeerCategory] = useState(DEFAULT_PEER_CATEGORY);
+  const [editingPeer, setEditingPeer] = useState<WireGuardPeer | null>(null);
+  const [peerOrderPending, setPeerOrderPending] = useState(false);
+  const [draggedPeerId, setDraggedPeerId] = useState<string | null>(null);
+  const [openPeerCategories, setOpenPeerCategories] = useState<Set<string>>(
+    () => new Set(DEFAULT_PEER_CATEGORIES),
+  );
   const [credentials, setCredentials] = useState<WireGuardPeerCredentials | null>(null);
   const [metricsPeer, setMetricsPeer] = useState<WireGuardPeer | null>(null);
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [relayForm] = Form.useForm<CreateWireGuardRelay>();
+  const [peerEditForm] = Form.useForm<{ name: string; category: string }>();
   const [modal, modalContext] = Modal.useModal();
-  const snapshotInFlight = useRef<string | null>(null);
+  const snapshotInFlight = useRef<{ key: string; generation: number } | null>(null);
   const snapshotGeneration = useRef(0);
   const selected = relays[0] ?? null;
   const selectedRelayId = selected?.id ?? null;
@@ -272,16 +312,32 @@ export default function WireGuardPage() {
     ),
     [peers],
   );
+  const peerCategories = useMemo(() => {
+    const categories = [...DEFAULT_PEER_CATEGORIES] as string[];
+    peers.forEach((peer) => {
+      if (!categories.includes(peer.category)) categories.push(peer.category);
+    });
+    return categories;
+  }, [peers]);
+
+  useEffect(() => {
+    setOpenPeerCategories((current) => {
+      const next = new Set(current);
+      peerCategories.forEach((category) => next.add(category));
+      return next.size === current.size ? current : next;
+    });
+  }, [peerCategories]);
 
   const loadSnapshot = useCallback(async (
     relayId = selectedRelayId,
     range = trafficRange,
+    force = false,
   ) => {
     if (!relayId) return;
     const requestKey = `${relayId}:${range}`;
-    if (snapshotInFlight.current === requestKey) return;
-    snapshotInFlight.current = requestKey;
+    if (!force && snapshotInFlight.current?.key === requestKey) return;
     const generation = ++snapshotGeneration.current;
+    snapshotInFlight.current = { key: requestKey, generation };
     try {
       const snapshot = await fetchWireGuardSnapshot(relayId, range);
       if (generation !== snapshotGeneration.current) return;
@@ -291,12 +347,13 @@ export default function WireGuardPage() {
       setExitHealthHistory(snapshot.exitHealthHistory);
       setLoadFailure(null);
     } catch (error) {
+      if (generation !== snapshotGeneration.current) return;
       const failure = snapshotErrorMessage(error);
       setLoadFailure(failure);
       message.error(failure);
     } finally {
       if (generation === snapshotGeneration.current) setInitialLoading(false);
-      if (snapshotInFlight.current === requestKey) snapshotInFlight.current = null;
+      if (snapshotInFlight.current?.generation === generation) snapshotInFlight.current = null;
     }
   }, [selectedRelayId, trafficRange]);
 
@@ -353,8 +410,12 @@ export default function WireGuardPage() {
   const createPeer = async () => {
     if (!selected || !peerName.trim()) return;
     try {
-      const created = await createWireGuardPeer(selected.id, peerName.trim());
+      const created = await createWireGuardPeer(selected.id, {
+        name: peerName.trim(),
+        category: peerCategory.trim() || DEFAULT_PEER_CATEGORY,
+      });
       setPeerName("");
+      setPeerCategory(DEFAULT_PEER_CATEGORY);
       setCreatePeerOpen(false);
       setCredentials(created);
       await loadSnapshot(selected.id, trafficRange);
@@ -376,11 +437,80 @@ export default function WireGuardPage() {
     if (!selected) return;
     try {
       const updated = await setWireGuardPeerEnabled(selected.id, peer.id, enabled);
-      setPeers((items) => items.map((item) => item.id === updated.id ? updated : item));
-      void loadSnapshot(selected.id, trafficRange);
+      setPeers((items) => items.map((item) => item.id === updated.id ? { ...item, ...updated, traffic: item.traffic } : item));
+      void loadSnapshot(selected.id, trafficRange, true);
     } catch (error) {
       message.error(errorMessage(error, "Не удалось изменить устройство"));
     }
+  };
+
+  const openPeerEditor = (peer: WireGuardPeer) => {
+    setEditingPeer(peer);
+    peerEditForm.setFieldsValue({ name: peer.name, category: peer.category });
+  };
+
+  const savePeerEditor = async () => {
+    if (!selected || !editingPeer) return;
+    try {
+      const values = await peerEditForm.validateFields();
+      const updated = await updateWireGuardPeer(selected.id, editingPeer.id, {
+        name: values.name.trim(),
+        category: values.category.trim(),
+      });
+      snapshotGeneration.current += 1;
+      setPeers((items) => items.map((item) => item.id === updated.id ? { ...item, ...updated, traffic: item.traffic } : item));
+      setMetricsPeer((current) => current?.id === updated.id ? { ...current, ...updated, traffic: current.traffic } : current);
+      setEditingPeer(null);
+      message.success("Устройство обновлено");
+      void loadSnapshot(selected.id, trafficRange, true);
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "errorFields" in error) return;
+      message.error(errorMessage(error, "Не удалось обновить устройство"));
+    }
+  };
+
+  const persistPeerOrder = async (next: WireGuardPeer[]) => {
+    if (!selected || peerOrderPending) return;
+    const previous = peers;
+    const normalized = normalizePeerOrder(next);
+    snapshotGeneration.current += 1;
+    setPeers(normalized);
+    setPeerOrderPending(true);
+    try {
+      await reorderWireGuardPeers(selected.id, normalized.map((peer) => ({
+        peerId: peer.id,
+        category: peer.category,
+      })));
+      void loadSnapshot(selected.id, trafficRange, true);
+    } catch (error) {
+      setPeers(previous);
+      message.error(errorMessage(error, "Не удалось сохранить порядок устройств"));
+    } finally {
+      setPeerOrderPending(false);
+    }
+  };
+
+  const dropPeer = (event: DragEvent, targetPeerId: string | null, category: string) => {
+    event.preventDefault();
+    const peerId = draggedPeerId ?? event.dataTransfer.getData("text/plain");
+    setDraggedPeerId(null);
+    if (!peerId) return;
+    const next = movePeerBefore(peers, peerId, targetPeerId, category);
+    if (next !== peers) void persistPeerOrder(next);
+  };
+
+  const movePeerWithKeyboard = (event: KeyboardEvent, peer: WireGuardPeer) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    const categoryPeers = peers.filter((item) => item.category === peer.category);
+    const categoryIndex = categoryPeers.findIndex((item) => item.id === peer.id);
+    const target = categoryPeers[categoryIndex + (event.key === "ArrowUp" ? -1 : 1)];
+    if (!target) return;
+    const next = [...peers];
+    const peerIndex = next.findIndex((item) => item.id === peer.id);
+    const targetIndex = next.findIndex((item) => item.id === target.id);
+    [next[peerIndex], next[targetIndex]] = [next[targetIndex], next[peerIndex]];
+    void persistPeerOrder(normalizePeerOrder(next));
   };
 
   const changeExitPreference = async (preference: WireGuardExitPreference) => {
@@ -408,7 +538,16 @@ export default function WireGuardPage() {
       onOk: async () => {
         try {
           await deleteWireGuardPeer(selected.id, peer.id);
-          await loadSnapshot(selected.id, trafficRange);
+          snapshotGeneration.current += 1;
+          setPeers((items) => items.filter((item) => item.id !== peer.id));
+          setMetricPreviews((items) => {
+            const next = { ...items };
+            delete next[peer.id];
+            return next;
+          });
+          if (metricsPeer?.id === peer.id) setMetricsPeer(null);
+          message.success(`${peer.name} удалён`);
+          void loadSnapshot(selected.id, trafficRange, true);
         } catch (error) {
           message.error(errorMessage(error, "Не удалось удалить устройство"));
           throw error;
@@ -517,75 +656,141 @@ export default function WireGuardPage() {
               />
             </section>
 
-            <div className="wireguard-peer-list" role="list" aria-label="Устройства">
-              {peers.map((peer) => {
-                const presence = peerPresence(peer, now);
-                const download = bytes(peer.traffic.downloadBytes);
-                const upload = bytes(peer.traffic.uploadBytes);
+            <div className="wireguard-peer-list" aria-label="Устройства">
+              {peerCategories.map((category) => {
+                const categoryPeers = peers.filter((peer) => peer.category === category);
                 return (
-                  <article className="wireguard-peer" role="listitem" key={peer.id}>
-                    <div className="wireguard-peer__identity">
-                      <strong>{peer.name}</strong>
-                      <code>{peer.assignedIp}</code>
+                  <details
+                    className="wireguard-peer-group"
+                    key={category}
+                    open={openPeerCategories.has(category)}
+                    onToggle={(event) => {
+                      const nextOpen = event.currentTarget.open;
+                      setOpenPeerCategories((current) => {
+                        if (current.has(category) === nextOpen) return current;
+                        const next = new Set(current);
+                        if (nextOpen) next.add(category);
+                        else next.delete(category);
+                        return next;
+                      });
+                    }}
+                  >
+                    <summary
+                      onDragOver={(event) => {
+                        if (!draggedPeerId || peerOrderPending) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => dropPeer(event, null, category)}
+                    >
+                      <span>{category}</span>
+                      <small>{categoryPeers.length}</small>
+                    </summary>
+                    <div role="list" aria-label={category}>
+                      {categoryPeers.length === 0 ? (
+                        <p className="wireguard-peer-group__empty">Перетащи сюда нужные устройства</p>
+                      ) : categoryPeers.map((peer) => {
+                        const presence = peerPresence(peer, now);
+                        const download = bytes(peer.traffic.downloadBytes);
+                        const upload = bytes(peer.traffic.uploadBytes);
+                        return (
+                          <article
+                            className={`wireguard-peer${draggedPeerId === peer.id ? " wireguard-peer--dragging" : ""}`}
+                            role="listitem"
+                            key={peer.id}
+                            onDragOver={(event) => {
+                              if (!draggedPeerId || peerOrderPending) return;
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                            }}
+                            onDrop={(event) => dropPeer(event, peer.id, category)}
+                          >
+                            <button
+                              type="button"
+                              className="wireguard-peer__drag"
+                              draggable={!peerOrderPending}
+                              disabled={peerOrderPending}
+                              aria-label={`Изменить порядок ${peer.name}`}
+                              title="Перетащить или использовать стрелки вверх и вниз"
+                              onDragStart={(event) => {
+                                setDraggedPeerId(peer.id);
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData("text/plain", peer.id);
+                              }}
+                              onDragEnd={() => setDraggedPeerId(null)}
+                              onKeyDown={(event) => movePeerWithKeyboard(event, peer)}
+                            >
+                              <HolderOutlined aria-hidden="true" />
+                            </button>
+                            <div className="wireguard-peer__identity">
+                              <strong>{peer.name}</strong>
+                              <code>{peer.assignedIp}</code>
+                            </div>
+                            <span className={`wireguard-status wireguard-status--${presence.tone}`}>
+                              <i aria-hidden="true" /> {presence.label}
+                            </span>
+                            <div className="wireguard-peer__traffic">
+                              <span className="wireguard-peer__traffic-value">
+                                <span
+                                  className="wireguard-traffic wireguard-traffic--download"
+                                  aria-label={`Текущая скорость скачивания ${speed(peer.currentDownloadBytesPerSecond)}`}
+                                >
+                                  <b aria-hidden="true">↓</b> {speed(peer.currentDownloadBytesPerSecond)}
+                                </span>
+                                <small aria-label={`Скачано за ${trafficRangeLabel(trafficRange)} ${download}`}>
+                                  {download} за {trafficRangeLabel(trafficRange)}
+                                </small>
+                              </span>
+                              <span className="wireguard-peer__traffic-value">
+                                <span
+                                  className="wireguard-traffic wireguard-traffic--upload"
+                                  aria-label={`Текущая скорость отдачи ${speed(peer.currentUploadBytesPerSecond)}`}
+                                >
+                                  <b aria-hidden="true">↑</b> {speed(peer.currentUploadBytesPerSecond)}
+                                </span>
+                                <small aria-label={`Отдано за ${trafficRangeLabel(trafficRange)} ${upload}`}>
+                                  {upload} за {trafficRangeLabel(trafficRange)}
+                                </small>
+                              </span>
+                            </div>
+                            <PeerTrafficPreview
+                              peerName={peer.name}
+                              metrics={metricPreviews[peer.id]}
+                              range={trafficRange}
+                              maximum={previewMaximum}
+                              onOpen={() => setMetricsPeer(peer)}
+                            />
+                            <div className="wireguard-peer__actions">
+                              <Dropdown
+                                trigger={["click"]}
+                                overlayClassName="wireguard-peer-menu"
+                                menu={{
+                                  items: [
+                                    { key: "config", label: "Показать конфиг" },
+                                    { key: "edit", label: "Изменить" },
+                                    { key: "enabled", label: peer.enabled ? "Отключить" : "Включить" },
+                                    { type: "divider" },
+                                    { key: "delete", label: "Удалить", danger: true },
+                                  ],
+                                  onClick: ({ key }) => {
+                                    if (key === "config") void showCredentials(peer);
+                                    if (key === "edit") openPeerEditor(peer);
+                                    if (key === "enabled") void setPeerEnabled(peer, !peer.enabled);
+                                    if (key === "delete") confirmDeletePeer(peer);
+                                  },
+                                }}
+                              >
+                                <Button type="text" icon={<EllipsisOutlined />} aria-label={`Действия ${peer.name}`} />
+                              </Dropdown>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
-                    <span className={`wireguard-status wireguard-status--${presence.tone}`}>
-                      <i aria-hidden="true" /> {presence.label}
-                    </span>
-                    <div className="wireguard-peer__traffic">
-                      <span className="wireguard-peer__traffic-value">
-                        <span
-                          className="wireguard-traffic wireguard-traffic--download"
-                          aria-label={`Текущая скорость скачивания ${speed(peer.currentDownloadBytesPerSecond)}`}
-                        >
-                          <b aria-hidden="true">↓</b> {speed(peer.currentDownloadBytesPerSecond)}
-                        </span>
-                        <small aria-label={`Скачано за ${trafficRangeLabel(trafficRange)} ${download}`}>
-                          {download} за {trafficRangeLabel(trafficRange)}
-                        </small>
-                      </span>
-                      <span className="wireguard-peer__traffic-value">
-                        <span
-                          className="wireguard-traffic wireguard-traffic--upload"
-                          aria-label={`Текущая скорость отдачи ${speed(peer.currentUploadBytesPerSecond)}`}
-                        >
-                          <b aria-hidden="true">↑</b> {speed(peer.currentUploadBytesPerSecond)}
-                        </span>
-                        <small aria-label={`Отдано за ${trafficRangeLabel(trafficRange)} ${upload}`}>
-                          {upload} за {trafficRangeLabel(trafficRange)}
-                        </small>
-                      </span>
-                    </div>
-                    <PeerTrafficPreview
-                      peerName={peer.name}
-                      metrics={metricPreviews[peer.id]}
-                      range={trafficRange}
-                      maximum={previewMaximum}
-                      onOpen={() => setMetricsPeer(peer)}
-                    />
-                    <div className="wireguard-peer__actions">
-                      <Dropdown
-                        trigger={["click"]}
-                        menu={{
-                          items: [
-                            { key: "config", icon: <KeyOutlined />, label: "Показать конфиг" },
-                            { key: "enabled", label: peer.enabled ? "Отключить" : "Включить" },
-                            { type: "divider" },
-                            { key: "delete", icon: <DeleteOutlined />, label: "Удалить", danger: true },
-                          ],
-                          onClick: ({ key }) => {
-                            if (key === "config") void showCredentials(peer);
-                            if (key === "enabled") void setPeerEnabled(peer, !peer.enabled);
-                            if (key === "delete") confirmDeletePeer(peer);
-                          },
-                        }}
-                      >
-                        <Button type="text" icon={<EllipsisOutlined />} aria-label={`Действия ${peer.name}`} />
-                      </Dropdown>
-                    </div>
-                  </article>
+                  </details>
                 );
               })}
-              <article className="wireguard-peer-add" role="listitem">
+              <article className="wireguard-peer-add">
                 <button
                   type="button"
                   disabled={selected.status === "WAITING_FOR_AGENT"}
@@ -664,18 +869,57 @@ export default function WireGuardPage() {
         cancelText="Отмена"
         okButtonProps={{ disabled: !peerName.trim() }}
         onOk={() => void createPeer()}
-        onCancel={() => { setCreatePeerOpen(false); setPeerName(""); }}
+        onCancel={() => { setCreatePeerOpen(false); setPeerName(""); setPeerCategory(DEFAULT_PEER_CATEGORY); }}
         destroyOnHidden
       >
-        <Input
-          autoFocus
-          aria-label="Название устройства"
-          value={peerName}
-          maxLength={120}
-          placeholder="Название устройства"
-          onChange={(event) => setPeerName(event.target.value)}
-          onPressEnter={() => void createPeer()}
-        />
+        <div className="wireguard-peer-form">
+          <label>
+            <span>Название</span>
+            <Input
+              autoFocus
+              aria-label="Название устройства"
+              value={peerName}
+              maxLength={120}
+              placeholder="Например, телефон"
+              onChange={(event) => setPeerName(event.target.value)}
+              onPressEnter={() => void createPeer()}
+            />
+          </label>
+          <label>
+            <span>Категория</span>
+            <AutoComplete
+              aria-label="Категория устройства"
+              value={peerCategory}
+              options={peerCategories.map((category) => ({ value: category }))}
+              onChange={setPeerCategory}
+              placeholder="Пользовательские"
+            />
+          </label>
+        </div>
+      </Modal>
+      <Modal
+        open={editingPeer !== null}
+        title="Изменить устройство"
+        okText="Сохранить"
+        cancelText="Отмена"
+        onOk={() => void savePeerEditor()}
+        onCancel={() => setEditingPeer(null)}
+        destroyOnHidden
+      >
+        <Form form={peerEditForm} layout="vertical" requiredMark={false}>
+          <Form.Item name="name" label="Название" rules={[
+            { required: true, whitespace: true, message: "Введите название" },
+            { max: 120, message: "Не больше 120 символов" },
+          ]}>
+            <Input autoFocus onPressEnter={() => void savePeerEditor()} />
+          </Form.Item>
+          <Form.Item name="category" label="Категория" rules={[
+            { required: true, whitespace: true, message: "Введите категорию" },
+            { max: 80, message: "Не больше 80 символов" },
+          ]}>
+            <AutoComplete options={peerCategories.map((category) => ({ value: category }))} />
+          </Form.Item>
+        </Form>
       </Modal>
       <Modal open={createRelayOpen} title="Настроить WireGuard relay" footer={null} onCancel={() => setCreateRelayOpen(false)}>
         <Form

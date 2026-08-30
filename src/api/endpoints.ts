@@ -32,6 +32,8 @@ export const apiEndpoints = {
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/snapshot`,
     wireguardPeers: (relayId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers`,
+    wireguardPeerOrder: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/order`,
     wireguardPeer: (relayId: string, peerId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}`,
     wireguardPeerCredentials: (relayId: string, peerId: string) =>

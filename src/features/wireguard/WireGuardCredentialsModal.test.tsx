@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 
@@ -8,7 +8,7 @@ describe("WireGuardCredentialsModal", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders repeatable config, local QR payload, and a download", () => {
+  it("renders a compact QR profile with copy, disclosure, and download actions", async () => {
     const createObjectUrl = vi.fn(() => "blob:wireguard-config");
     const revokeObjectUrl = vi.fn();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
@@ -16,10 +16,14 @@ describe("WireGuardCredentialsModal", () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       expect(this.isConnected).toBe(true);
     });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const credentials = {
       peer: {
         id: "peer-id",
         name: "Alex phone",
+        category: "Пользовательские",
+        sortOrder: 0,
         publicKey: "public-key",
         assignedIp: "10.89.0.2",
         enabled: true,
@@ -55,11 +59,15 @@ describe("WireGuardCredentialsModal", () => {
       />,
     );
 
+    expect(screen.getByText("Конфигурация WireGuard")).toBeInTheDocument();
+    expect(screen.getByText("Alex phone")).toBeInTheDocument();
     expect(screen.getByText("alex-phone.conf")).toBeInTheDocument();
-    expect(screen.getByTestId("wireguard-qr")).toHaveAttribute(
-      "data-config",
-      credentials.clientConfig,
-    );
+    expect(screen.getByTestId("wireguard-qr")).toBeInTheDocument();
+    expect(screen.getByText("Сканируй в приложении WireGuard")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /копировать/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(credentials.clientConfig));
 
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: /скачать/i }));

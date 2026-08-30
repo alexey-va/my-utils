@@ -39,14 +39,16 @@ in the browser, never sent to an external QR service, and cleared from page
 state when its modal closes. The VPN page polls live peer counters, shows
 download/upload history for up to 30 days, and reports whether Russian IPv4
 destinations use the direct `utils` route while other traffic uses Veesp. The
-history uses separate `RU` and `Внешние` tabs with download/upload bars on one
-shared scale; compact peer previews also share a scale so their heights remain
-comparable. Sparse compact previews keep their buckets on the real selected
-timeline and label its beginning and current edge. The page shows the relay's
+history defaults to the combined `Общий` view and 24-hour range, with separate
+`RU` and `Внешние` tabs available on the same download/upload scale; compact
+peer previews also share a scale so their heights remain comparable. Sparse
+compact previews keep their buckets on the real selected timeline and label its
+beginning and current edge. Peers can be renamed, grouped into custom
+categories, and reordered by drag or keyboard. The page shows the relay's
 current route loss and RTT probes. Peer rows and compact previews refresh every
 three seconds and use backend-persisted transfer rates. The main period
-selector changes the global totals, every peer total, and compact
-previews together; the detailed peer drawer keeps its own period. The exit
+selector changes the global totals, every peer total, and compact previews
+together; the detailed peer drawer keeps its own period. The exit
 overview lets an administrator choose `Авто`, `Основной`, or `Резерв`; a manual
 choice still keeps the safe fallback to the other healthy provider. Host
 topology and installation scripts live in

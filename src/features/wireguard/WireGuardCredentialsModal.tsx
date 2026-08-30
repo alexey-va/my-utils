@@ -1,6 +1,5 @@
-import { CopyOutlined, DownloadOutlined, EyeInvisibleOutlined, EyeOutlined } from "@ant-design/icons";
-import { Button, Input, Modal, Space, Typography, message } from "antd";
-import { useEffect, useState } from "react";
+import { CopyOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Button, Modal, message } from "antd";
 import { QRCodeSVG } from "qrcode.react";
 import type { WireGuardPeerCredentials } from "./types";
 
@@ -11,16 +10,14 @@ type Props = {
 };
 
 export default function WireGuardCredentialsModal({ open, credentials, onClose }: Props) {
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    if (!open) setRevealed(false);
-  }, [open]);
-
   const copy = async () => {
     if (!credentials) return;
-    await navigator.clipboard.writeText(credentials.clientConfig);
-    message.success("Конфиг скопирован");
+    try {
+      await navigator.clipboard.writeText(credentials.clientConfig);
+      message.success("Конфиг скопирован");
+    } catch {
+      message.error("Не удалось скопировать конфиг");
+    }
   };
 
   const download = () => {
@@ -40,31 +37,37 @@ export default function WireGuardCredentialsModal({ open, credentials, onClose }
   };
 
   return (
-    <Modal open={open} title="WireGuard credentials" onCancel={onClose} footer={null} destroyOnHidden>
+    <Modal
+      open={open}
+      title="Конфигурация WireGuard"
+      onCancel={onClose}
+      footer={null}
+      width={640}
+      className="wireguard-credentials-modal"
+      destroyOnHidden
+    >
       {credentials ? (
         <div className="wireguard-credentials">
-          <Typography.Text strong>{credentials.fileName}</Typography.Text>
-          <div
-            className={revealed ? "wireguard-credentials__qr" : "wireguard-credentials__qr wireguard-credentials__qr--masked"}
-            data-testid="wireguard-qr"
-            data-config={credentials.clientConfig}
-          >
-            <QRCodeSVG value={credentials.clientConfig} size={220} level="M" />
+          <div className="wireguard-credentials__qr" data-testid="wireguard-qr">
+            <QRCodeSVG value={credentials.clientConfig} size={196} level="M" />
+            <span>Сканируй в приложении WireGuard</span>
           </div>
-          <Input.TextArea
-            rows={10}
-            readOnly
-            spellCheck={false}
-            value={revealed ? credentials.clientConfig : "••••••••\nПриватный ключ скрыт"}
-            className="wireguard-credentials__config"
-          />
-          <Space wrap>
-            <Button icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => setRevealed((v) => !v)}>
-              {revealed ? "Скрыть" : "Показать"}
-            </Button>
-            <Button icon={<CopyOutlined />} onClick={() => void copy()}>Копировать</Button>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={download}>Скачать .conf</Button>
-          </Space>
+          <div className="wireguard-credentials__details">
+            <header>
+              <strong>{credentials.peer.name}</strong>
+              <code>{credentials.peer.assignedIp}</code>
+            </header>
+            <p>Готовый профиль для этого устройства. Он содержит приватный ключ — не пересылай его.</p>
+            <div className="wireguard-credentials__actions">
+              <Button type="primary" icon={<DownloadOutlined />} onClick={download}>Скачать конфиг</Button>
+              <Button icon={<CopyOutlined />} onClick={() => void copy()}>Копировать</Button>
+            </div>
+            <details className="wireguard-credentials__config">
+              <summary>Текст конфигурации</summary>
+              <pre>{credentials.clientConfig}</pre>
+            </details>
+            <small>{credentials.fileName}</small>
+          </div>
         </div>
       ) : null}
     </Modal>

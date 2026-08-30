@@ -8,26 +8,31 @@ import WireGuardPage from "./WireGuardPage";
 const appStyles = readFileSync("src/index.css", "utf8");
 
 const api = vi.hoisted(() => ({
+  deletePeer: vi.fn(),
   fetchRelays: vi.fn(),
   fetchPeers: vi.fn(),
   fetchMetrics: vi.fn(),
   fetchSnapshot: vi.fn(),
+  reorderPeers: vi.fn(),
   setExitPreference: vi.fn(),
+  updatePeer: vi.fn(),
 }));
 
 vi.mock("./api", () => ({
   createWireGuardPeer: vi.fn(),
   createWireGuardRelay: vi.fn(),
-  deleteWireGuardPeer: vi.fn(),
+  deleteWireGuardPeer: api.deletePeer,
   deleteWireGuardRelay: vi.fn(),
   fetchWireGuardPeerCredentials: vi.fn(),
   fetchWireGuardPeerMetrics: api.fetchMetrics,
   fetchWireGuardPeers: api.fetchPeers,
   fetchWireGuardRelays: api.fetchRelays,
   fetchWireGuardSnapshot: api.fetchSnapshot,
+  reorderWireGuardPeers: api.reorderPeers,
   rotateWireGuardAgentToken: vi.fn(),
   setWireGuardExitPreference: api.setExitPreference,
   setWireGuardPeerEnabled: vi.fn(),
+  updateWireGuardPeer: api.updatePeer,
 }));
 
 const relay: WireGuardRelay = {
@@ -76,6 +81,8 @@ const relay: WireGuardRelay = {
 const peer: WireGuardPeer = {
   id: "peer-1",
   name: "grophone",
+  category: "Пользовательские",
+  sortOrder: 0,
   publicKey: "peer-public-key",
   assignedIp: "10.89.0.2",
   enabled: true,
@@ -186,7 +193,10 @@ beforeEach(() => {
   api.fetchPeers.mockResolvedValue([peer]);
   api.fetchMetrics.mockResolvedValue(peerMetrics);
   api.fetchSnapshot.mockResolvedValue(snapshot());
+  api.deletePeer.mockResolvedValue(undefined);
+  api.reorderPeers.mockResolvedValue(undefined);
   api.setExitPreference.mockResolvedValue(relay);
+  api.updatePeer.mockResolvedValue(peer);
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
 
@@ -214,7 +224,7 @@ describe("WireGuardPage", () => {
     const addDevice = screen.getByRole("button", { name: "Добавить устройство" });
     expect(addDevice.closest(".wireguard-peer-add")).toBeInTheDocument();
     fireEvent.click(addDevice);
-    expect(await screen.findByPlaceholderText("Название устройства")).toHaveAttribute("aria-label", "Название устройства");
+    expect(await screen.findByPlaceholderText("Например, телефон")).toHaveAttribute("aria-label", "Название устройства");
     expect(screen.queryByLabelText("Автообновление каждые 5 секунд")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Обновить данные" })).not.toBeInTheDocument();
     expect(screen.queryByText("Обновить")).not.toBeInTheDocument();
@@ -394,14 +404,90 @@ describe("WireGuardPage", () => {
 
   it("uses only the compact relative last-seen text for an offline peer", async () => {
     const handshake = new Date("2026-08-19T18:00:00Z");
-    vi.spyOn(Date, "now").mockReturnValue(handshake.getTime() + 26 * 60_000);
+    vi.spyOn(Date, "now").mockReturnValue(handshake.getTime() + 30 * 60 * 60_000);
     const offlinePeer = { ...peer, latestHandshakeAt: handshake.toISOString() };
     api.fetchSnapshot.mockResolvedValue(snapshot(relay, [offlinePeer]));
 
     render(<WireGuardPage />);
 
-    expect(await screen.findByText("26 мин. назад")).toBeInTheDocument();
+    expect(await screen.findByText("1 дн. назад")).toBeInTheDocument();
+    expect(screen.queryByText(/19\.08\.2026/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Был в сети/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the actions menu aligned without the decorative key icon", async () => {
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Действия grophone" }));
+    const menu = await screen.findByRole("menu");
+
+    expect(within(menu).getByRole("menuitem", { name: "Показать конфиг" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Изменить" })).toBeInTheDocument();
+    expect(menu.querySelector(".anticon-key")).toBeNull();
+  });
+
+  it("renames a peer and moves it to another category", async () => {
+    const updated = { ...peer, name: "Main phone", category: "Служебные" };
+    api.updatePeer.mockResolvedValue(updated);
+    api.fetchSnapshot
+      .mockResolvedValueOnce(snapshot())
+      .mockResolvedValue(snapshot(relay, [updated], { [updated.id]: peerMetrics }));
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Действия grophone" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+    const dialog = await screen.findByRole("dialog", { name: "Изменить устройство" });
+    const dialogQueries = within(dialog);
+    fireEvent.change(dialogQueries.getByLabelText("Название"), { target: { value: "Main phone" } });
+    fireEvent.change(dialogQueries.getByLabelText("Категория"), { target: { value: "Служебные" } });
+    fireEvent.click(dialogQueries.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(api.updatePeer).toHaveBeenCalledWith(relay.id, peer.id, {
+      name: "Main phone",
+      category: "Служебные",
+    }));
+    expect(await screen.findByText("Main phone")).toBeInTheDocument();
+  });
+
+  it("persists peer drag ordering", async () => {
+    const tablet = { ...peer, id: "peer-2", name: "tablet", assignedIp: "10.89.0.3", sortOrder: 1 };
+    api.fetchSnapshot.mockResolvedValue(snapshot(relay, [peer, tablet], {
+      [peer.id]: peerMetrics,
+      [tablet.id]: { ...peerMetrics, peerId: tablet.id },
+    }));
+    render(<WireGuardPage />);
+
+    const tabletHandle = await screen.findByRole("button", { name: "Изменить порядок tablet" });
+    const grophoneRow = screen.getByRole("button", { name: "Действия grophone" }).closest(".wireguard-peer");
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: "none",
+      dropEffect: "none",
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? "",
+    };
+    fireEvent.dragStart(tabletHandle, { dataTransfer });
+    fireEvent.dragOver(grophoneRow as Element, { dataTransfer });
+    fireEvent.drop(grophoneRow as Element, { dataTransfer });
+
+    await waitFor(() => expect(api.reorderPeers).toHaveBeenCalledWith(relay.id, [
+      { peerId: tablet.id, category: "Пользовательские" },
+      { peerId: peer.id, category: "Пользовательские" },
+    ]));
+  });
+
+  it("removes a deleted peer immediately without waiting for the snapshot read-back", async () => {
+    render(<WireGuardPage />);
+    await screen.findByRole("button", { name: "Действия grophone" });
+    api.fetchSnapshot.mockImplementation(() => new Promise(() => undefined));
+
+    fireEvent.click(screen.getByRole("button", { name: "Действия grophone" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Удалить" }));
+    const confirm = await screen.findByRole("dialog", { name: "Удалить grophone?" });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(api.deletePeer).toHaveBeenCalledWith(relay.id, peer.id));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Действия grophone" })).not.toBeInTheDocument());
   });
 
   it("uses one preview scale for every peer so low traffic stays visually low", async () => {
@@ -523,27 +609,29 @@ describe("WireGuardPage", () => {
       { timeout: 15_000 },
     );
     const drawerQueries = within(drawer);
-    expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
+    expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 4.00 KiB")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Начало периода 2026-08-19T17:00:00Z")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Конец периода 2026-08-19T18:00:00Z")).toBeInTheDocument();
-    expect(api.fetchMetrics).toHaveBeenCalledWith(relay.id, peer.id, "HOUR");
-    expect(drawerQueries.getByRole("tab", { name: "RU" })).toHaveAttribute("aria-selected", "true");
+    expect(api.fetchMetrics).toHaveBeenCalledWith(relay.id, peer.id, "DAY");
+    expect(drawerQueries.getByRole("tab", { name: "Общий" })).toHaveAttribute("aria-selected", "true");
+    expect(drawerQueries.getByRole("tab", { name: "RU" })).toBeInTheDocument();
     expect(drawerQueries.getByRole("tab", { name: "Внешние" })).toBeInTheDocument();
-    expect(drawerQueries.getByLabelText("RU скачано 1.00 KiB")).toBeInTheDocument();
-    expect(drawerQueries.getByLabelText("RU отдано 512 B")).toBeInTheDocument();
+    expect(drawerQueries.getByLabelText("Общий трафик скачано 4.00 KiB")).toBeInTheDocument();
+    expect(drawerQueries.getByLabelText("Общий трафик отдано 2.00 KiB")).toBeInTheDocument();
     expect(drawerQueries.queryByLabelText("Разрез графика")).not.toBeInTheDocument();
-    expect(drawerQueries.getByRole("radio", { name: "1ч" })).toBeChecked();
-    expect(drawerQueries.getByRole("radio", { name: "24ч" })).toBeInTheDocument();
+    expect(drawerQueries.getByRole("radio", { name: "1ч" })).toBeInTheDocument();
+    expect(drawerQueries.getByRole("radio", { name: "24ч" })).toBeChecked();
     expect(drawerQueries.getByRole("radio", { name: "7д" })).toBeInTheDocument();
     expect(drawerQueries.getByRole("radio", { name: "30д" })).toBeInTheDocument();
+    expect(drawerQueries.queryByText("Потяните рамку по графику, чтобы приблизить")).not.toBeInTheDocument();
 
-    fireEvent.click(drawerQueries.getByRole("radio", { name: "24ч" }));
-    await waitFor(() => expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "DAY"));
+    fireEvent.click(drawerQueries.getByRole("radio", { name: "1ч" }));
+    await waitFor(() => expect(api.fetchMetrics).toHaveBeenLastCalledWith(relay.id, peer.id, "HOUR"));
 
     fireEvent.click(drawerQueries.getByRole("tab", { name: "Внешние" }));
     expect(drawerQueries.getByLabelText("Внешние скачано 3.00 KiB")).toBeInTheDocument();
     expect(drawerQueries.getByLabelText("Внешние отдано 1.50 KiB")).toBeInTheDocument();
-    expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 3.00 KiB")).toBeInTheDocument();
+    expect(drawerQueries.getByLabelText("Гистограмма трафика, общая шкала до 4.00 KiB")).toBeInTheDocument();
   }, 15_000);
 
   it("zooms the detailed chart on both axes by dragging and keeps the zoom between route tabs", async () => {
@@ -552,7 +640,7 @@ describe("WireGuardPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Открыть график grophone" }));
     const drawer = await screen.findByRole("dialog", { name: "Трафик grophone" });
     const drawerQueries = within(drawer);
-    const chart = await drawerQueries.findByLabelText("Интерактивный график RU");
+    const chart = await drawerQueries.findByLabelText("Интерактивный график Общий трафик");
     vi.spyOn(chart, "getBoundingClientRect").mockReturnValue({
       x: 100,
       y: 50,

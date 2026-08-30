@@ -1,4 +1,4 @@
-import { FullscreenExitOutlined, UndoOutlined, ZoomInOutlined } from "@ant-design/icons";
+import { FullscreenExitOutlined, UndoOutlined } from "@ant-design/icons";
 import { Button, Empty, Drawer, Segmented, Spin, Tabs, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
@@ -39,9 +39,10 @@ const rangeOptions: Array<{ label: string; value: WireGuardPeerMetricsRange }> =
   { label: "30д", value: "MONTH" },
 ];
 
-type MetricsRoute = "RU" | "EXTERNAL";
+type MetricsRoute = "TOTAL" | "RU" | "EXTERNAL";
 
 const routeTabs: Array<{ label: string; key: MetricsRoute }> = [
+  { label: "Общий", key: "TOTAL" },
   { label: "RU", key: "RU" },
   { label: "Внешние", key: "EXTERNAL" },
 ];
@@ -70,8 +71,8 @@ const formatBytes = (value: number): string => {
 const formatZoomRatio = (value: number): string => value >= 10 ? Math.round(value).toString() : value.toFixed(1);
 
 export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: Props) {
-  const [range, setRange] = useState<WireGuardPeerMetricsRange>("HOUR");
-  const [route, setRoute] = useState<MetricsRoute>("RU");
+  const [range, setRange] = useState<WireGuardPeerMetricsRange>("DAY");
+  const [route, setRoute] = useState<MetricsRoute>("TOTAL");
   const [metrics, setMetrics] = useState<WireGuardPeerMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [zoomHistory, setZoomHistory] = useState<ChartZoomDomain[]>([]);
@@ -93,8 +94,8 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
 
   useEffect(() => {
     if (!peer) {
-      setRange("HOUR");
-      setRoute("RU");
+      setRange("DAY");
+      setRoute("TOTAL");
       setMetrics(null);
     }
   }, [peer]);
@@ -113,6 +114,8 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
   );
   const scaleMaximum = useMemo(
     () => Math.max(1, ...rows.flatMap((point) => [
+      point.downloadBytes,
+      point.uploadBytes,
       point.ruDownloadBytes,
       point.ruUploadBytes,
       point.nonRuDownloadBytes,
@@ -120,13 +123,17 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
     ])),
     [rows],
   );
-  const routeLabel = route === "RU" ? "RU" : "Внешние";
-  const routeDownload = route === "RU"
-    ? metrics?.summary.ruDownloadBytes ?? 0
-    : metrics?.summary.nonRuDownloadBytes ?? 0;
-  const routeUpload = route === "RU"
-    ? metrics?.summary.ruUploadBytes ?? 0
-    : metrics?.summary.nonRuUploadBytes ?? 0;
+  const routeLabel = route === "TOTAL" ? "Общий трафик" : route === "RU" ? "RU" : "Внешние";
+  const routeDownload = route === "TOTAL"
+    ? metrics?.summary.downloadBytes ?? 0
+    : route === "RU"
+      ? metrics?.summary.ruDownloadBytes ?? 0
+      : metrics?.summary.nonRuDownloadBytes ?? 0;
+  const routeUpload = route === "TOTAL"
+    ? metrics?.summary.uploadBytes ?? 0
+    : route === "RU"
+      ? metrics?.summary.ruUploadBytes ?? 0
+      : metrics?.summary.nonRuUploadBytes ?? 0;
   const rangeStart = metrics ? new Date(metrics.from).getTime() : 0;
   const rangeEnd = metrics ? new Date(metrics.to).getTime() : 0;
   const xDomain: [number, number] = zoom?.x ?? [rangeStart, rangeEnd];
@@ -248,26 +255,25 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           ↑ {formatBytes(routeUpload)}
         </span>
       </div>
-      <div className="wireguard-chart__zoom-toolbar">
-        <span className="wireguard-chart__zoom-state" aria-live="polite">
-          <ZoomInOutlined aria-hidden="true" />
-          {dragDomain
-            ? `Выбрано: ${formatRangeEdge(dragDomain.x[0])} — ${formatRangeEdge(dragDomain.x[1])} · ${formatBytes(dragDomain.y[0])} — ${formatBytes(dragDomain.y[1])}`
-            : zoom
-              ? `Приближение ×${formatZoomRatio(zoomXRatio)} по времени · ×${formatZoomRatio(zoomYRatio)} по объёму`
-              : "Потяните рамку по графику, чтобы приблизить"}
-        </span>
-        {zoomHistory.length > 0 ? (
-          <span className="wireguard-chart__zoom-actions">
-            <Button type="text" size="small" icon={<UndoOutlined />} onClick={undoZoom} aria-label="Назад по масштабу">
-              Назад
-            </Button>
-            <Button type="text" size="small" icon={<FullscreenExitOutlined />} onClick={resetZoom} aria-label="Показать весь период">
-              Весь период
-            </Button>
+      {dragDomain || zoom ? (
+        <div className="wireguard-chart__zoom-toolbar">
+          <span className="wireguard-chart__zoom-state" aria-live="polite">
+            {dragDomain
+              ? `Выбрано: ${formatRangeEdge(dragDomain.x[0])} — ${formatRangeEdge(dragDomain.x[1])} · ${formatBytes(dragDomain.y[0])} — ${formatBytes(dragDomain.y[1])}`
+              : `Приближение ×${formatZoomRatio(zoomXRatio)} по времени · ×${formatZoomRatio(zoomYRatio)} по объёму`}
           </span>
-        ) : null}
-      </div>
+          {zoomHistory.length > 0 ? (
+            <span className="wireguard-chart__zoom-actions">
+              <Button type="text" size="small" icon={<UndoOutlined />} onClick={undoZoom} aria-label="Назад по масштабу">
+                Назад
+              </Button>
+              <Button type="text" size="small" icon={<FullscreenExitOutlined />} onClick={resetZoom} aria-label="Показать весь период">
+                Весь период
+              </Button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <div className="wireguard-chart" aria-label={`Гистограмма трафика, общая шкала до ${formatBytes(scaleMaximum)}`}>
         {loading ? (
           <Spin />
@@ -325,6 +331,26 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                   return [formatBytes(Number(value)), labels[String(name)] ?? String(name)];
                 }}
               /> : null}
+              {route === "TOTAL" && (
+                <Bar
+                  dataKey="downloadBytes"
+                  fill={linearTokens.semanticBlue}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
+                  isAnimationActive={false}
+                />
+              )}
+              {route === "TOTAL" && (
+                <Bar
+                  dataKey="uploadBytes"
+                  fill={linearTokens.semanticGreen}
+                  fillOpacity={0.84}
+                  maxBarSize={12}
+                  radius={[2, 2, 0, 0]}
+                  isAnimationActive={false}
+                />
+              )}
               {route === "RU" && (
                 <Bar
                   dataKey="ruDownloadBytes"
