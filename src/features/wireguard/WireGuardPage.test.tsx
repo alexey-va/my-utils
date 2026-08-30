@@ -2,26 +2,32 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../api/errors";
-import type { WireGuardPeer, WireGuardPeerMetrics, WireGuardRelay } from "./types";
+import type { WireGuardPeer, WireGuardPeerCategory, WireGuardPeerMetrics, WireGuardRelay } from "./types";
 import WireGuardPage from "./WireGuardPage";
 
 const appStyles = readFileSync("src/index.css", "utf8");
 
 const api = vi.hoisted(() => ({
   deletePeer: vi.fn(),
+  createCategory: vi.fn(),
+  deleteCategory: vi.fn(),
   fetchRelays: vi.fn(),
   fetchPeers: vi.fn(),
   fetchMetrics: vi.fn(),
   fetchSnapshot: vi.fn(),
   reorderPeers: vi.fn(),
+  reorderCategories: vi.fn(),
   setExitPreference: vi.fn(),
   updatePeer: vi.fn(),
+  updateCategory: vi.fn(),
 }));
 
 vi.mock("./api", () => ({
   createWireGuardPeer: vi.fn(),
+  createWireGuardPeerCategory: api.createCategory,
   createWireGuardRelay: vi.fn(),
   deleteWireGuardPeer: api.deletePeer,
+  deleteWireGuardPeerCategory: api.deleteCategory,
   deleteWireGuardRelay: vi.fn(),
   fetchWireGuardPeerCredentials: vi.fn(),
   fetchWireGuardPeerMetrics: api.fetchMetrics,
@@ -29,11 +35,29 @@ vi.mock("./api", () => ({
   fetchWireGuardRelays: api.fetchRelays,
   fetchWireGuardSnapshot: api.fetchSnapshot,
   reorderWireGuardPeers: api.reorderPeers,
+  reorderWireGuardPeerCategories: api.reorderCategories,
   rotateWireGuardAgentToken: vi.fn(),
   setWireGuardExitPreference: api.setExitPreference,
   setWireGuardPeerEnabled: vi.fn(),
   updateWireGuardPeer: api.updatePeer,
+  updateWireGuardPeerCategory: api.updateCategory,
 }));
+
+const userCategory: WireGuardPeerCategory = {
+  id: "category-user",
+  name: "Пользовательские",
+  sortOrder: 0,
+  createdAt: "2026-08-19T17:00:00Z",
+  updatedAt: "2026-08-19T17:00:00Z",
+};
+
+const serviceCategory: WireGuardPeerCategory = {
+  id: "category-service",
+  name: "Служебные",
+  sortOrder: 1,
+  createdAt: "2026-08-19T17:00:00Z",
+  updatedAt: "2026-08-19T17:00:00Z",
+};
 
 const relay: WireGuardRelay = {
   id: "relay-1",
@@ -167,8 +191,10 @@ const snapshot = (
   nextRelay: WireGuardRelay = relay,
   nextPeers: WireGuardPeer[] = [peer],
   nextMetrics: Record<string, WireGuardPeerMetrics> = { [peer.id]: peerMetrics },
+  nextCategories: WireGuardPeerCategory[] = [userCategory, serviceCategory],
 ) => ({
   relay: nextRelay,
+  categories: nextCategories,
   peers: nextPeers,
   peerMetrics: nextMetrics,
   exitHealthHistory,
@@ -194,9 +220,13 @@ beforeEach(() => {
   api.fetchMetrics.mockResolvedValue(peerMetrics);
   api.fetchSnapshot.mockResolvedValue(snapshot());
   api.deletePeer.mockResolvedValue(undefined);
+  api.createCategory.mockResolvedValue({ ...userCategory, id: "category-new", name: "Рабочие", sortOrder: 2 });
+  api.deleteCategory.mockResolvedValue(undefined);
   api.reorderPeers.mockResolvedValue(undefined);
+  api.reorderCategories.mockResolvedValue(undefined);
   api.setExitPreference.mockResolvedValue(relay);
   api.updatePeer.mockResolvedValue(peer);
+  api.updateCategory.mockResolvedValue(userCategory);
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
 
@@ -284,8 +314,8 @@ describe("WireGuardPage", () => {
     expect(download).toHaveTextContent("↓ 1.00 KiB/s");
     expect(upload).toHaveClass("wireguard-traffic--upload");
     expect(upload).toHaveTextContent("↑ 512 B/s");
-    expect(screen.getByLabelText("Скачано за 1ч 4.00 KiB")).toBeInTheDocument();
-    expect(screen.getByLabelText("Отдано за 1ч 2.00 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Скачано за 24ч 4.00 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Отдано за 24ч 2.00 KiB")).toBeInTheDocument();
     expect(screen.queryByText(/считается/i)).not.toBeInTheDocument();
   });
 
@@ -297,13 +327,13 @@ describe("WireGuardPage", () => {
     }) as typeof setInterval);
     render(<WireGuardPage />);
 
-    expect(await screen.findByLabelText("Скачано за 1ч 4.00 KiB")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Скачано за 24ч 4.00 KiB")).toBeInTheDocument();
     expect(polls.length).toBeGreaterThan(0);
     const updatedPeer = { ...peer, traffic: { ...peer.traffic, downloadBytes: 8192 } };
     api.fetchSnapshot.mockResolvedValue(snapshot(relay, [updatedPeer], { [peer.id]: peerMetrics }));
     await act(async () => { polls.forEach((poll) => poll()); });
 
-    expect(await screen.findByLabelText("Скачано за 1ч 8.00 KiB")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Скачано за 24ч 8.00 KiB")).toBeInTheDocument();
     expect(api.fetchSnapshot.mock.calls.length).toBeGreaterThan(1);
     expect(api.fetchRelays).toHaveBeenCalledTimes(1);
   });
@@ -318,7 +348,7 @@ describe("WireGuardPage", () => {
     render(<WireGuardPage />);
 
     await screen.findByLabelText("Превью трафика grophone");
-    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "HOUR");
+    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "DAY");
     expect(polls).toHaveLength(1);
     const metricsCallsBeforePoll = api.fetchMetrics.mock.calls.length;
     await act(async () => { polls[0](); });
@@ -394,12 +424,12 @@ describe("WireGuardPage", () => {
 
     expect(await screen.findByLabelText("Суммарная скорость скачивания 2.00 KiB/s")).toBeInTheDocument();
     expect(screen.getByLabelText("Суммарная скорость отдачи 1.00 KiB/s")).toBeInTheDocument();
-    expect(screen.getByLabelText("Скачано всеми устройствами за 1ч 8.00 KiB")).toBeInTheDocument();
-    expect(screen.getByLabelText("Отдано всеми устройствами за 1ч 4.00 KiB")).toBeInTheDocument();
-    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "HOUR");
+    expect(screen.getByLabelText("Скачано всеми устройствами за 24ч 8.00 KiB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Отдано всеми устройствами за 24ч 4.00 KiB")).toBeInTheDocument();
+    expect(api.fetchSnapshot).toHaveBeenCalledWith(relay.id, "DAY");
 
-    fireEvent.click(screen.getByRole("radio", { name: "24ч" }));
-    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenLastCalledWith(relay.id, "DAY"));
+    fireEvent.click(screen.getByRole("radio", { name: "7д" }));
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenLastCalledWith(relay.id, "WEEK"));
   });
 
   it("uses only the compact relative last-seen text for an offline peer", async () => {
@@ -426,6 +456,28 @@ describe("WireGuardPage", () => {
     expect(menu.querySelector(".anticon-key")).toBeNull();
   });
 
+  it("creates and keeps an empty custom category as its own record", async () => {
+    const workCategory = { ...userCategory, id: "category-work", name: "Рабочие", sortOrder: 2 };
+    api.createCategory.mockResolvedValue(workCategory);
+    api.fetchSnapshot
+      .mockResolvedValueOnce(snapshot())
+      .mockResolvedValue(snapshot(relay, [peer], { [peer.id]: peerMetrics }, [
+        userCategory,
+        serviceCategory,
+        workCategory,
+      ]));
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Категория" }));
+    const dialog = await screen.findByRole("dialog", { name: "Новая категория" });
+    fireEvent.change(within(dialog).getByLabelText("Название категории"), { target: { value: "Рабочие" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Создать" }));
+
+    await waitFor(() => expect(api.createCategory).toHaveBeenCalledWith(relay.id, "Рабочие"));
+    expect(await screen.findByRole("button", { name: "Действия категории Рабочие" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Рабочие" })).toHaveTextContent("Перетащи сюда нужные устройства");
+  });
+
   it("renames a peer and moves it to another category", async () => {
     const updated = { ...peer, name: "Main phone", category: "Служебные" };
     api.updatePeer.mockResolvedValue(updated);
@@ -439,7 +491,13 @@ describe("WireGuardPage", () => {
     const dialog = await screen.findByRole("dialog", { name: "Изменить устройство" });
     const dialogQueries = within(dialog);
     fireEvent.change(dialogQueries.getByLabelText("Название"), { target: { value: "Main phone" } });
-    fireEvent.change(dialogQueries.getByLabelText("Категория"), { target: { value: "Служебные" } });
+    fireEvent.mouseDown(dialogQueries.getByRole("combobox", { name: "Категория" }));
+    const serviceOption = await waitFor(() => {
+      const option = document.querySelector<HTMLElement>('.ant-select-item-option[title="Служебные"]');
+      expect(option).not.toBeNull();
+      return option!;
+    });
+    fireEvent.click(serviceOption);
     fireEvent.click(dialogQueries.getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(api.updatePeer).toHaveBeenCalledWith(relay.id, peer.id, {
@@ -449,7 +507,7 @@ describe("WireGuardPage", () => {
     expect(await screen.findByText("Main phone")).toBeInTheDocument();
   }, 15_000);
 
-  it("persists peer drag ordering", async () => {
+  it("exposes pointer and keyboard sortable handles for peers and categories", async () => {
     const tablet = { ...peer, id: "peer-2", name: "tablet", assignedIp: "10.89.0.3", sortOrder: 1 };
     api.fetchSnapshot.mockResolvedValue(snapshot(relay, [peer, tablet], {
       [peer.id]: peerMetrics,
@@ -458,22 +516,10 @@ describe("WireGuardPage", () => {
     render(<WireGuardPage />);
 
     const tabletHandle = await screen.findByRole("button", { name: "Изменить порядок tablet" });
-    const grophoneRow = screen.getByRole("button", { name: "Действия grophone" }).closest(".wireguard-peer");
-    const data = new Map<string, string>();
-    const dataTransfer = {
-      effectAllowed: "none",
-      dropEffect: "none",
-      setData: (type: string, value: string) => data.set(type, value),
-      getData: (type: string) => data.get(type) ?? "",
-    };
-    fireEvent.dragStart(tabletHandle, { dataTransfer });
-    fireEvent.dragOver(grophoneRow as Element, { dataTransfer });
-    fireEvent.drop(grophoneRow as Element, { dataTransfer });
-
-    await waitFor(() => expect(api.reorderPeers).toHaveBeenCalledWith(relay.id, [
-      { peerId: tablet.id, category: "Пользовательские" },
-      { peerId: peer.id, category: "Пользовательские" },
-    ]));
+    expect(tabletHandle).toHaveAttribute("title", expect.stringContaining("пробел"));
+    expect(tabletHandle).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("button", { name: "Изменить порядок категории Пользовательские" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Изменить порядок категории Служебные" })).toBeEnabled();
   });
 
   it("removes a deleted peer immediately without waiting for the snapshot read-back", async () => {

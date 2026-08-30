@@ -100,6 +100,18 @@ export type WireGuardPeerOrderItem = {
   category: string;
 };
 
+export type WireGuardPeerCategory = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WireGuardPeerCategoryOrderItem = {
+  categoryId: string;
+};
+
 export type WireGuardPeerCredentials = {
   peer: WireGuardPeer;
   clientConfig: string;
@@ -171,6 +183,7 @@ export type WireGuardExitHealthHistory = {
 
 export type WireGuardSnapshot = {
   relay: WireGuardRelay;
+  categories: WireGuardPeerCategory[];
   peers: WireGuardPeer[];
   peerMetrics: Record<string, WireGuardPeerMetrics>;
   exitHealthHistory: WireGuardExitHealthHistory;

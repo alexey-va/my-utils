@@ -32,6 +32,12 @@ export const apiEndpoints = {
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/snapshot`,
     wireguardPeers: (relayId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers`,
+    wireguardPeerCategories: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/categories`,
+    wireguardPeerCategoryOrder: (relayId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/categories/order`,
+    wireguardPeerCategory: (relayId: string, categoryId: string) =>
+      `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/categories/${encodeURIComponent(categoryId)}`,
     wireguardPeerOrder: (relayId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/order`,
     wireguardPeer: (relayId: string, peerId: string) =>

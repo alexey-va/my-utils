@@ -10,6 +10,8 @@ import type {
   WireGuardPeerCredentials,
   WireGuardPeerMetrics,
   WireGuardPeerMetricsRange,
+  WireGuardPeerCategory,
+  WireGuardPeerCategoryOrderItem,
   WireGuardPeerOrderItem,
   WireGuardRelay,
   WireGuardSnapshot,
@@ -69,6 +71,20 @@ export const setWireGuardPeerEnabled = (relayId: string, peerId: string, enabled
 
 export const reorderWireGuardPeers = (relayId: string, items: WireGuardPeerOrderItem[]) =>
   apiClient.put<void>(apiEndpoints.admin.wireguardPeerOrder(relayId), { items });
+
+export const createWireGuardPeerCategory = (relayId: string, name: string) =>
+  apiClient.post<WireGuardPeerCategory>(apiEndpoints.admin.wireguardPeerCategories(relayId), { name });
+
+export const updateWireGuardPeerCategory = (relayId: string, categoryId: string, name: string) =>
+  apiClient.patch<WireGuardPeerCategory>(apiEndpoints.admin.wireguardPeerCategory(relayId, categoryId), { name });
+
+export const reorderWireGuardPeerCategories = (
+  relayId: string,
+  items: WireGuardPeerCategoryOrderItem[],
+) => apiClient.put<void>(apiEndpoints.admin.wireguardPeerCategoryOrder(relayId), { items });
+
+export const deleteWireGuardPeerCategory = (relayId: string, categoryId: string) =>
+  apiClient.delete<void>(apiEndpoints.admin.wireguardPeerCategory(relayId, categoryId));
 
 export const deleteWireGuardPeer = (relayId: string, peerId: string) =>
   apiClient.delete<void>(apiEndpoints.admin.wireguardPeer(relayId, peerId));
