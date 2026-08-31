@@ -10,7 +10,10 @@ steps:
       VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal
     commands:
       - npm ci
-      - npm test
+      # The jsdom-heavy UI suites contend for one small CI runner when Vitest
+      # executes files in parallel, causing timeout-only flakes. Keep the test
+      # semantics unchanged and run files sequentially on this host.
+      - npm test -- --maxWorkers=1 --fileParallelism=false
       - npm run build
 
   - name: deploy
