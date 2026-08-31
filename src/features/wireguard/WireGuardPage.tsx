@@ -567,7 +567,10 @@ export default function WireGuardPage() {
     try {
       const updated = await setWireGuardExitPreference(selected.id, preference);
       setRelays((items) => items.map((item) => item.id === updated.id ? updated : item));
-      void loadSnapshot(selected.id, trafficRange);
+      // A regular poll may already be in flight with the previous preference.
+      // Force a newer generation so that stale polling data cannot roll the
+      // optimistic state back after this mutation has succeeded.
+      void loadSnapshot(selected.id, trafficRange, true);
     } catch (error) {
       message.error(errorMessage(error, "Не удалось переключить главный сервер"));
     } finally {

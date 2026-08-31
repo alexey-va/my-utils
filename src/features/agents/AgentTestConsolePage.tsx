@@ -78,8 +78,16 @@ export default function AgentTestConsolePage() {
   const [renaming, setRenaming] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const historyRequestIdRef = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
+  const selectionRevisionRef = useRef(0);
 
   const selectedChat = chats.find((chat) => chat.id === selectedId) ?? null;
+  selectedIdRef.current = selectedId;
+
+  useLayoutEffect(() => {
+    selectionRevisionRef.current += 1;
+  }, [selectedId]);
 
   const loadChats = useCallback(async () => {
     setLoading(true);
@@ -100,15 +108,18 @@ export default function AgentTestConsolePage() {
   }, []);
 
   const loadHistory = useCallback(async (chatId: string) => {
+    const requestId = ++historyRequestIdRef.current;
     setLoadingHistory(true);
     try {
       const page = await fetchAgentTestChatMessages(chatId);
+      if (requestId !== historyRequestIdRef.current) return;
       setHistory(chronological(page.messages));
       setNextBeforeId(page.nextBeforeId);
     } catch (error) {
+      if (requestId !== historyRequestIdRef.current) return;
       message.error(error instanceof ApiError ? error.displayMessage() : "Не удалось загрузить историю");
     } finally {
-      setLoadingHistory(false);
+      if (requestId === historyRequestIdRef.current) setLoadingHistory(false);
     }
   }, []);
 
@@ -121,6 +132,8 @@ export default function AgentTestConsolePage() {
     setNextBeforeId(null);
     if (selectedId) {
       void loadHistory(selectedId);
+    } else {
+      historyRequestIdRef.current += 1;
     }
   }, [selectedId, loadHistory]);
 
@@ -205,9 +218,12 @@ export default function AgentTestConsolePage() {
 
   const onLoadOlder = async () => {
     if (!selectedChat || nextBeforeId == null || loadingOlder) return;
+    const chatId = selectedChat.id;
+    const requestId = ++historyRequestIdRef.current;
     setLoadingOlder(true);
     try {
-      const page = await fetchAgentTestChatMessages(selectedChat.id, nextBeforeId);
+      const page = await fetchAgentTestChatMessages(chatId, nextBeforeId);
+      if (requestId !== historyRequestIdRef.current || selectedIdRef.current !== chatId) return;
       setHistory((current) => [...chronological(page.messages), ...current]);
       setNextBeforeId(page.nextBeforeId);
     } finally {
@@ -217,20 +233,30 @@ export default function AgentTestConsolePage() {
 
   const onSend = async () => {
     if (!selectedChat || sending) return;
+    const chatId = selectedChat.id;
+    const selectionRevision = selectionRevisionRef.current;
     const content = draft.trim();
     const images = pendingImageDataUrls(pendingImages);
     if (!content && images.length === 0) return;
     setSending(true);
     try {
-      const result = await sendAgentTestChatMessage(selectedChat.id, content, images);
-      setDraft("");
-      setPendingImages([]);
-      setHistory((current) => [...current, ...result.messages]);
+      const result = await sendAgentTestChatMessage(chatId, content, images);
+      if (
+        selectedIdRef.current === chatId
+        && selectionRevisionRef.current === selectionRevision
+      ) {
+        setDraft("");
+        setPendingImages([]);
+        setHistory((current) => {
+          const existing = new Set(current.map((row) => row.id));
+          return [...current, ...result.messages.filter((row) => !existing.has(row.id))];
+        });
+      }
       const updatedAt = result.messages.at(-1)?.createdAt ?? new Date().toISOString();
       setChats((current) =>
         current
           .map((chat) =>
-            chat.id === selectedChat.id
+            chat.id === chatId
               ? {
                   ...chat,
                   messageCount: chat.messageCount + result.messages.length,
@@ -242,7 +268,12 @@ export default function AgentTestConsolePage() {
       );
     } catch (error) {
       message.error(error instanceof ApiError ? error.displayMessage() : "Agent turn завершился с ошибкой");
-      await loadHistory(selectedChat.id);
+      if (
+        selectedIdRef.current === chatId
+        && selectionRevisionRef.current === selectionRevision
+      ) {
+        await loadHistory(chatId);
+      }
     } finally {
       setSending(false);
     }

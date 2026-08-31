@@ -336,10 +336,23 @@ export default function PropertiesPage() {
     try {
       const updated = await updateProperty(key, parsed);
       setProperties((list) => list.map((p) => (p.key === updated.key ? updated : p)));
-      setRows((prev) => ({
-        ...prev,
-        [key]: { draft: updated.value, dirty: false, saving: false },
-      }));
+      setRows((prev) => {
+        const current = prev[key];
+        if (!current || valuesEqual(updated, current.draft, draft)) {
+          return {
+            ...prev,
+            [key]: { draft: updated.value, dirty: false, saving: false },
+          };
+        }
+        return {
+          ...prev,
+          [key]: {
+            ...current,
+            dirty: !valuesEqual(updated, current.draft, updated.value),
+            saving: false,
+          },
+        };
+      });
       message.success(`Сохранено: ${property.key}`);
       return true;
     } catch (err) {

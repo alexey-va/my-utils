@@ -88,4 +88,25 @@ describe("PropertiesPage", () => {
     expect(screen.getByText("telegram.retry-count")).toBeInTheDocument();
     expect(screen.getByText("1 из 2")).toBeInTheDocument();
   });
+
+  it("keeps a draft edited while its previous save is pending", async () => {
+    let resolveUpdate: ((value: RuntimeProperty) => void) | undefined;
+    api.updateProperty.mockImplementationOnce((key: string, value: unknown) => new Promise((resolve) => {
+      resolveUpdate = resolve;
+      expect(key).toBe(modelProperty.key);
+      expect(value).toBe("openai/gpt-5.6-luna");
+    }));
+    render(<PropertiesPage />);
+
+    const modelInput = await screen.findByDisplayValue("openai/gpt-5.6-terra-pro");
+    fireEvent.change(modelInput, { target: { value: "openai/gpt-5.6-luna" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить openrouter.model" }));
+    await waitFor(() => expect(resolveUpdate).toBeTypeOf("function"));
+
+    fireEvent.change(modelInput, { target: { value: "openai/gpt-5.6-sol" } });
+    resolveUpdate?.({ ...modelProperty, value: "openai/gpt-5.6-luna" });
+
+    await waitFor(() => expect(screen.getByDisplayValue("openai/gpt-5.6-sol")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Сохранить openrouter.model" })).toBeEnabled();
+  });
 });

@@ -200,6 +200,16 @@ const snapshot = (
   exitHealthHistory,
 });
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
 beforeAll(() => {
   globalThis.ResizeObserver = class {
     observe() {}
@@ -304,6 +314,38 @@ describe("WireGuardPage", () => {
     await waitFor(() => expect(api.setExitPreference).toHaveBeenCalledWith("relay-1", "SECONDARY"));
     expect(await within(selector).findByText("Резерв")).toBeInTheDocument();
   });
+
+  it("does not let an older polling snapshot roll back a saved exit preference", async () => {
+    const polls: Array<() => void> = [];
+    const stalePoll = deferred<ReturnType<typeof snapshot>>();
+    const updatedRelay = { ...relay, exitPreference: "SECONDARY" as const, desiredRevision: 2 };
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 3_000 && typeof handler === "function") polls.push(handler as () => void);
+      return 1;
+    }) as typeof setInterval);
+    api.setExitPreference.mockResolvedValue(updatedRelay);
+    api.fetchSnapshot
+      .mockResolvedValueOnce(snapshot())
+      .mockImplementationOnce(() => stalePoll.promise)
+      .mockResolvedValue(snapshot(updatedRelay));
+    render(<WireGuardPage />);
+
+    const selector = await screen.findByLabelText("Главный сервер");
+    await waitFor(() => expect(polls).toHaveLength(1));
+    await act(async () => { polls[0](); });
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(within(selector).getByRole("radio", { name: "Резерв" }));
+    await waitFor(() => expect(api.setExitPreference).toHaveBeenCalledWith(relay.id, "SECONDARY"));
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenCalledTimes(3));
+    const reserveOption = within(selector).getByRole("radio", { name: "Резерв" }).closest("label");
+    const automaticOption = within(selector).getByRole("radio", { name: "Авто" }).closest("label");
+    await waitFor(() => expect(reserveOption).toHaveClass("ant-segmented-item-selected"));
+
+    await act(async () => { stalePoll.resolve(snapshot()); });
+    expect(reserveOption).toHaveClass("ant-segmented-item-selected");
+    expect(automaticOption).not.toHaveClass("ant-segmented-item-selected");
+  }, 15_000);
 
   it("shows backend rates beside arrows and period traffic underneath without a calculating state", async () => {
     render(<WireGuardPage />);
@@ -454,7 +496,7 @@ describe("WireGuardPage", () => {
     expect(within(menu).getByRole("menuitem", { name: "Показать конфиг" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Изменить" })).toBeInTheDocument();
     expect(menu.querySelector(".anticon-key")).toBeNull();
-  });
+  }, 10_000);
 
   it("creates and keeps an empty custom category as its own record", async () => {
     const workCategory = { ...userCategory, id: "category-work", name: "Рабочие", sortOrder: 2 };

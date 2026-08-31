@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentMemoryMessage } from "../../api/agentMemory";
 import type { AgentTestChat } from "../../api/agentTestChats";
@@ -90,6 +90,111 @@ describe("AgentTestConsolePage", () => {
     });
     expect(await screen.findByRole("heading", { name: "Тестовый чат" })).toBeInTheDocument();
   });
+
+  it("ignores a stale history response after switching chats", async () => {
+    const secondChat = { ...testChat, id: "second-chat", title: "Второй чат" };
+    let resolveFirst: ((value: { messages: AgentMemoryMessage[]; nextBeforeId: number | null }) => void) | undefined;
+    let resolveSecond: ((value: { messages: AgentMemoryMessage[]; nextBeforeId: number | null }) => void) | undefined;
+    api.fetchChats.mockResolvedValue([testChat, secondChat]);
+    api.fetchMessages.mockImplementation((chatId: string) => new Promise((resolve) => {
+      if (chatId === testChat.id) resolveFirst = resolve;
+      else resolveSecond = resolve;
+    }));
+
+    render(<AgentTestConsolePage />);
+
+    const secondButton = await screen.findByRole("button", { name: /Второй чат/ });
+    await waitFor(() => expect(api.fetchMessages).toHaveBeenCalledWith(testChat.id));
+    expect(resolveFirst).toBeTypeOf("function");
+    fireEvent.click(secondButton);
+    await waitFor(() => expect(api.fetchMessages).toHaveBeenCalledWith(secondChat.id));
+
+    resolveSecond?.({
+      messages: [storedMessage(5, "user", "Сообщение второго чата", JSON.stringify({ content: "Сообщение второго чата" }))],
+      nextBeforeId: null,
+    });
+    await waitFor(() => expect(screen.getByText("Сообщение второго чата")).toBeInTheDocument());
+
+    await act(async () => {
+      resolveFirst?.({
+        messages: [storedMessage(6, "user", "Запоздалое сообщение первого чата", JSON.stringify({ content: "Запоздалое сообщение первого чата" }))],
+        nextBeforeId: null,
+      });
+    });
+    expect(screen.getByText("Сообщение второго чата")).toBeInTheDocument();
+    expect(screen.queryByText("Запоздалое сообщение первого чата")).not.toBeInTheDocument();
+  });
+
+  it("does not append a completed send from chat A into chat B", async () => {
+    const secondChat = { ...testChat, id: "second-chat", title: "Второй чат" };
+    let resolveSend: ((value: { reply: string; messages: AgentMemoryMessage[] }) => void) | undefined;
+    api.fetchChats.mockResolvedValue([testChat, secondChat]);
+    api.sendMessage.mockImplementation(() => new Promise((resolve) => { resolveSend = resolve; }));
+
+    render(<AgentTestConsolePage />);
+
+    const composer = await screen.findByPlaceholderText("Сообщение Workout-ассистенту…");
+    fireEvent.change(composer, { target: { value: "Сообщение A" } });
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Второй чат/ }));
+
+    await waitFor(() => expect(api.sendMessage).toHaveBeenCalledWith(testChat.id, "Сообщение A", []));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Второй чат" })).toBeInTheDocument());
+    await act(async () => {
+      resolveSend?.({
+        reply: "Ответ A",
+        messages: [storedMessage(7, "assistant", "Ответ только для A", JSON.stringify({ content: "Ответ только для A" }))],
+      });
+    });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Отправить" })).toBeEnabled());
+    expect(screen.queryByText("Ответ только для A")).not.toBeInTheDocument();
+  }, 10_000);
+
+  it("does not replay a completed send after switching A to B and back to A", async () => {
+    const secondChat = { ...testChat, id: "second-chat", title: "Второй чат" };
+    const persistedReply = storedMessage(
+      8,
+      "assistant",
+      "Уже сохранённый ответ A",
+      JSON.stringify({ content: "Уже сохранённый ответ A" }),
+    );
+    let resolveSend: ((value: { reply: string; messages: AgentMemoryMessage[] }) => void) | undefined;
+    let firstChatLoads = 0;
+    api.fetchChats.mockResolvedValue([testChat, secondChat]);
+    api.fetchMessages.mockImplementation((chatId: string) => {
+      if (chatId === testChat.id) {
+        firstChatLoads += 1;
+        return Promise.resolve({
+          messages: firstChatLoads === 1 ? [] : [persistedReply],
+          nextBeforeId: null,
+        });
+      }
+      return Promise.resolve({ messages: [], nextBeforeId: null });
+    });
+    api.sendMessage.mockImplementation(() => new Promise((resolve) => { resolveSend = resolve; }));
+
+    render(<AgentTestConsolePage />);
+
+    const composer = await screen.findByPlaceholderText("Сообщение Workout-ассистенту…");
+    fireEvent.change(composer, { target: { value: "Сообщение A" } });
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+    await waitFor(() => expect(api.sendMessage).toHaveBeenCalledWith(testChat.id, "Сообщение A", []));
+
+    fireEvent.click(screen.getByRole("button", { name: /Второй чат/ }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Второй чат" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Тестовый чат/ }));
+    await waitFor(() => expect(screen.getByText("Уже сохранённый ответ A")).toBeInTheDocument());
+    fireEvent.change(composer, { target: { value: "Новый черновик A" } });
+
+    await act(async () => {
+      resolveSend?.({ reply: "Ответ A", messages: [persistedReply] });
+    });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Отправить" })).toBeEnabled());
+    expect(screen.getAllByText("Уже сохранённый ответ A")).toHaveLength(1);
+    expect(composer).toHaveValue("Новый черновик A");
+  }, 10_000);
 });
 
 const testChat: AgentTestChat = {

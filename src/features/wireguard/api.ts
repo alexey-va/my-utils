@@ -61,6 +61,7 @@ export const createWireGuardPeer = (relayId: string, body: CreateWireGuardPeer) 
 export const fetchWireGuardPeerCredentials = (relayId: string, peerId: string) =>
   apiClient.get<WireGuardPeerCredentials>(
     apiEndpoints.admin.wireguardPeerCredentials(relayId, peerId),
+    { cache: "no-store" },
   );
 
 export const updateWireGuardPeer = (relayId: string, peerId: string, body: UpdateWireGuardPeer) =>
