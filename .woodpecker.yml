@@ -3,18 +3,37 @@ when:
     branch: main
 
 steps:
-  - name: verify
-    image: node:22-alpine
-    environment:
-      VITE_GRAFANA_URL: https://utils.alexeyav.ru/grafana
-      VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal
+  - name: wait-github-ci
+    image: alpine:3.23.3
     commands:
-      - npm ci
-      # The jsdom-heavy UI suites contend for one small CI runner when Vitest
-      # executes files in parallel, causing timeout-only flakes. Keep the test
-      # semantics unchanged and run files sequentially on this host.
-      - npm test -- --maxWorkers=1 --fileParallelism=false
-      - npm run build
+      - apk add --no-cache curl jq
+      - |
+        set -eu
+        api="https://api.github.com/repos/alexey-va/my-utils/actions/workflows/ci.yml/runs?head_sha=$${CI_COMMIT_SHA}&event=push&per_page=1"
+        deadline=$$(($$(date +%s) + 1800))
+        while [ "$$(date +%s)" -lt "$$deadline" ]; do
+          response=$$(curl --fail --silent --show-error -H 'Accept: application/vnd.github+json' "$$api")
+          status=$$(printf '%s' "$$response" | jq -r '.workflow_runs[0].status // "missing"')
+          conclusion=$$(printf '%s' "$$response" | jq -r '.workflow_runs[0].conclusion // ""')
+          case "$$status" in
+            completed)
+              [ "$$conclusion" = success ] && exit 0
+              echo "GitHub Actions CI completed with conclusion=$$conclusion" >&2
+              exit 1
+              ;;
+            missing|queued|in_progress|pending|requested|waiting)
+              sleep 20
+              ;;
+            *)
+              echo "Unexpected GitHub Actions status=$$status" >&2
+              exit 1
+              ;;
+          esac
+        done
+        echo "Timed out waiting for GitHub Actions CI" >&2
+        exit 1
+    when:
+      - event: push
 
   - name: deploy
     image: docker:27-cli
@@ -22,7 +41,7 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/freedeeml/ci:/opt/ci:ro
     environment:
-      # Empty = same-origin /api via nginx (endpoints already start with /api/…)
+      # Empty = same-origin /api via nginx (endpoints already start with /api/...)
       VITE_GRAFANA_URL: https://utils.alexeyav.ru/grafana
       # Same-origin embed: iframe from utils.alexeyav.ru cannot load temporal.alexeyav.ru (X-Frame-Options)
       VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal

@@ -44,7 +44,7 @@ page mapping. Do not infer routes from folder names.
 | Lint | `npm exec eslint -- src` |
 | Test | `npm test` |
 | Build | `npm run build` |
-| Prod | Woodpecker (`.woodpecker.yml`); деплой: `git push origin main`. **Не** задавай `VITE_API_BASE_URL=…/api` — пути уже с `/api/`. |
+| Prod | GitHub Actions verifies; Woodpecker waits for that commit and deploys after success. **Не** задавай `VITE_API_BASE_URL=…/api` — пути уже с `/api/`. |
 
 Working dir: `utils/my-utils/`.
 
@@ -124,8 +124,9 @@ Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/lin
 3. Build the frontend.
 4. Keep frontend and backend commits separate.
 
-Push to `main` triggers production deployment. Do not push merely to verify a
-change.
+Pushes and pull requests run tests/build in GitHub Actions. On `main`,
+Woodpecker waits for the same commit's successful Actions run and then performs
+only the production Docker deployment. Do not push merely to verify a change.
 
 Only the author currently uses this application, so a short production
 downtime during an otherwise safe deployment is acceptable. Do not let
