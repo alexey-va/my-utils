@@ -37,6 +37,7 @@ steps:
 
   - name: deploy
     image: docker:27-cli
+    network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home/freedeeml/ci:/opt/ci:ro
@@ -46,6 +47,22 @@ steps:
       # Same-origin embed: iframe from utils.alexeyav.ru cannot load temporal.alexeyav.ru (X-Frame-Options)
       VITE_TEMPORAL_URL: https://utils.alexeyav.ru/temporal
     commands:
-      - apk add --no-cache bash git
+      - apk add --no-cache bash curl git
       - export WORKSPACE=$${CI_WORKSPACE}
       - bash /opt/ci/deploy-my-utils.sh
+      - |
+        set -eu
+        container=my-utils
+        deadline=$$(($$(date +%s) + 120))
+        while [ "$$(date +%s)" -lt "$$deadline" ]; do
+          state=$$(docker inspect -f '{{.State.Status}}' "$$container" 2>/dev/null || true)
+          health=$$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$$container" 2>/dev/null || true)
+          restart=$$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$$container" 2>/dev/null || true)
+          if [ "$$state" = running ] && [ "$$health" = healthy ] && [ "$$restart" = unless-stopped ] && curl --fail --silent --show-error --max-time 5 http://127.0.0.1:13082/ >/dev/null; then
+            echo "Frontend deployed healthy with restart=$$restart"
+            exit 0
+          fi
+          sleep 2
+        done
+        docker inspect "$$container" --format 'state={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restart={{.HostConfig.RestartPolicy.Name}}' >&2 || true
+        exit 1

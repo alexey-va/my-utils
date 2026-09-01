@@ -35,4 +35,6 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 ENV NODE_ENV=production
 EXPOSE 80
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
 CMD ["serve", "-s", "dist", "-l", "80"]

@@ -125,8 +125,10 @@ Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/lin
 4. Keep frontend and backend commits separate.
 
 Pushes and pull requests run tests/build in GitHub Actions. On `main`,
-Woodpecker waits for the same commit's successful Actions run and then performs
-only the production Docker deployment. Do not push merely to verify a change.
+Woodpecker waits for the same commit's successful Actions run, performs only
+the production Docker deployment, and then requires the frontend container and
+HTTP endpoint to be healthy with `restart: unless-stopped`. Do not push merely
+to verify a change.
 
 Only the author currently uses this application, so a short production
 downtime during an otherwise safe deployment is acceptable. Do not let
