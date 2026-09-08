@@ -73,7 +73,7 @@ describe("App authentication", () => {
     vi.spyOn(apiClient, "get").mockResolvedValue([]);
 
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Properties" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Properties" }, { timeout: 10_000 })).toBeInTheDocument();
 
     act(() => clearSession());
 

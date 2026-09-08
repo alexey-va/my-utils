@@ -15,6 +15,24 @@ export type WorkoutLocale = "en" | "ru";
 export const WORKOUT_LOCALE_STORAGE_KEY = "my-utils.workout-locale";
 
 const en = {
+  "common.saving": "Saving…",
+  "overview.week": "This week",
+  "overview.health": "Daily activity",
+  "overview.moreStats": "More statistics",
+  "overview.volumeHint": "Total weight × reps across all exercises",
+  "overview.weekComparison": "Week over week",
+  "overview.comparisonHint": "The current week is still in progress",
+  "overview.logged": "Workout logged",
+  "overview.noSession": "No workout logged",
+  "overview.tab": "Overview",
+  "overview.journal": "Training journal",
+  "overview.exercises": "{count} exercises",
+  "overview.retry": "Try again",
+  "overview.loadError": "Couldn’t load your data",
+  "overview.healthError": "Health data is temporarily unavailable",
+  "overview.gridHint": "Scroll the grid sideways to explore dates. Select a cell to add or edit a session.",
+  "toolbar.more": "More actions",
+
   "page.title": "Workout log",
   "page.subtitle": "Progress, activity, and workout history in one focused view.",
   "page.progressAria": "Progress",
@@ -148,6 +166,24 @@ type TranslationKey = keyof typeof en;
 type TranslationParams = Record<string, string | number>;
 
 const ru: Record<TranslationKey, string> = {
+  "common.saving": "Сохранение…",
+  "overview.week": "Эта неделя",
+  "overview.health": "Ежедневная активность",
+  "overview.moreStats": "Ещё показатели",
+  "overview.volumeHint": "Сумма веса × повторов по всем упражнениям",
+  "overview.weekComparison": "К прошлой неделе",
+  "overview.comparisonHint": "Текущая неделя ещё продолжается",
+  "overview.logged": "Тренировка записана",
+  "overview.noSession": "Нет записи о тренировке",
+  "overview.tab": "Обзор",
+  "overview.journal": "Дневник тренировок",
+  "overview.exercises": "Упражнений: {count}",
+  "overview.retry": "Повторить",
+  "overview.loadError": "Не удалось загрузить данные",
+  "overview.healthError": "Данные здоровья временно недоступны",
+  "overview.gridHint": "Листай сетку по горизонтали, чтобы увидеть другие даты. Нажми ячейку для записи или изменения.",
+  "toolbar.more": "Ещё действия",
+
   "page.title": "Тренировки",
   "page.subtitle": "Прогресс, активность и история тренировок в одном месте.",
   "page.progressAria": "Прогресс",

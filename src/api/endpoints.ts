@@ -48,6 +48,7 @@ export const apiEndpoints = {
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}/metrics`,
   },
   workouts: {
+    snapshot: "/api/workouts/snapshot",
     exercises: "/api/workouts/exercises",
     exerciseProgress: (id: string) => `/api/workouts/exercises/${id}/progress`,
     exercise: (id: string) => `/api/workouts/exercises/${id}`,

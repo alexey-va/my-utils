@@ -85,11 +85,11 @@ Interaction changes additionally need a focused browser smoke check.
 - SPA tab path is `/workflows` (not `/temporal` — avoids iframe recursion)
 - Do not set cross-origin `VITE_TEMPORAL_URL` in prod Woodpecker build
 
-## Design system (Linear)
+## Design system (workspace)
 
 | File | ~size | Scope |
 |------|-------|--------|
-| `DESIGN-APP.md` | ~350 lines | **SPA / dashboard** — primary for this repo |
+| `DESIGN-APP.md` | ~60 lines | **SPA / dashboard** — primary for this repo |
 | `DESIGN.md` | ~550 lines | Marketing / landing (`#010102` canvas) |
 | `design/linear-tokens.css` | CSS vars | Token → `--linear-*` variables |
 
@@ -97,7 +97,7 @@ Sources: [awesome-design-md/linear.app](https://github.com/VoltAgent/awesome-des
 
 Cursor rule: `.cursor/rules/frontend-design-linear.mdc`. Fonts: Inter + JetBrains Mono (Google Fonts CDN).
 
-Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/linear-tokens.css`. No raw hex in components.
+Theme: `src/design/linearTokens.ts`, `src/theme/linearTheme.ts`, `src/design/linear-tokens.css`. Graphite is the default; `AppThemeProvider` owns the persisted Graphite, Blue, Violet, and Light choices. `src/design/workspace.css` owns the current shell and Workout composition. No raw hex in components.
 
 ## Conventions
 

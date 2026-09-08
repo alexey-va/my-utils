@@ -40,8 +40,8 @@ type Props = {
     toExerciseId: string,
     toDate: string,
   ) => void;
-  onUpdateCell: (payload: UpsertWorkoutEntryRequest) => void;
-  onDeleteCell?: (exerciseId: string, date: string) => void;
+  onUpdateCell: (payload: UpsertWorkoutEntryRequest) => void | Promise<void>;
+  onDeleteCell?: (exerciseId: string, date: string) => void | Promise<unknown>;
 };
 
 function columnHasActivity(rows: WorkoutGridRow[], date: string): boolean {
@@ -184,12 +184,16 @@ function WorkoutGridTable({
 
   const handleMove = useCallback(
     (from: WorkoutGridDragPayload, toExerciseId: string, toDate: string) => {
+      if (loading) {
+        clearDrag();
+        return;
+      }
       setClickSuppressed(true);
       clearDrag();
       onMoveCell(from, toExerciseId, toDate);
       window.setTimeout(() => setClickSuppressed(false), 400);
     },
-    [clearDrag, onMoveCell],
+    [clearDrag, loading, onMoveCell],
   );
 
   const beginDrag = useCallback(
@@ -200,6 +204,9 @@ function WorkoutGridTable({
       clientX: number,
       clientY: number,
     ) => {
+      if (loading) {
+        return;
+      }
       const sourceRect = readCellClientRect(payload.exerciseId, payload.fromDate);
       if (!sourceRect) {
         return;
@@ -217,7 +224,7 @@ function WorkoutGridTable({
       setDragHoverTarget(null);
       dragMovedRef.current = false;
     },
-    [],
+    [loading],
   );
 
   const updateDragPointer = useCallback(
@@ -255,6 +262,9 @@ function WorkoutGridTable({
       clientX: number,
       clientY: number,
     ) => {
+      if (loading) {
+        return;
+      }
       pendingDragRef.current = {
         payload,
         display,
@@ -264,7 +274,7 @@ function WorkoutGridTable({
       };
       setPendingDrag(true);
     },
-    [],
+    [loading],
   );
 
   useEffect(() => {
@@ -273,6 +283,11 @@ function WorkoutGridTable({
     }
 
     const startFromPending = (clientX: number, clientY: number) => {
+      if (loading) {
+        pendingDragRef.current = null;
+        setPendingDrag(false);
+        return;
+      }
       const pending = pendingDragRef.current;
       if (!pending) {
         return;
@@ -325,22 +340,21 @@ function WorkoutGridTable({
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
     };
-  }, [pendingDrag, beginDrag, updateDragPointer]);
+  }, [pendingDrag, beginDrag, loading, updateDragPointer]);
 
-  const suppressEditorOpen = clickSuppressed || activeDrag != null || pendingDrag;
+  const suppressEditorOpen = loading || clickSuppressed || activeDrag != null || pendingDrag;
 
   const handleEditorSave = useCallback(
     (session: WorkoutGridCellEditorSession, weightKg: number, repsPattern: string) => {
       if (session.mode === "edit" && session.cell) {
-        onUpdateCell(
+        return onUpdateCell(
           upsertRequestFromCell(session.exerciseId, session.date, session.cell, {
             weightKg,
             repsPattern,
           }),
         );
-        return;
       }
-      onUpdateCell(
+      return onUpdateCell(
         upsertRequestFromValues(session.exerciseId, session.date, weightKg, repsPattern),
       );
     },
@@ -350,7 +364,7 @@ function WorkoutGridTable({
   const handleEditorDelete = useCallback(
     (session: WorkoutGridCellEditorSession) => {
       if (onDeleteCell) {
-        onDeleteCell(session.exerciseId, session.date);
+        return onDeleteCell(session.exerciseId, session.date);
       }
     },
     [onDeleteCell],
@@ -453,7 +467,10 @@ function WorkoutGridTable({
   }
 
   return (
-    <div className={activeDrag ? "workout-grid workout-grid--dragging" : "workout-grid"}>
+    <div
+      className={activeDrag ? "workout-grid workout-grid--dragging" : "workout-grid"}
+      aria-busy={loading}
+    >
       {activeDrag ? (
         <WorkoutGridDragPreview
           drag={activeDrag}
@@ -521,6 +538,7 @@ function WorkoutGridTable({
                     <button
                       type="button"
                       className="workout-grid__exercise-btn"
+                      disabled={loading}
                       onClick={() => onSelectExercise(row.exerciseId)}
                     >
                       <span className="workout-grid__exercise-name">{row.exerciseName}</span>

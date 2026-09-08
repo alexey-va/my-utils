@@ -1,9 +1,23 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Spin } from "antd";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Button, Modal, Select, Spin } from "antd";
 import type { RefSelectProps } from "antd/es/select";
 import dayjs from "dayjs";
 import PageLayout from "../../shared/components/PageLayout";
-import AppPanel from "../../shared/components/AppPanel";
+import {
+  AppstoreOutlined,
+  CalendarOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import WorkoutWeekOverview from "./WorkoutWeekOverview";
 import type { Exercise, ProgressMetric, ProgressPoint } from "../../api/types";
 import type { ProgressPeriod } from "./workoutAnalytics";
 import {
@@ -45,13 +59,18 @@ const WorkoutBodyWeightChart = lazy(() => import("./WorkoutBodyWeightChart"));
 
 function InsightLoading({ wide = false }: { wide?: boolean }) {
   return (
-    <div className={`workout-insight-loading${wide ? " workout-insight-loading--wide" : ""}`}>
+    <div
+      className={`workout-insight-loading${wide ? " workout-insight-loading--wide" : ""}`}
+    >
       <Spin />
     </div>
   );
 }
 
-function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntryDraft {
+function newSessionDraft(
+  exerciseId: string,
+  exerciseName: string,
+): WorkoutEntryDraft {
   const today = dayjs().format("YYYY-MM-DD");
   return {
     key: `new-${today}-${exerciseId}`,
@@ -67,7 +86,7 @@ function newSessionDraft(exerciseId: string, exerciseName: string): WorkoutEntry
 }
 
 function WorkoutPageContent() {
-  const { t } = useWorkoutLocale();
+  const { t, formatDate } = useWorkoutLocale();
 
   useEffect(() => {
     sendWorkoutPageViewOnce();
@@ -78,6 +97,9 @@ function WorkoutPageContent() {
     grid,
     loading,
     saving,
+    error,
+    reload,
+    dataVersion,
     selectedExerciseId,
     selectExercise,
     addExercise,
@@ -94,26 +116,38 @@ function WorkoutPageContent() {
     draft: WorkoutEntryDraft;
     isEdit: boolean;
   } | null>(null);
-  const [exerciseModal, setExerciseModal] = useState<ExerciseDraft | null>(null);
+  const [exerciseModal, setExerciseModal] = useState<ExerciseDraft | null>(
+    null,
+  );
   const [showAllExercises, setShowAllExercises] = useState(true);
-  const [progressRefreshKey, setProgressRefreshKey] = useState(0);
+  const [view, setView] = useState<"overview" | "journal">("overview");
   const [stepsPeriod, setStepsPeriod] = useState<StepsPeriod>("p31");
   const [weightPeriod, setWeightPeriod] = useState<WeightPeriod>("p31");
   const exerciseSelectRef = useRef<RefSelectProps>(null);
 
-  const { history: stepsHistory, loading: stepsLoading } = useStepsHistory();
-  const { history: weightHistory, loading: weightLoading } = useBodyWeightHistory();
+  const {
+    history: stepsHistory,
+    loading: stepsLoading,
+    error: stepsError,
+    retry: retrySteps,
+  } = useStepsHistory();
+  const {
+    history: weightHistory,
+    loading: weightLoading,
+    error: weightError,
+    retry: retryWeight,
+  } = useBodyWeightHistory();
 
   const chartExerciseIds = useMemo(
     () => (selectedExerciseId ? [selectedExerciseId] : []),
     [selectedExerciseId],
   );
 
-  const { series, primary, loading: progressLoading } = useCompareProgress(
-    chartExerciseIds,
-    selectedExerciseId,
-    progressRefreshKey,
-  );
+  const {
+    series,
+    primary,
+    loading: progressLoading,
+  } = useCompareProgress(chartExerciseIds, selectedExerciseId, dataVersion);
 
   const weeklySummary = useMemo(() => computeWeeklySummary(grid), [grid]);
   const muscleGroupVolumes = useMemo(
@@ -122,7 +156,9 @@ function WorkoutPageContent() {
   );
 
   const selectedExercise = exercises.find((e) => e.id === selectedExerciseId);
-  const selectedRow = grid.rows.find((r) => r.exerciseId === selectedExerciseId);
+  const selectedRow = grid.rows.find(
+    (r) => r.exerciseId === selectedExerciseId,
+  );
 
   const sessionHistoryPoints = useMemo(
     () => filterPointsByPeriod(primary?.points ?? [], period),
@@ -140,7 +176,9 @@ function WorkoutPageContent() {
     if (!selectedExerciseId || !selectedExercise) {
       return;
     }
-    const last = selectedRow ? lastSessionForRow(selectedRow, grid.dates) : undefined;
+    const last = selectedRow
+      ? lastSessionForRow(selectedRow, grid.dates)
+      : undefined;
     const today = dayjs().format("YYYY-MM-DD");
     setEntryModal({
       isEdit: false,
@@ -166,7 +204,11 @@ function WorkoutPageContent() {
       }
       setEntryModal({
         isEdit: true,
-        draft: entryDraftFromPoint(selectedExerciseId, selectedExercise.name, point),
+        draft: entryDraftFromPoint(
+          selectedExerciseId,
+          selectedExercise.name,
+          point,
+        ),
       });
     },
     [selectedExercise, selectedExerciseId],
@@ -176,6 +218,7 @@ function WorkoutPageContent() {
   const closeExerciseModal = useCallback(() => setExerciseModal(null), []);
 
   useWorkoutShortcuts({
+    enabled: !saving,
     onLogSession: () => {
       if (entryModal) {
         closeEntryModal();
@@ -209,52 +252,171 @@ function WorkoutPageContent() {
   return (
     <PageLayout
       title={t("page.title")}
-      subtitle={t("page.subtitle")}
-      actions={<WorkoutLanguageSwitch />}
+      actions={
+        <div className="workout-heading-actions">
+          <span className="workout-date">
+            {formatDate(dayjs().format("YYYY-MM-DD"), {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+          <WorkoutLanguageSwitch />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={loading || saving || Boolean(error)}
+            onClick={() =>
+              selectedExerciseId
+                ? openLogSession()
+                : setExerciseModal(exerciseDraftNew())
+            }
+          >
+            {selectedExerciseId
+              ? t("toolbar.logSession")
+              : t("toolbar.addExercise")}
+          </Button>
+        </div>
+      }
     >
-      <AppPanel className="workout-panel">
-        <div className="workout-shell workout-shell--simple">
-          <section className="workout-shell__insights" aria-label={t("page.progressAria")}>
-            <WorkoutWeeklySummary summary={weeklySummary} />
-            <Suspense fallback={<InsightLoading />}>
-              <WorkoutStepsChart
-                days={stepsHistory?.days ?? []}
-                todaySteps={stepsHistory?.todaySteps ?? null}
-                loading={stepsLoading}
-                period={stepsPeriod}
-                onPeriodChange={setStepsPeriod}
-              />
-            </Suspense>
-            <Suspense fallback={<InsightLoading />}>
-              <WorkoutBodyWeightChart
-                days={weightHistory?.days ?? []}
-                latestWeightKg={weightHistory?.latestWeightKg ?? null}
-                latestDate={weightHistory?.latestDate ?? null}
-                loading={weightLoading}
-                period={weightPeriod}
-                onPeriodChange={setWeightPeriod}
-              />
-            </Suspense>
-            <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
-            <Suspense fallback={<InsightLoading wide />}>
-              <WorkoutProgressPanel
-                series={series}
-                primary={primary}
-                loading={progressLoading}
-                metric={metric}
-                period={period}
-                onMetricChange={setMetric}
-                onPeriodChange={setPeriod}
-                onDelete={() => {
-                  if (selectedExerciseId) {
-                    void deleteExercise(selectedExerciseId);
-                  }
-                }}
-              />
-            </Suspense>
-          </section>
-
-          <section className="workout-shell__log" aria-label={t("page.sessionsAria")}>
+      <div className="workout-dashboard">
+        {error ? (
+          <div className="workout-error" role="alert">
+            <div>
+              <strong>{t("overview.loadError")}</strong>
+              <p>{error}</p>
+            </div>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => void reload()}
+              loading={loading}
+            >
+              {t("overview.retry")}
+            </Button>
+          </div>
+        ) : null}
+        <div className="workout-view-nav">
+          <div
+            className="workout-view-nav__tabs"
+            role="group"
+            aria-label={t("page.title")}
+          >
+            <button
+              className="workout-view-tab"
+              aria-pressed={view === "overview"}
+              onClick={() => setView("overview")}
+            >
+              <AppstoreOutlined />
+              {t("overview.tab")}
+            </button>
+            <button
+              className="workout-view-tab"
+              aria-pressed={view === "journal"}
+              onClick={() => setView("journal")}
+            >
+              <CalendarOutlined />
+              {t("overview.journal")}
+            </button>
+          </div>
+          <span className="workout-view-nav__count">
+            {t("overview.exercises", { count: exercises.length })}
+          </span>
+        </div>
+        {view === "overview" ? (
+          <>
+            {stepsError || weightError ? (
+              <div className="workout-error" role="alert">
+                <strong>{t("overview.healthError")}</strong>
+                <Button
+                  onClick={() => {
+                    if (stepsError) retrySteps();
+                    if (weightError) retryWeight();
+                  }}
+                >
+                  {t("overview.retry")}
+                </Button>
+              </div>
+            ) : null}
+            <WorkoutWeeklySummary
+              summary={weeklySummary}
+              loading={loading || Boolean(error)}
+            />
+            <section
+              className="workout-overview-grid"
+              aria-label={t("page.progressAria")}
+            >
+              <div className="workout-performance">
+                <Suspense fallback={<InsightLoading wide />}>
+                  <WorkoutProgressPanel
+                    series={series}
+                    primary={primary}
+                    loading={loading || progressLoading}
+                    metric={metric}
+                    period={period}
+                    onMetricChange={setMetric}
+                    onPeriodChange={setPeriod}
+                    exerciseControl={
+                      <Select
+                        ref={exerciseSelectRef}
+                        id="overview-exercise"
+                        aria-label={t("toolbar.exerciseAria")}
+                        showSearch
+                        optionFilterProp="label"
+                        value={selectedExerciseId}
+                        onChange={selectExercise}
+                        options={exercises.map((exercise) => ({
+                          value: exercise.id,
+                          label: exercise.name,
+                        }))}
+                        loading={loading}
+                        placeholder={t("toolbar.selectExercise")}
+                      />
+                    }
+                    onDelete={() => {
+                      if (selectedExerciseId)
+                        void deleteExercise(selectedExerciseId).catch(() => {});
+                    }}
+                  />
+                </Suspense>
+              </div>
+              <aside className="workout-context">
+                <WorkoutWeekOverview
+                  grid={grid}
+                  loading={loading || Boolean(error)}
+                />
+                <WorkoutMuscleGroupSummary volumes={muscleGroupVolumes} />
+              </aside>
+            </section>
+            <section
+              className="workout-health-grid"
+              aria-label={t("overview.health")}
+            >
+              <Suspense fallback={<InsightLoading />}>
+                <WorkoutStepsChart
+                  days={stepsHistory?.days ?? []}
+                  todaySteps={stepsHistory?.todaySteps ?? null}
+                  loading={stepsLoading}
+                  period={stepsPeriod}
+                  onPeriodChange={setStepsPeriod}
+                />
+              </Suspense>
+              <Suspense fallback={<InsightLoading />}>
+                <WorkoutBodyWeightChart
+                  days={weightHistory?.days ?? []}
+                  latestWeightKg={weightHistory?.latestWeightKg ?? null}
+                  latestDate={weightHistory?.latestDate ?? null}
+                  loading={weightLoading}
+                  period={weightPeriod}
+                  onPeriodChange={setWeightPeriod}
+                />
+              </Suspense>
+            </section>
+          </>
+        ) : (
+          <section
+            className="workout-shell__log"
+            aria-label={t("page.sessionsAria")}
+          >
             <WorkoutExerciseBar
               exercises={exercises}
               selectedExerciseId={selectedExerciseId}
@@ -276,49 +438,54 @@ function WorkoutPageContent() {
             />
 
             {showAllExercises ? (
+              <p className="workout-journal-hint">{t("overview.gridHint")}</p>
+            ) : null}
+            {showAllExercises ? (
               <Suspense fallback={<InsightLoading wide />}>
                 <WorkoutGridTable
                   exercises={exercises}
                   grid={grid}
                   selectedExerciseId={selectedExerciseId}
-                  loading={loading}
+                  loading={loading || saving}
                   onSelectExercise={selectExercise}
                   onMoveCell={moveEntry}
-                  onUpdateCell={(payload) => {
-                    void saveEntry(payload);
-                    setProgressRefreshKey((k) => k + 1);
-                  }}
-                  onDeleteCell={(exerciseId, date) => {
-                    void deleteEntry(exerciseId, date);
-                    setProgressRefreshKey((k) => k + 1);
-                  }}
+                  onUpdateCell={saveEntry}
+                  onDeleteCell={deleteEntry}
                 />
               </Suspense>
             ) : (
               <Suspense fallback={<InsightLoading wide />}>
                 <WorkoutSessionList
                   points={sessionHistoryPoints}
-                  exerciseName={primary?.exercise.name ?? selectedExercise?.name}
-                  loading={progressLoading}
+                  exerciseName={
+                    primary?.exercise.name ?? selectedExercise?.name
+                  }
+                  loading={progressLoading || saving}
                   onEdit={openEditSession}
                   onDelete={async (point) => {
                     if (!selectedExerciseId) {
                       return;
                     }
                     await deleteEntry(selectedExerciseId, point.date);
-                    setProgressRefreshKey((k) => k + 1);
                   }}
                 />
               </Suspense>
             )}
           </section>
-        </div>
-      </AppPanel>
+        )}
+      </div>
 
       <Modal
-        title={entryModal?.isEdit ? t("modal.editSession") : t("modal.logSession")}
+        title={
+          entryModal?.isEdit ? t("modal.editSession") : t("modal.logSession")
+        }
         open={entryModal != null}
-        onCancel={closeEntryModal}
+        onCancel={() => {
+          if (!saving) closeEntryModal();
+        }}
+        closable={!saving}
+        keyboard={!saving}
+        maskClosable={!saving}
         footer={null}
         destroyOnHidden
         width={520}
@@ -332,14 +499,15 @@ function WorkoutPageContent() {
             lastSession={entryLastSession}
             onSubmit={async (values) => {
               await saveEntry(values);
-              setProgressRefreshKey((k) => k + 1);
               closeEntryModal();
             }}
             onDelete={
               entryModal.isEdit
                 ? async () => {
-                    await deleteEntry(entryModal.draft.exerciseId, entryModal.draft.performedOn);
-                    setProgressRefreshKey((k) => k + 1);
+                    await deleteEntry(
+                      entryModal.draft.exerciseId,
+                      entryModal.draft.performedOn,
+                    );
                     closeEntryModal();
                   }
                 : undefined
@@ -349,9 +517,18 @@ function WorkoutPageContent() {
       </Modal>
 
       <Modal
-        title={exerciseModal?.exerciseId ? t("modal.editExercise") : t("modal.addExercise")}
+        title={
+          exerciseModal?.exerciseId
+            ? t("modal.editExercise")
+            : t("modal.addExercise")
+        }
         open={exerciseModal != null}
-        onCancel={closeExerciseModal}
+        onCancel={() => {
+          if (!saving) closeExerciseModal();
+        }}
+        closable={!saving}
+        keyboard={!saving}
+        maskClosable={!saving}
         footer={null}
         destroyOnHidden
         width={480}
@@ -364,7 +541,11 @@ function WorkoutPageContent() {
             isEdit={Boolean(exerciseModal.exerciseId)}
             onSubmit={async (name, muscleGroup) => {
               if (exerciseModal.exerciseId) {
-                await updateExercise(exerciseModal.exerciseId, name, muscleGroup);
+                await updateExercise(
+                  exerciseModal.exerciseId,
+                  name,
+                  muscleGroup,
+                );
               } else {
                 await addExercise(name, muscleGroup);
               }

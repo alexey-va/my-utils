@@ -48,8 +48,10 @@ export default function WorkoutExerciseForm({
         layout="vertical"
         autoComplete="off"
         className="workout-form workout-form--exercise"
+        disabled={saving}
         onFinish={async (values) => {
-          await onSubmit(values.exerciseName.trim(), values.muscleGroup);
+          // The write layer reports request failures; keep this draft for retry.
+          await onSubmit(values.exerciseName.trim(), values.muscleGroup).catch(() => {});
         }}
       >
         <Form.Item
@@ -87,7 +89,7 @@ export default function WorkoutExerciseForm({
             <Popconfirm
               title={t("progress.deleteExercise")}
               description={t("progress.deleteExerciseDescription")}
-              onConfirm={() => void onDelete()}
+              onConfirm={() => onDelete().catch(() => {})}
               okText={t("common.delete")}
               okButtonProps={{ danger: true }}
             >

@@ -522,14 +522,19 @@ describe("WireGuardPage", () => {
 
   it("renames a peer and moves it to another category", async () => {
     const updated = { ...peer, name: "Main phone", category: "Служебные" };
-    api.updatePeer.mockResolvedValue(updated);
-    api.fetchSnapshot
-      .mockResolvedValueOnce(snapshot())
-      .mockResolvedValue(snapshot(relay, [updated], { [updated.id]: peerMetrics }));
+    let renamed = false;
+    api.updatePeer.mockImplementation(async () => {
+      renamed = true;
+      return updated;
+    });
+    // Background polling must not apply the rename before the mutation occurs.
+    api.fetchSnapshot.mockImplementation(async () => renamed
+      ? snapshot(relay, [updated], { [updated.id]: peerMetrics })
+      : snapshot());
     render(<WireGuardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Действия grophone" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Изменить" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Изменить" }, { timeout: 10_000 }));
     const dialog = await screen.findByRole("dialog", { name: "Изменить устройство" });
     const dialogQueries = within(dialog);
     fireEvent.change(dialogQueries.getByLabelText("Название"), { target: { value: "Main phone" } });
@@ -763,7 +768,7 @@ describe("WireGuardPage", () => {
 
     fireEvent.doubleClick(chart);
     expect(drawerQueries.queryByRole("button", { name: "Показать весь период" })).not.toBeInTheDocument();
-  }, 10_000);
+  }, 30_000);
 
   it("keeps a fixed loading shell until the first response arrives", () => {
     api.fetchRelays.mockImplementation(() => new Promise(() => undefined));

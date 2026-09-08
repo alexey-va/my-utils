@@ -1,5 +1,5 @@
 import { useLink } from "@refinedev/core";
-import { ThunderboltOutlined } from "@ant-design/icons";
+import { AppstoreOutlined } from "@ant-design/icons";
 import { APP_NAME } from "../config/appBranding";
 
 /** Sidebar brand — icon stays fixed; title fades via `.app-sider--expanded` CSS. */
@@ -9,9 +9,11 @@ export default function AppTitle() {
   return (
     <Link to="/" className="app-brand">
       <span className="app-brand__icon" aria-hidden>
-        <ThunderboltOutlined />
+        <AppstoreOutlined />
       </span>
-      <span className="app-brand__text">{APP_NAME}</span>
+      <span className="app-brand__text">
+        {APP_NAME}
+      </span>
     </Link>
   );
 }

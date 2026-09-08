@@ -1,49 +1,166 @@
-/**
- * Linear app UI — CSS variables (sync with linearTokens.ts).
- */
-:root {
+/* Workspace theme variables; paired with themePalettes in linearTokens.ts. */
+:root,
+:root[data-theme="graphite"] {
   color-scheme: dark;
-
-  --linear-canvas: #08090a;
-  --linear-surface-0: #08090a;
-  --linear-surface-1: #0f1011;
-  --linear-surface-2: #141516;
-  --linear-surface-3: #18191a;
-  --linear-surface-4: #191a1b;
-  --linear-surface-secondary: #1c1c1f;
-  --linear-surface-tertiary: #232326;
-  --linear-surface-quaternary: #28282c;
-
-  --linear-ink: #f7f8f8;
-  --linear-ink-secondary: #d0d6e0;
-  --linear-ink-muted: #8a8f98;
-  --linear-ink-quaternary: #62666d;
-
-  --linear-hairline: #23252a;
-  --linear-hairline-strong: #34343a;
-  --linear-hairline-tertiary: #3e3e44;
-
-  --linear-primary: #5e6ad2;
-  --linear-primary-hover: #828fff;
-  --linear-primary-focus: #5e69d1;
-  --linear-accent-tint: #18182f;
-  --linear-link: #828fff;
-  --linear-on-primary: #ffffff;
-
+  --linear-canvas: #111214;
+  --linear-canvas-marketing: #010102;
+  --linear-surface-0: #111214;
+  --linear-surface-1: #1a1b1f;
+  --linear-surface-2: #222328;
+  --linear-surface-3: #2c2d34;
+  --linear-surface-4: #34353e;
+  --linear-surface-secondary: #222328;
+  --linear-surface-tertiary: #2c2d34;
+  --linear-surface-quaternary: #34353e;
+  --linear-ink: #f4f4f5;
+  --linear-ink-secondary: #d4d4d8;
+  --linear-ink-muted: #a1a1aa;
+  --linear-ink-quaternary: #85858f;
+  --linear-editor-text: #e4e4e7;
+  --linear-hairline: #303138;
+  --linear-hairline-strong: #464750;
+  --linear-hairline-tertiary: #5c5d68;
+  --linear-primary: #d8dce5;
+  --linear-primary-hover: #ffffff;
+  --linear-primary-focus: #aeb6c8;
+  --linear-accent-tint: #24272e;
+  --linear-link: #d5dcf1;
+  --linear-on-primary: #121318;
   --linear-red: #eb5757;
   --linear-orange: #fc7840;
-  --linear-yellow: #f0bf00;
-  --linear-green: #27a644;
-  --linear-blue: #4ea7fc;
-  --linear-teal: #00b8cc;
-
+  --linear-yellow: #e3b93c;
+  --linear-green: #38b97b;
+  --linear-blue: #579bf2;
+  --linear-indigo: #9b8afb;
+  --linear-teal: #33b6c7;
   --linear-radius-sm: 6px;
   --linear-radius-md: 8px;
   --linear-radius-lg: 12px;
   --linear-sider-rail: 56px;
   --linear-header-height: 56px;
+}
 
-  /* App aliases */
+:root[data-theme="blue"] {
+  color-scheme: dark;
+  --linear-canvas: #0d1522;
+  --linear-canvas-marketing: #010102;
+  --linear-surface-0: #0d1522;
+  --linear-surface-1: #142033;
+  --linear-surface-2: #1b2b42;
+  --linear-surface-3: #23364f;
+  --linear-surface-4: #2c425c;
+  --linear-surface-secondary: #1b2b42;
+  --linear-surface-tertiary: #23364f;
+  --linear-surface-quaternary: #2c425c;
+  --linear-ink: #edf4ff;
+  --linear-ink-secondary: #c9d9ed;
+  --linear-ink-muted: #95abc6;
+  --linear-ink-quaternary: #7e95b0;
+  --linear-editor-text: #dce9fa;
+  --linear-hairline: #283b54;
+  --linear-hairline-strong: #3d5574;
+  --linear-hairline-tertiary: #54708f;
+  --linear-primary: #367edc;
+  --linear-primary-hover: #559af4;
+  --linear-primary-focus: #2665ba;
+  --linear-accent-tint: #1a304e;
+  --linear-link: #87baff;
+  --linear-on-primary: #ffffff;
+  --linear-red: #eb5757;
+  --linear-orange: #fc7840;
+  --linear-yellow: #e3b93c;
+  --linear-green: #38b97b;
+  --linear-blue: #579bf2;
+  --linear-indigo: #9b8afb;
+  --linear-teal: #33b6c7;
+  --linear-radius-sm: 6px;
+  --linear-radius-md: 8px;
+  --linear-radius-lg: 12px;
+  --linear-sider-rail: 56px;
+  --linear-header-height: 56px;
+}
+
+:root[data-theme="violet"] {
+  color-scheme: dark;
+  --linear-canvas: #171320;
+  --linear-canvas-marketing: #010102;
+  --linear-surface-0: #171320;
+  --linear-surface-1: #211b2d;
+  --linear-surface-2: #2b233b;
+  --linear-surface-3: #372c49;
+  --linear-surface-4: #443657;
+  --linear-surface-secondary: #2b233b;
+  --linear-surface-tertiary: #372c49;
+  --linear-surface-quaternary: #443657;
+  --linear-ink: #f7f1ff;
+  --linear-ink-secondary: #ded1ee;
+  --linear-ink-muted: #b4a2c8;
+  --linear-ink-quaternary: #9785ad;
+  --linear-editor-text: #e9dff5;
+  --linear-hairline: #3b304b;
+  --linear-hairline-strong: #56436d;
+  --linear-hairline-tertiary: #705988;
+  --linear-primary: #9261d4;
+  --linear-primary-hover: #ab7be9;
+  --linear-primary-focus: #7848b8;
+  --linear-accent-tint: #332343;
+  --linear-link: #cba1ff;
+  --linear-on-primary: #ffffff;
+  --linear-red: #eb5757;
+  --linear-orange: #fc7840;
+  --linear-yellow: #e3b93c;
+  --linear-green: #38b97b;
+  --linear-blue: #579bf2;
+  --linear-indigo: #9b8afb;
+  --linear-teal: #33b6c7;
+  --linear-radius-sm: 6px;
+  --linear-radius-md: 8px;
+  --linear-radius-lg: 12px;
+  --linear-sider-rail: 56px;
+  --linear-header-height: 56px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --linear-canvas: #f3f4f7;
+  --linear-canvas-marketing: #010102;
+  --linear-surface-0: #f3f4f7;
+  --linear-surface-1: #ffffff;
+  --linear-surface-2: #f5f6f9;
+  --linear-surface-3: #e9ecf3;
+  --linear-surface-4: #dde2ed;
+  --linear-surface-secondary: #f5f6f9;
+  --linear-surface-tertiary: #e9ecf3;
+  --linear-surface-quaternary: #dde2ed;
+  --linear-ink: #202431;
+  --linear-ink-secondary: #42495b;
+  --linear-ink-muted: #626c80;
+  --linear-ink-quaternary: #757f91;
+  --linear-editor-text: #303749;
+  --linear-hairline: #dfe3eb;
+  --linear-hairline-strong: #bcc4d3;
+  --linear-hairline-tertiary: #98a3b7;
+  --linear-primary: #5067d5;
+  --linear-primary-hover: #3f54bd;
+  --linear-primary-focus: #33469f;
+  --linear-accent-tint: #e9edff;
+  --linear-link: #4057c3;
+  --linear-on-primary: #ffffff;
+  --linear-red: #eb5757;
+  --linear-orange: #fc7840;
+  --linear-yellow: #e3b93c;
+  --linear-green: #38b97b;
+  --linear-blue: #579bf2;
+  --linear-indigo: #9b8afb;
+  --linear-teal: #33b6c7;
+  --linear-radius-sm: 6px;
+  --linear-radius-md: 8px;
+  --linear-radius-lg: 12px;
+  --linear-sider-rail: 56px;
+  --linear-header-height: 56px;
+}
+
+:root {
   --page-bg: var(--linear-canvas);
   --card-bg: var(--linear-surface-1);
   --card-bg-top: var(--linear-surface-2);

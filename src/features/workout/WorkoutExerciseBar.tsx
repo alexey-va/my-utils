@@ -1,9 +1,10 @@
 import type { Ref } from "react";
-import { Button, Select, Space } from "antd";
+import { Button, Dropdown, Select, Space } from "antd";
 import type { RefSelectProps } from "antd/es/select";
 import {
   AppstoreOutlined,
   DownloadOutlined,
+  MoreOutlined,
   EditOutlined,
   PlusOutlined,
   UnorderedListOutlined,
@@ -74,26 +75,37 @@ export default function WorkoutExerciseBar({
           {t("toolbar.addExercise")}
         </Button>
         <Button
-          icon={showAllExercises ? <UnorderedListOutlined /> : <AppstoreOutlined />}
+          icon={
+            showAllExercises ? <UnorderedListOutlined /> : <AppstoreOutlined />
+          }
           disabled={!exercises.length || !onToggleAllExercises}
           onClick={onToggleAllExercises}
         >
           {showAllExercises ? t("toolbar.sessions") : t("toolbar.trainingGrid")}
         </Button>
-        <Button
-          icon={<EditOutlined />}
-          disabled={!selectedExerciseId}
-          onClick={onEditExercise}
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "edit",
+                label: t("toolbar.editExercise"),
+                icon: <EditOutlined />,
+                disabled: !selectedExerciseId,
+                onClick: onEditExercise,
+              },
+              {
+                key: "export",
+                label: t("toolbar.exportCsv"),
+                icon: <DownloadOutlined />,
+                disabled: !canExport,
+                onClick: onExportCsv,
+              },
+            ],
+          }}
+          trigger={["click"]}
         >
-          {t("toolbar.editExercise")}
-        </Button>
-        <Button
-          icon={<DownloadOutlined />}
-          disabled={!canExport}
-          onClick={onExportCsv}
-        >
-          {t("toolbar.exportCsv")}
-        </Button>
+          <Button icon={<MoreOutlined />} aria-label={t("toolbar.more")} />
+        </Dropdown>
         <span className="workout-toolbar__keys" aria-hidden>
           <kbd>N</kbd> {t("toolbar.shortcuts").split(" · ")[0]} · <kbd>/</kbd>{" "}
           {t("toolbar.shortcuts").split(" · ")[1]}

@@ -21,8 +21,14 @@ import { loginPathWithRedirect } from "./authNavigation";
 import { renderSiderMenu } from "./sider/renderSiderMenu";
 import { useStoredUser } from "../auth/useStoredUser";
 
-export default function AppSider() {
-  const [expanded, setExpanded] = useState(false);
+export default function AppSider({
+  mobile = false,
+  onNavigate,
+}: {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(mobile);
   const location = useLocation();
   const navigate = useNavigate();
   const onGrafanaTab = location.pathname === "/observability";
@@ -39,9 +45,10 @@ export default function AppSider() {
       const route = routeByKey.get(key);
       if (route) {
         navigate(route);
+        onNavigate?.();
       }
     },
-    [routeByKey, navigate],
+    [routeByKey, navigate, onNavigate],
   );
 
   const menuNodes = renderSiderMenu({ tree: menuItems, selectedKey, identity });
@@ -56,9 +63,9 @@ export default function AppSider() {
 
   return (
     <Layout.Sider
-      className={`app-sider${expanded ? " app-sider--expanded" : ""}`}
+      className={`app-sider${expanded ? " app-sider--expanded" : ""}${mobile ? " app-sider--mobile" : ""}`}
       collapsed={false}
-      width={siderWidth}
+      width={mobile ? "100%" : siderWidth}
       collapsible={false}
       trigger={null}
     >
@@ -98,7 +105,10 @@ export default function AppSider() {
               expanded={expanded}
               icon={<UserOutlined />}
               label={identity.username}
-              onClick={() => navigate(PATH_ACCOUNT)}
+              onClick={() => {
+                navigate(PATH_ACCOUNT);
+                onNavigate?.();
+              }}
             />
           ) : null}
           <SiderFooterButton
@@ -106,20 +116,24 @@ export default function AppSider() {
             icon={identity ? <LogoutOutlined /> : <LoginOutlined />}
             label={identity ? signOutLabel : signInLabel}
             onClick={() =>
-              identity ? confirmLogout() : navigate(loginPathWithRedirect(PATH_HOME))
+              identity
+                ? confirmLogout()
+                : (navigate(loginPathWithRedirect(PATH_HOME)), onNavigate?.())
             }
           />
-          <SiderFooterButton
-            expanded={expanded}
-            icon={expanded ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-            label={toggleLabel}
-            ariaLabel={
-              expanded
-                ? translate("buttons.collapse", "Collapse sidebar")
-                : translate("buttons.expand", "Expand sidebar")
-            }
-            onClick={() => setExpanded((value) => !value)}
-          />
+          {!mobile ? (
+            <SiderFooterButton
+              expanded={expanded}
+              icon={expanded ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+              label={toggleLabel}
+              ariaLabel={
+                expanded
+                  ? translate("buttons.collapse", "Collapse sidebar")
+                  : translate("buttons.expand", "Expand sidebar")
+              }
+              onClick={() => setExpanded((value) => !value)}
+            />
+          ) : null}
         </div>
       </div>
     </Layout.Sider>

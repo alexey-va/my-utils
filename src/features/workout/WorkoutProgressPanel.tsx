@@ -11,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import type { ExerciseProgress, ProgressMetric } from "../../api/types";
-import { linearTokens } from "../../design/linearTokens";
 import WorkoutCompareChartTooltip from "./WorkoutCompareChartTooltip";
 import {
   type CompareSeries,
@@ -23,7 +22,7 @@ import {
 } from "./workoutAnalytics";
 import { useWorkoutLocale } from "./workoutLocale";
 
-const CHART_HEIGHT = 252;
+const CHART_HEIGHT = 240;
 
 type Props = {
   series: CompareSeries[];
@@ -34,6 +33,7 @@ type Props = {
   onMetricChange: (metric: ProgressMetric) => void;
   onPeriodChange: (period: ProgressPeriod) => void;
   onDelete: () => void;
+  exerciseControl?: ReactNode;
 };
 
 function trendSuffix(delta: number | null, unit: string): ReactNode {
@@ -42,7 +42,9 @@ function trendSuffix(delta: number | null, unit: string): ReactNode {
   }
   const positive = delta > 0;
   return (
-    <span className={`workout-progress__trend ${positive ? "workout-progress__trend--up" : ""}`}>
+    <span
+      className={`workout-progress__trend ${positive ? "workout-progress__trend--up" : ""}`}
+    >
       {formatSignedDelta(delta, unit)}
     </span>
   );
@@ -57,8 +59,16 @@ function WorkoutProgressPanel({
   onMetricChange,
   onPeriodChange,
   onDelete,
+  exerciseControl,
 }: Props) {
-  const { t } = useWorkoutLocale();
+  const { t, localeTag, formatDate } = useWorkoutLocale();
+  const axisNumberFormat = useMemo(
+    () =>
+      new Intl.NumberFormat(localeTag, {
+        maximumFractionDigits: metric === "weight" ? 1 : 0,
+      }),
+    [localeTag, metric],
+  );
   const periodOptions = useMemo(
     () => [
       { label: t("period.weeks", { count: 4 }), value: "p4" },
@@ -106,7 +116,7 @@ function WorkoutProgressPanel({
   const trends = computeProgressTrends(primaryPoints);
   const bestE1rm = bestE1rmFromPoints(primaryPoints);
 
-  if (!loading && series.length === 0) {
+  if (!loading && series.length === 0 && !exerciseControl) {
     return (
       <div className="workout-progress workout-progress--placeholder">
         <Empty
@@ -124,8 +134,11 @@ function WorkoutProgressPanel({
       <div className="workout-progress__header">
         <div className="workout-progress__header-text">
           <p className="workout-progress__eyebrow">{t("progress.title")}</p>
-          <h2 className="workout-progress__title">{title}</h2>
-          <p className="workout-progress__hint">{t("progress.hint")}</p>
+          {exerciseControl ? (
+            <div className="workout-progress__exercise">{exerciseControl}</div>
+          ) : (
+            <h2 className="workout-progress__title">{title}</h2>
+          )}
         </div>
         {primary ? (
           <Popconfirm
@@ -135,9 +148,13 @@ function WorkoutProgressPanel({
             okText={t("common.delete")}
             okButtonProps={{ danger: true }}
           >
-            <Button danger icon={<DeleteOutlined />} size="small">
-              {t("common.delete")}
-            </Button>
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              size="small"
+              aria-label={t("progress.deleteExercise")}
+            />
           </Popconfirm>
         ) : null}
       </div>
@@ -147,33 +164,53 @@ function WorkoutProgressPanel({
           className={`workout-progress__stats${primary ? "" : " workout-progress__stats--placeholder"}`}
           aria-busy={!primary && loading}
         >
-          <Statistic title={t("progress.sessions")} value={primary?.stats.sessions ?? "—"} />
+          <Statistic
+            title={t("progress.sessions")}
+            value={primary?.stats.sessions ?? "—"}
+          />
           <Statistic
             title={t("progress.bestWeight")}
             value={primary?.stats.bestWeightKg ?? "—"}
-            suffix={primary?.stats.bestWeightKg != null ? t("common.kg") : undefined}
+            suffix={
+              primary?.stats.bestWeightKg != null ? t("common.kg") : undefined
+            }
           />
           <div className="workout-progress__stat">
             <Statistic
               title={t("common.latest")}
               value={primary?.stats.latestWeightKg ?? "—"}
-              suffix={primary?.stats.latestWeightKg != null ? t("common.kg") : undefined}
+              suffix={
+                primary?.stats.latestWeightKg != null
+                  ? t("common.kg")
+                  : undefined
+              }
             />
             <div className="workout-progress__stat-delta">
               {trendSuffix(trends.weightVsPrevious, t("common.kg")) ? (
                 <>
                   {trendSuffix(trends.weightVsPrevious, t("common.kg"))}
                   <span className="workout-progress__stat-delta-label">
-                    {" "}{t("progress.vsPrevious")}
+                    {" "}
+                    {t("progress.vsPrevious")}
                   </span>
                 </>
               ) : (
-                <span className="workout-progress__stat-delta-placeholder" aria-hidden>
+                <span
+                  className="workout-progress__stat-delta-placeholder"
+                  aria-hidden
+                >
                   —
                 </span>
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      <details className="workout-progress__details">
+        <summary>{t("overview.moreStats")}</summary>
+        <div className="workout-progress__secondary-stats">
+          {" "}
           <Statistic
             title={t("progress.weeksAgo", { count: trends.weeksAgoLabel ?? 4 })}
             value={
@@ -190,10 +227,12 @@ function WorkoutProgressPanel({
           <Statistic
             title={t("progress.bestVolume")}
             value={primary?.stats.bestVolume ?? "—"}
-            suffix={primary?.stats.bestVolume != null ? t("common.kg") : undefined}
+            suffix={
+              primary?.stats.bestVolume != null ? t("common.kg") : undefined
+            }
           />
         </div>
-      </div>
+      </details>
 
       <div className="workout-progress__controls">
         <Segmented
@@ -219,19 +258,37 @@ function WorkoutProgressPanel({
           <Empty description={t("progress.noSessions")} />
         ) : (
           <div className="workout-progress__chart-inner">
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
+            <ResponsiveContainer
+              width="100%"
+              height={CHART_HEIGHT}
+              debounce={0}
+            >
               <LineChart
                 data={chartData}
                 margin={{ top: 14, right: 12, left: 2, bottom: 14 }}
               >
-                <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" />
+                <CartesianGrid
+                  stroke={"var(--linear-hairline)"}
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
                 <XAxis
-                  dataKey="label"
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+                  dataKey="date"
+                  tickFormatter={(date: string) =>
+                    formatDate(date, { day: "numeric", month: "short" })
+                  }
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "var(--linear-ink-muted)", fontSize: 11 }}
                   tickMargin={6}
                 />
                 <YAxis
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value: number) =>
+                    axisNumberFormat.format(value)
+                  }
+                  tick={{ fill: "var(--linear-ink-muted)", fontSize: 11 }}
                   width={44}
                   tickMargin={4}
                   allowDecimals={metric !== "maxReps"}
@@ -256,8 +313,12 @@ function WorkoutProgressPanel({
                     dataKey={`s_${s.exerciseId}`}
                     name={`s_${s.exerciseId}`}
                     stroke={s.color}
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: s.color, strokeWidth: 0 }}
+                    strokeWidth={2.5}
+                    dot={
+                      s.points.length === 1 || chartData.length === 1
+                        ? { r: 4, fill: s.color, strokeWidth: 0 }
+                        : false
+                    }
                     activeDot={{ r: 5, strokeWidth: 0 }}
                     connectNulls
                     isAnimationActive={false}

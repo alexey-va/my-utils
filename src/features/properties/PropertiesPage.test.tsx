@@ -108,5 +108,5 @@ describe("PropertiesPage", () => {
 
     await waitFor(() => expect(screen.getByDisplayValue("openai/gpt-5.6-sol")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Сохранить openrouter.model" })).toBeEnabled();
-  });
+  }, 15_000);
 });

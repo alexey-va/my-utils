@@ -5,10 +5,17 @@ import { apiEndpoints } from "../../api/endpoints";
 import type { ExerciseProgress } from "../../api/types";
 import { chartColorForIndex } from "./workoutChartColors";
 import type { CompareSeries } from "./workoutAnalytics";
-import { getWorkoutProgressCache, prefetchExerciseProgress } from "./workoutProgressCache";
+import {
+  getWorkoutProgressCache,
+  getWorkoutProgressGeneration,
+  prefetchExerciseProgress,
+} from "./workoutProgressCache";
 import { useWorkoutLocale } from "./workoutLocale";
 
-function progressToSeries(progress: ExerciseProgress, colorIndex: number): CompareSeries {
+function progressToSeries(
+  progress: ExerciseProgress,
+  colorIndex: number,
+): CompareSeries {
   return {
     exerciseId: progress.exercise.id,
     name: progress.exercise.name,
@@ -17,7 +24,10 @@ function progressToSeries(progress: ExerciseProgress, colorIndex: number): Compa
   };
 }
 
-function orderSeries(ids: string[], byId: Map<string, CompareSeries>): CompareSeries[] {
+function orderSeries(
+  ids: string[],
+  byId: Map<string, CompareSeries>,
+): CompareSeries[] {
   return ids
     .map((id, index) => {
       const item = byId.get(id);
@@ -29,7 +39,10 @@ function orderSeries(ids: string[], byId: Map<string, CompareSeries>): CompareSe
     .filter((s): s is CompareSeries => s != null);
 }
 
-function seriesFromCache(ids: string[], cache: Map<string, ExerciseProgress>): CompareSeries[] {
+function seriesFromCache(
+  ids: string[],
+  cache: Map<string, ExerciseProgress>,
+): CompareSeries[] {
   const byId = new Map<string, CompareSeries>();
   for (const id of ids) {
     const progress = cache.get(id);
@@ -61,16 +74,21 @@ export function useCompareProgress(
   const syncFromCache = useCallback(
     (ids: string[]) => {
       const nextSeries = seriesFromCache(ids, cache);
-      setSeries(nextSeries);
+      setSeries((current) =>
+        nextSeries.length > 0
+          ? nextSeries
+          : current.filter((item) => ids.includes(item.exerciseId)),
+      );
       const targetId = primaryExerciseId ?? ids[0];
       if (!targetId) {
         setPrimary(null);
         return;
       }
-      const cached = cache.get(targetId);
-      if (cached) {
-        setPrimary(cached);
-      }
+      setPrimary(
+        (current) =>
+          cache.get(targetId) ??
+          (current?.exercise.id === targetId ? current : null),
+      );
     },
     [cache, primaryExerciseId],
   );
@@ -89,6 +107,9 @@ export function useCompareProgress(
   );
 
   useEffect(() => {
+    const generationRef = fetchGenRef;
+    const generation = ++generationRef.current;
+    const cacheGeneration = getWorkoutProgressGeneration();
     if (!idsKey) {
       setSeries([]);
       setPrimary(null);
@@ -97,42 +118,41 @@ export function useCompareProgress(
     }
 
     const ids = idsKey.split(",");
-    const generation = ++fetchGenRef.current;
-
     syncFromCache(ids);
 
     const missing = ids.filter((id) => !cache.has(id));
     if (missing.length === 0) {
+      setInitialLoading(false);
       return;
     }
 
-    const hasAnyCached = seriesFromCache(ids, cache).length > 0;
-    if (!hasAnyCached) {
-      setInitialLoading(true);
-    }
+    setInitialLoading(true);
 
     void (async () => {
       try {
         const results = await Promise.all(
           missing.map((id) =>
-            apiClient.get<ExerciseProgress>(apiEndpoints.workouts.exerciseProgress(id)),
+            apiClient.get<ExerciseProgress>(
+              apiEndpoints.workouts.exerciseProgress(id),
+            ),
           ),
         );
 
-        for (const progress of results) {
-          cache.set(progress.exercise.id, progress);
-        }
-
-        if (fetchGenRef.current !== generation) {
+        if (
+          fetchGenRef.current !== generation ||
+          getWorkoutProgressGeneration() !== cacheGeneration
+        )
           return;
-        }
+        for (const progress of results)
+          cache.set(progress.exercise.id, progress);
 
         syncFromCache(ids);
       } catch (err) {
         if (fetchGenRef.current === generation) {
-          const text = err instanceof ApiError
-            ? err.message
-            : tRef.current("message.progressFailed");
+          const text =
+            err instanceof ApiError
+              ? err.message
+              : tRef.current("message.progressFailed");
           message.error(text);
         }
       } finally {
@@ -141,43 +161,10 @@ export function useCompareProgress(
         }
       }
     })();
-  }, [idsKey, primaryExerciseId, syncFromCache, cache]);
-
-  useEffect(() => {
-    if (refreshKey === 0 || !idsKey) {
-      return;
-    }
-
-    const ids = idsKey.split(",");
-    const generation = ++fetchGenRef.current;
-
-    void (async () => {
-      try {
-        const results = await Promise.all(
-          ids.map((id) =>
-            apiClient.get<ExerciseProgress>(apiEndpoints.workouts.exerciseProgress(id)),
-          ),
-        );
-
-        for (const progress of results) {
-          cache.set(progress.exercise.id, progress);
-        }
-
-        if (fetchGenRef.current !== generation) {
-          return;
-        }
-
-        syncFromCache(ids);
-      } catch (err) {
-        if (fetchGenRef.current === generation) {
-          const text = err instanceof ApiError
-            ? err.message
-            : tRef.current("message.progressFailed");
-          message.error(text);
-        }
-      }
-    })();
-  }, [refreshKey, idsKey, syncFromCache, cache]);
+    return () => {
+      ++generationRef.current;
+    };
+  }, [idsKey, primaryExerciseId, syncFromCache, cache, refreshKey]);
 
   return {
     series,

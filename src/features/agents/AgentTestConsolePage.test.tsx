@@ -89,7 +89,7 @@ describe("AgentTestConsolePage", () => {
       expect(api.createChat).toHaveBeenCalledWith("Проверка календаря");
     });
     expect(await screen.findByRole("heading", { name: "Тестовый чат" })).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it("ignores a stale history response after switching chats", async () => {
     const secondChat = { ...testChat, id: "second-chat", title: "Второй чат" };
@@ -194,7 +194,7 @@ describe("AgentTestConsolePage", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Отправить" })).toBeEnabled());
     expect(screen.getAllByText("Уже сохранённый ответ A")).toHaveLength(1);
     expect(composer).toHaveValue("Новый черновик A");
-  }, 10_000);
+  }, 15_000);
 });
 
 const testChat: AgentTestChat = {

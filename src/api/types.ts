@@ -102,3 +102,5 @@ export type HealthBodyWeightHistory = {
   latestWeightKg: number | null;
   latestDate: string | null;
 };
+
+export type WorkoutSnapshot = { exercises: Exercise[]; grid: WorkoutGrid };

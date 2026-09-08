@@ -104,12 +104,17 @@ export default function WorkoutEntryForm({
         layout="vertical"
         autoComplete="off"
         className="workout-form"
+        disabled={saving}
         onFinish={async (values) => {
+          let payload: UpsertWorkoutEntryRequest;
           try {
-            await onSubmit(buildUpsertPayload(draft, values));
+            payload = buildUpsertPayload(draft, values);
           } catch {
             message.error(t("entry.invalidReps"));
+            return;
           }
+          // The write layer reports request failures; keep this draft for retry.
+          await onSubmit(payload).catch(() => {});
         }}
       >
         <div className="workout-form__grid">
@@ -201,7 +206,7 @@ export default function WorkoutEntryForm({
                   exercise: draft.exerciseName,
                   date: draft.performedOn,
                 })}
-                onConfirm={() => void onDelete()}
+                onConfirm={() => onDelete().catch(() => {})}
                 okText={t("common.delete")}
                 okButtonProps={{ danger: true }}
               >

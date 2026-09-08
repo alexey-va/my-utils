@@ -96,10 +96,10 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
         }
         return (
           <g transform={`translate(${x},${y})`}>
-            <text x={0} y={0} dy={10} textAnchor="middle" fill={linearTokens.inkMuted} fontSize={9}>
+            <text x={0} y={0} dy={10} textAnchor="middle" fill={"var(--linear-ink-muted)"} fontSize={9}>
               {formatDate(payload.value, { weekday: "short" })}
             </text>
-            <text x={0} y={0} dy={22} textAnchor="middle" fill={linearTokens.inkMuted} fontSize={10}>
+            <text x={0} y={0} dy={22} textAnchor="middle" fill={"var(--linear-ink-muted)"} fontSize={10}>
               {formatDate(payload.value, {
                 day: "numeric",
                 month: "short",
@@ -115,7 +115,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
   const renderChart = (height: number | "100%") => (
     <ResponsiveContainer width="100%" height={height} debounce={0}>
       <BarChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
-        <CartesianGrid stroke={linearTokens.hairline} strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid stroke={"var(--linear-hairline)"} strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="date"
           tick={renderXAxisTick}
@@ -124,7 +124,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
           interval={xAxisInterval}
         />
         <YAxis
-          tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+          tick={{ fill: "var(--linear-ink-muted)", fontSize: 11 }}
           width={50}
           tickMargin={4}
           tickCount={HEALTH_CHART_Y_TICK_COUNT}
@@ -157,17 +157,17 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
               </div>
             );
           }}
-          cursor={{ fill: linearTokens.accentTint }}
+          cursor={{ fill: "var(--linear-accent-tint)" }}
         />
         <ReferenceLine
           y={STEPS_GOAL}
-          stroke={linearTokens.inkMuted}
+          stroke={"var(--linear-ink-muted)"}
           strokeDasharray="5 4"
           strokeWidth={1}
           label={{
             value: "10k",
             position: "insideTopRight",
-            fill: linearTokens.inkMuted,
+            fill: "var(--linear-ink-muted)",
             fontSize: 10,
           }}
         />
@@ -182,7 +182,7 @@ function WorkoutStepsChart({ days, todaySteps, loading, period, onPeriodChange }
   );
 
   const openDetailsFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
+    if (hasChart && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
       setDetailsOpen(true);
     }

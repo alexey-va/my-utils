@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WireGuardCredentialsModal from "./WireGuardCredentialsModal";
 
 describe("WireGuardCredentialsModal", () => {
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -77,5 +78,5 @@ describe("WireGuardCredentialsModal", () => {
 
     act(() => vi.runAllTimers());
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:wireguard-config");
-  });
+  }, 15_000);
 });

@@ -108,7 +108,7 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
         onEdit || onDelete ? (
           <Space size="small">
             {onEdit ? (
-              <Button type="link" size="small" onClick={() => onEdit(r)}>
+              <Button type="link" size="small" disabled={loading} onClick={() => onEdit(r)}>
                 {t("common.edit")}
               </Button>
             ) : null}
@@ -116,11 +116,11 @@ function WorkoutSessionList({ points, exerciseName, loading, onEdit, onDelete }:
               <Popconfirm
                 title={t("sessions.deleteTitle")}
                 description={t("sessions.deleteDescription", { date: formatDate(r.date) })}
-                onConfirm={() => void onDelete(r)}
+                onConfirm={() => onDelete(r).catch(() => {})}
                 okText={t("common.delete")}
                 okButtonProps={{ danger: true }}
               >
-                <Button type="link" size="small" danger>
+                <Button type="link" size="small" danger disabled={loading}>
                   {t("common.delete")}
                 </Button>
               </Popconfirm>

@@ -7,13 +7,10 @@ import type {
   MoveWorkoutEntryRequest,
   UpsertWorkoutEntryRequest,
   WorkoutGrid,
+  WorkoutSnapshot,
 } from "../../api/types";
-import {
-  applyDeleteFromGrid,
-  applyMoveToGrid,
-  applyUpsertToGrid,
-  sortGridDatesOldestFirst,
-} from "./workoutGridMutations";
+import { sortGridDatesOldestFirst } from "./workoutGridMutations";
+import { invalidateWorkoutProgress } from "./workoutProgressCache";
 import { useWorkoutLocale } from "./workoutLocale";
 
 export function useWorkoutGrid() {
@@ -22,128 +19,134 @@ export function useWorkoutGrid() {
   tRef.current = t;
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [grid, setGrid] = useState<WorkoutGrid>({ dates: [], rows: [] });
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string>();
+  const [selectedExerciseId, selectExercise] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dataVersion, setDataVersion] = useState(0);
+  const readGeneration = useRef(0);
+  const writePending = useRef(false);
 
   const reload = useCallback(async (options?: { silent?: boolean }) => {
-    if (!options?.silent) {
-      setLoading(true);
-    }
+    const generation = ++readGeneration.current;
+    if (!options?.silent) setLoading(true);
+    setError(null);
     try {
-      const [exerciseList, gridData] = await Promise.all([
-        apiClient.get<Exercise[]>(apiEndpoints.workouts.exercises),
-        apiClient.get<WorkoutGrid>(apiEndpoints.workouts.grid),
-      ]);
-      setExercises(exerciseList);
+      const snapshot = await apiClient.get<WorkoutSnapshot>(
+        apiEndpoints.workouts.snapshot,
+      );
+      if (generation !== readGeneration.current) return;
+      setExercises(snapshot.exercises);
       setGrid({
-        dates: sortGridDatesOldestFirst(gridData.dates),
-        rows: gridData.rows,
+        dates: sortGridDatesOldestFirst(snapshot.grid.dates),
+        rows: snapshot.grid.rows,
       });
-      setSelectedExerciseId((current) => {
-        if (current && exerciseList.some((e) => e.id === current)) {
-          return current;
-        }
-        return exerciseList[0]?.id;
-      });
+      selectExercise((current) =>
+        snapshot.exercises.some((e) => e.id === current)
+          ? current
+          : snapshot.exercises[0]?.id,
+      );
     } catch (err) {
-      const text = err instanceof ApiError
-        ? err.message
-        : tRef.current("message.loadWorkoutFailed");
-      message.error(text);
-    } finally {
-      if (!options?.silent) {
-        setLoading(false);
+      if (generation === readGeneration.current) {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : tRef.current("message.loadWorkoutFailed"),
+        );
       }
+    } finally {
+      if (generation === readGeneration.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    const generationRef = readGeneration;
     void reload();
+    return () => {
+      ++generationRef.current;
+    };
   }, [reload]);
 
-  const selectExercise = useCallback((exerciseId: string) => {
-    setSelectedExerciseId(exerciseId);
-  }, []);
-
-  const addExercise = useCallback(
-    async (name: string, muscleGroup?: string) => {
-      const created = await apiClient.post<Exercise>(apiEndpoints.workouts.exercises, {
-        name,
-        muscleGroup,
-      });
-      message.success(t("message.exerciseAdded", { name: created.name }));
-      await reload();
-      setSelectedExerciseId(created.id);
-      return created;
-    },
-    [reload, t],
-  );
-
-  const updateExercise = useCallback(
-    async (exerciseId: string, name: string, muscleGroup?: string) => {
+  const write = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T> => {
+      if (writePending.current) {
+        message.warning(tRef.current("common.saving"));
+        throw new Error(tRef.current("common.saving"));
+      }
+      writePending.current = true;
+      ++readGeneration.current;
       setSaving(true);
       try {
-        const updated = await apiClient.patch<Exercise>(apiEndpoints.workouts.exercise(exerciseId), {
-          name,
-          muscleGroup,
-        });
-        message.success(t("message.exerciseUpdated"));
-        await reload();
-        setSelectedExerciseId(updated.id);
-        return updated;
+        const result = await operation();
+        invalidateWorkoutProgress();
+        await reload({ silent: true });
+        // Refresh after selection is reconciled, including a deleted exercise.
+        setDataVersion((version) => version + 1);
+        return result;
       } catch (err) {
-        const text = err instanceof ApiError ? err.message : t("message.updateExerciseFailed");
-        message.error(text);
+        message.error(
+          err instanceof ApiError
+            ? err.message
+            : tRef.current("message.saveFailed"),
+        );
         throw err;
       } finally {
+        writePending.current = false;
         setSaving(false);
       }
     },
-    [reload, t],
+    [reload],
+  );
+
+  const addExercise = useCallback(
+    async (name: string, muscleGroup?: string) => {
+      const created = await write(() =>
+        apiClient.post<Exercise>(apiEndpoints.workouts.exercises, {
+          name,
+          muscleGroup,
+        }),
+      );
+      selectExercise(created.id);
+      message.success(t("message.exerciseAdded", { name: created.name }));
+      return created;
+    },
+    [write, t],
+  );
+
+  const updateExercise = useCallback(
+    async (id: string, name: string, muscleGroup?: string) => {
+      const updated = await write(() =>
+        apiClient.patch<Exercise>(apiEndpoints.workouts.exercise(id), {
+          name,
+          muscleGroup,
+        }),
+      );
+      selectExercise(updated.id);
+      message.success(t("message.exerciseUpdated"));
+      return updated;
+    },
+    [write, t],
   );
 
   const deleteExercise = useCallback(
-    async (exerciseId: string) => {
-      await apiClient.delete(apiEndpoints.workouts.exercise(exerciseId));
+    async (id: string) => {
+      await write(() => apiClient.delete(apiEndpoints.workouts.exercise(id)));
       message.success(t("message.exerciseRemoved"));
-      await reload();
     },
-    [reload, t],
+    [write, t],
   );
 
   const saveEntry = useCallback(
-    async (body: UpsertWorkoutEntryRequest) => {
-      const snapshot = grid;
-      setGrid(applyUpsertToGrid(grid, body));
-      try {
-        await apiClient.post<void>(apiEndpoints.workouts.entries, body);
-        void reload({ silent: true });
-      } catch (err) {
-        setGrid(snapshot);
-        const text = err instanceof ApiError ? err.message : t("message.saveFailed");
-        message.error(text);
-        throw err;
-      }
-    },
-    [grid, reload, t],
+    (body: UpsertWorkoutEntryRequest) =>
+      write(() => apiClient.post<void>(apiEndpoints.workouts.entries, body)),
+    [write],
   );
-
   const deleteEntry = useCallback(
-    async (exerciseId: string, performedOn: string) => {
-      const snapshot = grid;
-      setGrid(applyDeleteFromGrid(grid, exerciseId, performedOn));
-      try {
-        await apiClient.delete(apiEndpoints.workouts.entry(exerciseId, performedOn));
-        void reload({ silent: true });
-      } catch (err) {
-        setGrid(snapshot);
-        const text = err instanceof ApiError ? err.message : t("message.deleteSessionFailed");
-        message.error(text);
-        throw err;
-      }
-    },
-    [grid, reload, t],
+    (exerciseId: string, date: string) =>
+      write(() =>
+        apiClient.delete(apiEndpoints.workouts.entry(exerciseId, date)),
+      ),
+    [write],
   );
 
   const moveEntry = useCallback(
@@ -152,40 +155,24 @@ export function useWorkoutGrid() {
       toExerciseId: string,
       toDate: string,
     ) => {
-      if (from.exerciseId === toExerciseId && from.fromDate === toDate) {
-        return;
-      }
-      const sourceRow = grid.rows.find((r) => r.exerciseId === from.exerciseId);
-      const cell = sourceRow?.cells[from.fromDate];
-      if (!cell) {
-        message.error(t("message.sourceMissing"));
-        return;
-      }
-      const targetRow = grid.rows.find((r) => r.exerciseId === toExerciseId);
-      if (targetRow?.cells[toDate]) {
+      if (from.exerciseId === toExerciseId && from.fromDate === toDate) return;
+      if (grid.rows.find((r) => r.exerciseId === toExerciseId)?.cells[toDate]) {
         message.warning(t("message.targetOccupied"));
         return;
       }
-      const snapshot = grid;
-      setGrid(applyMoveToGrid(grid, from, toExerciseId, toDate, cell));
-      void (async () => {
-        try {
-          const payload: MoveWorkoutEntryRequest = {
-            fromExerciseId: from.exerciseId,
-            fromDate: from.fromDate,
-            toExerciseId,
-            toDate,
-          };
-          await apiClient.post<void>(apiEndpoints.workouts.moveEntry, payload);
-          void reload({ silent: true });
-        } catch (err) {
-          setGrid(snapshot);
-          const text = err instanceof ApiError ? err.message : t("message.moveFailed");
-          message.error(text);
-        }
-      })();
+      const payload: MoveWorkoutEntryRequest = {
+        fromExerciseId: from.exerciseId,
+        fromDate: from.fromDate,
+        toExerciseId,
+        toDate,
+      };
+      void write(() =>
+        apiClient.post<void>(apiEndpoints.workouts.moveEntry, payload),
+      ).catch(() => {
+        /* write reports errors. */
+      });
     },
-    [grid, reload, t],
+    [grid, write, t],
   );
 
   return {
@@ -193,6 +180,8 @@ export function useWorkoutGrid() {
     grid,
     loading,
     saving,
+    error,
+    dataVersion,
     selectedExerciseId,
     selectExercise,
     addExercise,

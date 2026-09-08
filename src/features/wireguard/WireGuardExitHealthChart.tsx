@@ -93,28 +93,28 @@ export default function WireGuardExitHealthChart({ history }: Props) {
           <div className="wireguard-health-history__chart" aria-label="Задержка exit-ов во времени">
             <ResponsiveContainer width="100%" height={210} debounce={0}>
               <LineChart data={rows} margin={{ top: 10, right: 8, bottom: 4, left: 0 }}>
-                <CartesianGrid stroke={linearTokens.hairlineStrong} strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid stroke={"var(--linear-hairline-strong)"} strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="time"
                   type="number"
                   domain={[new Date(history!.from).getTime(), new Date(history!.to).getTime()]}
                   ticks={[new Date(history!.from).getTime(), new Date(history!.to).getTime()]}
                   tickFormatter={timeLabel}
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 10 }}
-                  axisLine={{ stroke: linearTokens.hairlineStrong }}
+                  tick={{ fill: "var(--linear-ink-muted)", fontSize: 10 }}
+                  axisLine={{ stroke: "var(--linear-hairline-strong)" }}
                   tickLine={false}
                 />
                 <YAxis
                   width={48}
                   unit=" мс"
-                  tick={{ fill: linearTokens.inkMuted, fontSize: 10 }}
+                  tick={{ fill: "var(--linear-ink-muted)", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   labelFormatter={(value) => timeLabel(Number(value))}
                   formatter={(value: number, name: string) => [`${Number(value).toFixed(1)} мс`, name]}
-                  contentStyle={{ background: linearTokens.surface2, border: `1px solid ${linearTokens.hairlineStrong}`, borderRadius: 8 }}
+                  contentStyle={{ background: "var(--linear-surface2)", border: `1px solid var(--linear-hairline-strong)`, borderRadius: 8 }}
                 />
                 <Line type="linear" dataKey="primaryAverageLatencyMs" name="Основной" stroke={linearTokens.semanticBlue} strokeWidth={2} dot={false} connectNulls={false} />
                 <Line type="linear" dataKey="secondaryAverageLatencyMs" name="Резервный" stroke={linearTokens.semanticGreen} strokeWidth={2} dot={false} connectNulls={false} />

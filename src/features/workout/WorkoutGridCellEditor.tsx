@@ -3,6 +3,7 @@ import { useWorkoutLocale } from "./workoutLocale";
 
 type Props = {
   mode: "add" | "edit";
+  saving?: boolean;
   weightKg: number;
   repsPattern: string;
   onWeightChange: (value: number) => void;
@@ -13,6 +14,7 @@ type Props = {
 
 export default function WorkoutGridCellEditor({
   mode,
+  saving = false,
   weightKg,
   repsPattern,
   onWeightChange,
@@ -25,6 +27,7 @@ export default function WorkoutGridCellEditor({
     <div className="workout-grid__cell-popover-inner">
       <Space.Compact className="workout-grid__cell-popover-row">
         <InputNumber
+          disabled={saving}
           className="workout-grid__cell-popover-weight"
           min={0.25}
           step={0.25}
@@ -43,6 +46,7 @@ export default function WorkoutGridCellEditor({
           }}
         />
         <Input
+          disabled={saving}
           className="workout-grid__cell-popover-reps"
           size="small"
           value={repsPattern}
@@ -57,11 +61,11 @@ export default function WorkoutGridCellEditor({
         />
       </Space.Compact>
       <div className="workout-grid__cell-popover-actions">
-        <Button type="primary" size="small" onClick={onSave}>
+        <Button type="primary" size="small" loading={saving} onClick={onSave}>
           {mode === "add" ? t("common.add") : t("common.update")}
         </Button>
         {onDelete ? (
-          <Button danger size="small" onClick={onDelete}>
+          <Button danger size="small" disabled={saving} onClick={onDelete}>
             {t("common.delete")}
           </Button>
         ) : null}

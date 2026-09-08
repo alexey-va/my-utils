@@ -25,12 +25,12 @@ export default function WorkoutCompareChartTooltip({
   period,
   chartData,
 }: Props) {
-  const { t } = useWorkoutLocale();
+  const { t, formatDate } = useWorkoutLocale();
   if (!active || label == null || series.length === 0) {
     return null;
   }
 
-  const row = chartData.find((r) => r.label === label);
+  const row = chartData.find((r) => r.date === label);
   if (!row) {
     return null;
   }
@@ -39,11 +39,14 @@ export default function WorkoutCompareChartTooltip({
 
   return (
     <div className="workout-chart-tooltip">
-      <p className="workout-chart-tooltip__label">{label}</p>
+      <p className="workout-chart-tooltip__label">{formatDate(row.date)}</p>
       <ul className="workout-chart-tooltip__list">
         {entries.map((entry) => (
           <li key={entry.exerciseId} className="workout-chart-tooltip__row">
-            <span className="workout-chart-tooltip__swatch" style={{ background: entry.color }} />
+            <span
+              className="workout-chart-tooltip__swatch"
+              style={{ background: entry.color }}
+            />
             <span className="workout-chart-tooltip__name">{entry.name}</span>
             <span
               className={[
@@ -57,7 +60,10 @@ export default function WorkoutCompareChartTooltip({
                 ? formatMetricValue(entry.value, metric, t("common.kg"))
                 : "—"}
               {entry.carried ? (
-                <span className="workout-chart-tooltip__carried"> {t("tooltip.last")}</span>
+                <span className="workout-chart-tooltip__carried">
+                  {" "}
+                  {t("tooltip.last")}
+                </span>
               ) : null}
             </span>
           </li>

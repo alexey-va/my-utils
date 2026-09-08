@@ -1,48 +1,76 @@
-import { Statistic } from "antd";
-import { linearTokens } from "../../design/linearTokens";
+import {
+  CalendarOutlined,
+  RiseOutlined,
+  ThunderboltOutlined,
+} from "@ant-design/icons";
 import type { WeeklySummary } from "./workoutAnalytics";
-import { formatSignedDelta } from "./workoutAnalytics";
 import { useWorkoutLocale } from "./workoutLocale";
 
-type Props = {
+export default function WorkoutWeeklySummary({
+  summary,
+  loading,
+}: {
   summary: WeeklySummary;
-};
-
-export default function WorkoutWeeklySummary({ summary }: Props) {
-  const { t } = useWorkoutLocale();
-  const daysDelta = summary.thisWeekDays - summary.lastWeekDays;
+  loading?: boolean;
+}) {
+  const { t, formatNumber } = useWorkoutLocale();
   const volumeDelta = summary.thisWeekVolume - summary.lastWeekVolume;
-
+  const daysDelta = summary.thisWeekDays - summary.lastWeekDays;
+  const signed = (value: number) =>
+    `${value > 0 ? "+" : ""}${formatNumber(value)}`;
   return (
-    <div className="workout-weekly">
-      <Statistic
-        title={t("weekly.days")}
-        value={summary.thisWeekDays}
-        suffix={
-          <>
-            {` ${t("weekly.daysSuffix")}`}
-            {daysDelta !== 0 ? (
-              <span className="workout-weekly__delta">
-                {formatSignedDelta(daysDelta, "", 0)}
-              </span>
-            ) : null}
-          </>
-        }
-      />
-      <Statistic title={t("weekly.volume")} value={summary.thisWeekVolume} suffix={t("common.kg")} />
-      <Statistic
-        title={t("weekly.vsLast")}
-        value={volumeDelta === 0 ? "—" : formatSignedDelta(volumeDelta, "kg", 0)}
-        valueStyle={{
-          color:
-            volumeDelta > 0
-              ? linearTokens.semanticGreen
-              : volumeDelta < 0
-                ? linearTokens.inkMuted
-                : undefined,
-          fontSize: "1rem",
-        }}
-      />
-    </div>
+    <section
+      className="workout-weekly"
+      aria-label={t("overview.week")}
+      aria-busy={loading}
+    >
+      <article className="workout-stat">
+        <div className="workout-stat__top">
+          <span>{t("weekly.days")}</span>
+          <span className="workout-stat__icon">
+            <CalendarOutlined />
+          </span>
+        </div>
+        <div className="workout-stat__value">
+          {loading ? "—" : summary.thisWeekDays}
+          <small>{t("weekly.daysSuffix")}</small>
+        </div>
+        <div className="workout-stat__caption">
+          {loading
+            ? t("common.loading")
+            : `${signed(daysDelta)} ${t("weekly.vsLast")}`}
+        </div>
+      </article>
+      <article className="workout-stat">
+        <div className="workout-stat__top">
+          <span>{t("weekly.volume")}</span>
+          <span className="workout-stat__icon">
+            <ThunderboltOutlined />
+          </span>
+        </div>
+        <div className="workout-stat__value">
+          {loading ? "—" : formatNumber(summary.thisWeekVolume)}
+          <small>{t("common.kg")}</small>
+        </div>
+        <div className="workout-stat__caption">{t("overview.volumeHint")}</div>
+      </article>
+      <article className="workout-stat">
+        <div className="workout-stat__top">
+          <span>{t("overview.weekComparison")}</span>
+          <span className="workout-stat__icon">
+            <RiseOutlined />
+          </span>
+        </div>
+        <div
+          className={`workout-stat__value${volumeDelta > 0 ? " workout-stat__positive" : ""}`}
+        >
+          {loading ? "—" : signed(volumeDelta)}
+          <small>{t("common.kg")}</small>
+        </div>
+        <div className="workout-stat__caption">
+          {t("overview.comparisonHint")}
+        </div>
+      </article>
+    </section>
   );
 }

@@ -59,6 +59,12 @@ chart; repeated zooms can be undone one by one or reset to the full period.
 
 Production is served at `https://utils.alexeyav.ru`; nginx exposes API requests under `/api`, Grafana under `/grafana/`, and Temporal under `/temporal/`.
 
+Workout opens with a weekly activity overview and a separate training journal.
+Graphite is the default theme; the top bar offers Graphite, Blue, Violet, and Light, with the choice saved locally.
+On narrow screens navigation moves into a drawer. The journal and exercise picker
+load from one consistent `/api/workouts/snapshot` response, and failed saves keep
+the grid editor open with the draft intact.
+
 ## Local development
 
 ```bash
@@ -83,7 +89,7 @@ src/
 ├── api/          HTTP client, endpoint definitions, and API types
 ├── auth/         JWT session handling
 ├── config/       Feature catalog, route paths, and integration settings
-├── design/       Linear design tokens
+├── design/       Shared theme tokens
 ├── features/     One folder per product area
 ├── layout/       App shell, routes, sidebar, and access gates
 ├── providers/    Refine auth, access-control, and data providers

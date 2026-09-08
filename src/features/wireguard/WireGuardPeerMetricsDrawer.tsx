@@ -292,16 +292,16 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
           >
           <ResponsiveContainer width="100%" height={CHART_HEIGHT} debounce={0}>
             <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 8, left: 4 }} barGap={2} barCategoryGap="18%">
-              <CartesianGrid stroke={linearTokens.hairlineStrong} vertical strokeDasharray="3 3" />
+              <CartesianGrid stroke={"var(--linear-hairline-strong)"} vertical strokeDasharray="3 3" />
               <XAxis
                 dataKey="time"
                 type="number"
                 domain={xDomain}
                 ticks={[xDomain[0], xDomain[0] + (xDomain[1] - xDomain[0]) / 2, xDomain[1]]}
                 allowDataOverflow
-                axisLine={{ stroke: linearTokens.hairlineStrong }}
-                tickLine={{ stroke: linearTokens.hairlineStrong }}
-                tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+                axisLine={{ stroke: "var(--linear-hairline-strong)" }}
+                tickLine={{ stroke: "var(--linear-hairline-strong)" }}
+                tick={{ fill: "var(--linear-ink-muted)", fontSize: 11 }}
                 tickFormatter={(value: number) => new Date(value).toLocaleString("ru-RU", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -312,9 +312,9 @@ export default function WireGuardPeerMetricsDrawer({ relayId, peer, onClose }: P
                 width={64}
                 domain={yDomain}
                 allowDataOverflow
-                axisLine={{ stroke: linearTokens.hairlineStrong }}
-                tickLine={{ stroke: linearTokens.hairlineStrong }}
-                tick={{ fill: linearTokens.inkMuted, fontSize: 11 }}
+                axisLine={{ stroke: "var(--linear-hairline-strong)" }}
+                tickLine={{ stroke: "var(--linear-hairline-strong)" }}
+                tick={{ fill: "var(--linear-ink-muted)", fontSize: 11 }}
                 tickFormatter={formatBytes}
               />
               {!dragSelection ? <Tooltip
