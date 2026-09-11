@@ -56,6 +56,13 @@ const readAction: NetworkAction = {
   scope: "read",
 };
 
+const workflowPlanAction: NetworkAction = {
+  name: "workflow.plan",
+  description: "Проверить план деплоя на узле",
+  mutating: false,
+  scope: "read",
+};
+
 const mutatingAction: NetworkAction = {
   name: "service.restart",
   description: "Перезапустить сервис",
@@ -180,6 +187,25 @@ describe("NetworkPage", () => {
     expect(request).toMatchObject({ node_id: node.id, action: readAction.name, args: {} });
     expect(request.idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
     expect(request.timeout_seconds).toBe(60);
+  });
+
+  it("uses a long default timeout for workflow actions and submits 1800 without truncation", async () => {
+    api.fetchNodes.mockResolvedValue({ nodes: [{ ...node, actions: [workflowPlanAction.name, readAction.name] }] });
+    api.fetchActions.mockResolvedValue({ actions: [workflowPlanAction, readAction] });
+    api.submitJob.mockResolvedValue({ ...job, request: { ...job.request, action: workflowPlanAction.name, timeout_seconds: 1_800 } });
+
+    render(<NetworkPage />);
+
+    await waitForLoadedPage();
+    expect(screen.getByRole("spinbutton")).toHaveValue(1_800);
+    fireEvent.click(screen.getByText(readAction.name, { selector: ".network-action code" }));
+    expect(screen.getByRole("spinbutton")).toHaveValue(60);
+    fireEvent.click(screen.getByText(workflowPlanAction.name, { selector: ".network-action code" }));
+    expect(screen.getByRole("spinbutton")).toHaveValue(1_800);
+    fireEvent.click(screen.getByTestId("network-submit"));
+
+    await waitFor(() => expect(api.submitJob).toHaveBeenCalledTimes(1));
+    expect((api.submitJob.mock.calls[0][0] as NetworkJob["request"]).timeout_seconds).toBe(1_800);
   });
 
   it("keeps the same idempotency key for a manual retry after a failed request", async () => {

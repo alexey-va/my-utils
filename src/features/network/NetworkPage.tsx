@@ -67,6 +67,7 @@ import "./network.css";
 const JOB_POLL_MS = 5_000;
 const NODE_POLL_MS = 30_000;
 const DEFAULT_TIMEOUT = 60;
+const MAX_TIMEOUT = 1_800;
 const AUDIT_LIMIT = 50;
 const MAX_JOB_TIMELINE_EVENTS = 50;
 const SCOPES = ["read", "exec", "write", "control", "admin"];
@@ -257,6 +258,12 @@ function actionSample(action: NetworkAction, node?: NetworkNode | null): Record<
   if (action.name.startsWith("container.")) return { name: "proxyarc" };
   if (action.name.startsWith("runtime.")) return runtime ? { runtime } : {};
   return {};
+}
+
+function defaultTimeoutForAction(actionName: string | null | undefined): number {
+  return actionName?.startsWith("workflow.") || actionName === "file.import" || actionName === "file.export"
+    ? MAX_TIMEOUT
+    : DEFAULT_TIMEOUT;
 }
 
 function normalizeNode(node: NetworkNode): NetworkNode {
@@ -806,6 +813,7 @@ export default function NetworkPage() {
     const previous = sampleSelectionRef.current;
     if (previous?.nodeId === selectedNodeId && previous.actionName === actionName) return;
     sampleSelectionRef.current = { nodeId: selectedNodeId, actionName };
+    setTimeoutSeconds(defaultTimeoutForAction(actionName));
     if (selectedAction) setArgsText(jsonText(actionSample(selectedAction, selectedNode)));
   }, [selectedAction, selectedNode, selectedNodeId]);
 
@@ -927,7 +935,7 @@ export default function NetworkPage() {
       action: selectedAction.name,
       args,
       idempotency_key: requestKeyRef.current ?? createIdempotencyKey(),
-      timeout_seconds: Math.max(1, Math.min(900, Number(timeoutSeconds) || DEFAULT_TIMEOUT)),
+      timeout_seconds: Math.max(1, Math.min(MAX_TIMEOUT, Number(timeoutSeconds) || DEFAULT_TIMEOUT)),
     };
     if (selectedAction.mutating) {
       setMutatingRequest({ request, actionName: selectedAction.name, nodeName: selectedNode.name });
@@ -1092,7 +1100,7 @@ export default function NetworkPage() {
                 <div className="network-form-heading"><div><span className="network-eyebrow">JSON arguments</span><strong>{selectedAction.name}</strong></div>{selectedAction.input_schema ? <Tag icon={<CodeOutlined />}>schema доступна</Tag> : null}</div>
                 <Input.TextArea aria-label="JSON arguments" className="network-json-input" value={argsText} onChange={(event) => setArgsText(event.target.value)} autoSize={{ minRows: 5, maxRows: 12 }} spellCheck={false} />
                 <div className="network-action-form__footer">
-                  <label>Timeout, сек. <Input type="number" min={1} max={900} value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(Number(event.target.value))} /></label>
+                  <label>Timeout, сек. <Input type="number" min={1} max={MAX_TIMEOUT} value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(Number(event.target.value))} /></label>
                   <Space>
                     {retryRequest ? <Button data-testid="network-retry" icon={<SyncOutlined />} onClick={() => void executeRequest(retryRequest)} disabled={submitting}>Повторить последний</Button> : null}
                     <Button data-testid="network-submit" type="primary" icon={<SendOutlined />} onClick={() => void submitAction()} loading={submitting} disabled={!selectedNode || selectedNode.disabled}>{selectedAction.mutating ? "Подтвердить и выполнить" : "Выполнить"}</Button>
