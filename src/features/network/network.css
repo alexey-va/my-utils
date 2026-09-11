@@ -139,6 +139,32 @@
 .network-audit__toolbar { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
 .network-audit__toolbar .ant-select { min-width: 0; }
 .network-audit__toolbar > .ant-space { align-items: center; }
+.network-audit-activity { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--linear-surface-2); border: 1px solid var(--linear-hairline); border-radius: var(--linear-radius-md); }
+.network-audit-activity__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.network-audit-activity__header h3,
+.network-audit-activity__charts h4 { margin: 0; color: var(--linear-ink); font-size: 13px; font-weight: 600; }
+.network-audit-activity__header p,
+.network-audit-activity__window,
+.network-audit-action-chart__rest { margin: 4px 0 0; color: var(--linear-ink-muted); font-size: 11px; }
+.network-audit-activity__header code { color: var(--linear-ink-secondary); }
+.network-audit-activity__totals { display: flex; flex: 0 0 auto; gap: 16px; color: var(--linear-ink-muted); font-size: 11px; }
+.network-audit-activity__totals span { display: flex; align-items: baseline; gap: 5px; }
+.network-audit-activity__totals strong { color: var(--linear-ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.network-audit-activity__loading { display: grid; min-height: 150px; place-items: center; }
+.network-audit-activity__charts { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(220px, .7fr); gap: 20px; }
+.network-audit-activity__charts article { min-width: 0; }
+.network-audit-time-chart { display: flex; align-items: stretch; gap: 5px; height: 168px; padding-top: 12px; }
+.network-audit-time-chart__bucket { display: grid; grid-template-rows: 18px minmax(0, 1fr) 18px; flex: 1 1 0; min-width: 0; text-align: center; }
+.network-audit-time-chart__bucket strong { color: var(--linear-ink-secondary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.network-audit-time-chart__bucket > span { display: flex; align-items: flex-end; min-height: 0; border-bottom: 1px solid var(--linear-hairline-strong); }
+.network-audit-time-chart__bucket i { display: block; width: 100%; min-height: 0; background: var(--linear-blue); border-radius: 3px 3px 0 0; }
+.network-audit-time-chart__bucket small { overflow: hidden; color: var(--linear-ink-muted); font-size: 9px; line-height: 18px; text-overflow: clip; white-space: nowrap; }
+.network-audit-action-chart { display: flex; flex-direction: column; gap: 8px; margin: 13px 0 0; padding: 0; list-style: none; }
+.network-audit-action-chart li > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.network-audit-action-chart code { overflow: hidden; color: var(--linear-ink-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.network-audit-action-chart strong { color: var(--linear-ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.network-audit-action-chart li > span { display: block; height: 5px; overflow: hidden; background: var(--linear-surface-4); border-radius: 999px; }
+.network-audit-action-chart li > span i { display: block; height: 100%; background: var(--linear-green); border-radius: inherit; }
 .network-audit-list .ant-list-item { display: block; padding: 14px 0; }
 .network-audit-list .ant-list-item-meta { margin-bottom: 8px; }
 .network-audit-event__title { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -241,6 +267,9 @@
   .network-credentials-toolbar { align-items: stretch; flex-direction: column; }
   .network-audit__toolbar { grid-template-columns: 1fr; }
   .network-audit__toolbar > .ant-space { justify-content: flex-end; }
+  .network-audit-activity__header { flex-direction: column; }
+  .network-audit-activity__charts { grid-template-columns: 1fr; }
+  .network-audit-time-chart { height: 145px; }
   .network-audit-event__body { padding-right: 0; }
   .network-audit__footer > .ant-space { width: 100%; justify-content: space-between; }
   .network-credential { grid-template-columns: minmax(0, 1fr) auto; }

@@ -60,3 +60,6 @@ export const fetchNetworkAudit = (query: NetworkAuditQuery = {}) => {
   const suffix = params.toString();
   return apiClient.get<NetworkAuditResponse>(`${apiEndpoints.network.audit}${suffix ? `?${suffix}` : ""}`, { cache: "no-store" });
 };
+
+export const fetchNetworkAuditActivity = (query: Omit<NetworkAuditQuery, "kind" | "before" | "limit"> = {}) =>
+  fetchNetworkAudit({ ...query, kind: "job.queued", limit: 200 });

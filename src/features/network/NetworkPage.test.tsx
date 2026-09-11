@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   enrollNode: vi.fn(),
   fetchActions: vi.fn(),
   fetchAudit: vi.fn(),
+  fetchAuditActivity: vi.fn(),
   fetchCredentials: vi.fn(),
   fetchJob: vi.fn(),
   fetchJobs: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("./api", () => ({
   enrollNetworkNode: api.enrollNode,
   fetchNetworkActions: api.fetchActions,
   fetchNetworkAudit: api.fetchAudit,
+  fetchNetworkAuditActivity: api.fetchAuditActivity,
   fetchNetworkCredentials: api.fetchCredentials,
   fetchNetworkJob: api.fetchJob,
   fetchNetworkJobs: api.fetchJobs,
@@ -114,6 +116,7 @@ beforeEach(() => {
   api.fetchNodes.mockResolvedValue({ nodes: [node] });
   api.fetchActions.mockResolvedValue({ actions: [readAction, mutatingAction, runtimeAction, fileAction] });
   api.fetchAudit.mockResolvedValue({ events: [] });
+  api.fetchAuditActivity.mockResolvedValue({ events: [] });
   api.fetchJobs.mockResolvedValue({ jobs: [] });
   api.fetchCredentials.mockResolvedValue({ credentials: [] });
   api.fetchJob.mockResolvedValue(job);
@@ -385,6 +388,27 @@ describe("NetworkPage", () => {
     expect(screen.getByText("up 1 day")).toBeInTheDocument();
   }, 15000);
 
+  it("loads request-frequency histograms from queued events independently of the journal kind", async () => {
+    api.fetchAuditActivity.mockResolvedValue({
+      events: [
+        { ...auditEvent("queued-1", "Запрос создан"), kind: "job.queued", action: "exec.run", timestamp: "2026-09-11T10:00:00.000Z" },
+        { ...auditEvent("queued-2", "Запрос создан"), kind: "job.queued", action: "exec.run", timestamp: "2026-09-11T10:05:00.000Z" },
+        { ...auditEvent("queued-3", "Запрос создан"), kind: "job.queued", action: "file.read", timestamp: "2026-09-11T10:10:00.000Z" },
+      ],
+      next_cursor: "older-requests",
+    });
+
+    render(<NetworkPage />);
+    await waitForLoadedPage();
+    fireEvent.click(screen.getByRole("tab", { name: "Журнал" }));
+
+    const activity = await screen.findByTestId("network-audit-activity");
+    await waitFor(() => expect(api.fetchAuditActivity).toHaveBeenCalledWith({}));
+    expect(within(activity).getByText(/Последние 3\+ запросов/)).toBeInTheDocument();
+    expect(within(activity).getByText("exec.run", { selector: ".network-audit-action-chart code" })).toBeInTheDocument();
+    expect(within(activity).getByText("file.read", { selector: ".network-audit-action-chart code" })).toBeInTheDocument();
+  }, 15000);
+
   it("applies audit filters and walks to the next cursor page", async () => {
     api.fetchAudit.mockResolvedValue({ events: [], next_cursor: "cursor-2" });
     render(<NetworkPage />);
@@ -398,6 +422,7 @@ describe("NetworkPage", () => {
     fireEvent.click(within(auditPanel).getByRole("button", { name: "Применить" }));
     await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(2));
     expect(api.fetchAudit.mock.calls[1][0]).toMatchObject({ node: node.id, actor: "web:user-17", limit: 50 });
+    expect(api.fetchAuditActivity.mock.calls[1][0]).toEqual({ node: node.id, actor: "web:user-17" });
 
     fireEvent.click(within(auditPanel).getByRole("button", { name: "Следующая" }));
     await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(3));

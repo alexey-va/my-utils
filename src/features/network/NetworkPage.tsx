@@ -41,6 +41,7 @@ import {
   enrollNetworkNode,
   fetchNetworkActions,
   fetchNetworkAudit,
+  fetchNetworkAuditActivity,
   fetchNetworkCredentials,
   fetchNetworkJob,
   fetchNetworkJobs,
@@ -62,6 +63,7 @@ import type {
   SubmitNetworkJobRequest,
 } from "./types";
 import { nodeStatus } from "./utils";
+import NetworkAuditActivity from "./NetworkAuditActivity";
 import "./network.css";
 
 const JOB_POLL_MS = 5_000;
@@ -156,6 +158,14 @@ function auditQuery(filters: AuditFilters, before?: string): NetworkAuditQuery {
   if (filters.kind.trim()) query.kind = filters.kind.trim();
   if (filters.actor.trim()) query.actor = filters.actor.trim();
   if (before) query.before = before;
+  return query;
+}
+
+function auditActivityQuery(filters: AuditFilters): Omit<NetworkAuditQuery, "kind" | "before" | "limit"> {
+  const query: Omit<NetworkAuditQuery, "kind" | "before" | "limit"> = {};
+  if (filters.node.trim()) query.node = filters.node.trim();
+  if (filters.action.trim()) query.action = filters.action.trim();
+  if (filters.actor.trim()) query.actor = filters.actor.trim();
   return query;
 }
 
@@ -503,6 +513,10 @@ function ResultBlock({ title, value, error = false }: { title: string; value?: s
 
 function AuditPanel({
   events,
+  activityEvents,
+  activityLoading,
+  activityError,
+  activityHasMore,
   filters,
   loading,
   error,
@@ -519,6 +533,10 @@ function AuditPanel({
   onOpenJob,
 }: {
   events: NetworkAuditEvent[];
+  activityEvents: NetworkAuditEvent[];
+  activityLoading: boolean;
+  activityError: string | null;
+  activityHasMore: boolean;
   filters: AuditFilters;
   loading: boolean;
   error: string | null;
@@ -552,6 +570,7 @@ function AuditPanel({
           <Button onClick={onReset}>Сбросить</Button>
         </Space>
       </div>
+      <NetworkAuditActivity events={activityEvents} loading={activityLoading} error={activityError} hasMore={activityHasMore} />
       {error ? <Alert className="network-inline-alert" type="warning" showIcon message={error} /> : null}
       {loading && events.length === 0 ? <div className="network-panel-loading"><Spin /></div> : events.length === 0 ? error ? null : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Событий аудита нет" /> : (
         <List
@@ -601,6 +620,10 @@ export default function NetworkPage() {
   const [actions, setActions] = useState<NetworkAction[]>([]);
   const [jobs, setJobs] = useState<NetworkJob[]>([]);
   const [auditEvents, setAuditEvents] = useState<NetworkAuditEvent[]>([]);
+  const [auditActivityEvents, setAuditActivityEvents] = useState<NetworkAuditEvent[]>([]);
+  const [auditActivityLoading, setAuditActivityLoading] = useState(false);
+  const [auditActivityError, setAuditActivityError] = useState<string | null>(null);
+  const [auditActivityHasMore, setAuditActivityHasMore] = useState(false);
   const [auditFilters, setAuditFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   const [auditDraftFilters, setAuditDraftFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   const [auditBefore, setAuditBefore] = useState<string | undefined>();
@@ -644,6 +667,7 @@ export default function NetworkPage() {
   const requestKeyRef = useRef<string | null>(null);
   const auditRequestRef = useRef(0);
   const auditLoadingRef = useRef(false);
+  const auditActivityFilterRef = useRef("");
   const sampleSelectionRef = useRef<{ nodeId: string | null; actionName: string | null } | null>(null);
 
   const loadWorkspace = useCallback(async () => {
@@ -689,26 +713,45 @@ export default function NetworkPage() {
   }, []);
 
   const loadAudit = useCallback(async (filters: AuditFilters, before?: string): Promise<number | null> => {
+    const activityQuery = auditActivityQuery(filters);
+    const activityFilter = JSON.stringify(activityQuery);
     const requestID = auditRequestRef.current + 1;
     auditRequestRef.current = requestID;
     auditLoadingRef.current = true;
     setAuditLoading(true);
+    setAuditActivityLoading(true);
     setAuditError(null);
+    setAuditActivityError(null);
+    if (activityFilter !== auditActivityFilterRef.current) {
+      auditActivityFilterRef.current = activityFilter;
+      setAuditActivityEvents([]);
+      setAuditActivityHasMore(false);
+    }
     try {
-      const response = await fetchNetworkAudit(auditQuery(filters, before));
+      const [response, activityResponse] = await Promise.allSettled([
+        fetchNetworkAudit(auditQuery(filters, before)),
+        fetchNetworkAuditActivity(activityQuery),
+      ]);
       if (requestID !== auditRequestRef.current) return null;
-      setAuditEvents(response.events ?? []);
-      setAuditNextCursor(response.next_cursor || undefined);
+      if (activityResponse.status === "fulfilled") {
+        setAuditActivityEvents(activityResponse.value.events ?? []);
+        setAuditActivityHasMore(Boolean(activityResponse.value.next_cursor));
+      } else {
+        setAuditActivityError(errorMessage(activityResponse.reason, "Не удалось загрузить частоту запросов."));
+      }
+      if (response.status === "rejected") {
+        setAuditError(errorMessage(response.reason, "Не удалось загрузить журнал аудита."));
+        return null;
+      }
+      setAuditEvents(response.value.events ?? []);
+      setAuditNextCursor(response.value.next_cursor || undefined);
       setAuditLoaded(true);
       return requestID;
-    } catch (error) {
-      if (requestID !== auditRequestRef.current) return null;
-      setAuditError(errorMessage(error, "Не удалось загрузить журнал аудита."));
-      return null;
     } finally {
       if (requestID === auditRequestRef.current) {
         auditLoadingRef.current = false;
         setAuditLoading(false);
+        setAuditActivityLoading(false);
       }
     }
   }, []);
@@ -1134,6 +1177,10 @@ export default function NetworkPage() {
                   label: "Журнал",
                   children: <AuditPanel
                     events={auditEvents}
+                    activityEvents={auditActivityEvents}
+                    activityLoading={auditActivityLoading}
+                    activityError={auditActivityError}
+                    activityHasMore={auditActivityHasMore}
                     filters={auditDraftFilters}
                     loading={auditLoading}
                     error={auditError}
