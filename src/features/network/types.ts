@@ -102,3 +102,39 @@ export type CreatedCredential = {
   credential: NetworkPrincipal;
   token: string;
 };
+
+export type NetworkAuditActor = {
+  id: string;
+  name: string;
+  source: string;
+  credential_id?: string;
+  credential_name?: string;
+};
+
+export type NetworkAuditEvent = {
+  id: string;
+  timestamp: string;
+  kind: string;
+  actor: NetworkAuditActor;
+  node_id?: string;
+  action?: string;
+  job_id?: string;
+  state?: string;
+  parameters?: Record<string, string>;
+  message?: string;
+  exit_code?: number;
+};
+
+export type NetworkAuditQuery = {
+  node?: string;
+  action?: string;
+  kind?: string;
+  actor?: string;
+  before?: string;
+  limit?: number;
+};
+
+export type NetworkAuditResponse = {
+  events: NetworkAuditEvent[];
+  next_cursor?: string;
+};

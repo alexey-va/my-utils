@@ -12,6 +12,7 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 | Properties | `/properties` | Administrator | Runtime application settings. |
 | Agents | `/agents` | Administrator | Isolated Workout AI sandbox chats, tool calls, and agent memory. |
 | WireGuard | `/wireguard` | Administrator | Relay, peer credentials, handshake, and traffic management. |
+| Server Gateway | `/network` | Administrator | RCNet node operations, job queue, credentials, enrollment, and audit journal. |
 | Grafana | `/observability` | Administrator | Same-origin Grafana and Loki logs. |
 | Temporal | `/workflows` | Administrator | Embedded Temporal UI. |
 | Admin panel | `/admin` | Administrator | User and service administration. |

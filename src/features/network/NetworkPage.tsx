@@ -25,6 +25,7 @@ import {
   Select,
   Space,
   Spin,
+  Tabs,
   Tag,
   Typography,
   message,
@@ -39,6 +40,7 @@ import {
   createNetworkCredential,
   enrollNetworkNode,
   fetchNetworkActions,
+  fetchNetworkAudit,
   fetchNetworkCredentials,
   fetchNetworkJob,
   fetchNetworkJobs,
@@ -51,6 +53,8 @@ import type {
   CreateCredentialRequest,
   EnrollmentToken,
   NetworkAction,
+  NetworkAuditEvent,
+  NetworkAuditQuery,
   NetworkJob,
   NetworkNode,
   NetworkPrincipal,
@@ -62,6 +66,7 @@ import "./network.css";
 const JOB_POLL_MS = 5_000;
 const NODE_POLL_MS = 30_000;
 const DEFAULT_TIMEOUT = 60;
+const AUDIT_LIMIT = 50;
 const SCOPES = ["read", "exec", "write", "control", "admin"];
 const NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SCOPE_LABELS: Record<string, string> = {
@@ -100,6 +105,68 @@ const stateLabels: Record<NetworkJob["state"], string> = {
   cancelled: "Отменена",
   unknown: "Неизвестно",
 };
+
+const AUDIT_KIND_OPTIONS = [
+  "job.queued",
+  "job.dispatched",
+  "job.running",
+  "job.succeeded",
+  "job.failed",
+  "job.cancel_requested",
+  "job.cancelled",
+  "job.unknown",
+  "job.rejected",
+  "credential.created",
+  "credential.revoked",
+  "enrollment.created",
+  "node.enrolled",
+  "node.enabled",
+  "node.disabled",
+];
+const AUDIT_PARAMETER_KEYS = new Set([
+  "root",
+  "path",
+  "runtime",
+  "name",
+  "executable",
+  "cwd",
+  "job_id",
+  "credential_id",
+  "scopes",
+  "nodes",
+]);
+
+type AuditFilters = {
+  node: string;
+  action: string;
+  kind: string;
+  actor: string;
+};
+
+const EMPTY_AUDIT_FILTERS: AuditFilters = { node: "", action: "", kind: "", actor: "" };
+
+function auditQuery(filters: AuditFilters, before?: string): NetworkAuditQuery {
+  const query: NetworkAuditQuery = { limit: AUDIT_LIMIT };
+  if (filters.node.trim()) query.node = filters.node.trim();
+  if (filters.action.trim()) query.action = filters.action.trim();
+  if (filters.kind.trim()) query.kind = filters.kind.trim();
+  if (filters.actor.trim()) query.actor = filters.actor.trim();
+  if (before) query.before = before;
+  return query;
+}
+
+function auditActorLabel(event: NetworkAuditEvent): string {
+  return event.actor?.name?.trim() || event.actor?.id || "Неизвестный actor";
+}
+
+function auditStateLabel(state?: string): string | null {
+  if (!state) return null;
+  return stateLabels[state as NetworkJob["state"]] ?? state;
+}
+
+function safeAuditParameters(event: NetworkAuditEvent): Array<[string, string]> {
+  return Object.entries(event.parameters ?? {}).filter(([key]) => AUDIT_PARAMETER_KEYS.has(key));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -339,10 +406,116 @@ function ResultBlock({ title, value, error = false }: { title: string; value?: s
   );
 }
 
+function AuditPanel({
+  events,
+  filters,
+  loading,
+  error,
+  hasPrevious,
+  hasNext,
+  autoRefresh,
+  onFilterChange,
+  onApply,
+  onReset,
+  onRefresh,
+  onPrevious,
+  onNext,
+  onAutoRefreshChange,
+  onOpenJob,
+}: {
+  events: NetworkAuditEvent[];
+  filters: AuditFilters;
+  loading: boolean;
+  error: string | null;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  autoRefresh: boolean;
+  onFilterChange: (field: keyof AuditFilters, value: string) => void;
+  onApply: () => void;
+  onReset: () => void;
+  onRefresh: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  onAutoRefreshChange: (value: boolean) => void;
+  onOpenJob: (jobID: string) => void;
+}) {
+  return (
+    <div className="network-audit" data-testid="network-audit">
+      <div className="network-audit__toolbar">
+        <Input placeholder="Фильтр node_id" value={filters.node} onChange={(event) => onFilterChange("node", event.target.value)} />
+        <Input placeholder="Фильтр action" value={filters.action} onChange={(event) => onFilterChange("action", event.target.value)} />
+        <Select
+          allowClear
+          placeholder="Все типы событий"
+          value={filters.kind || undefined}
+          options={AUDIT_KIND_OPTIONS.map((kind) => ({ value: kind, label: kind }))}
+          onChange={(value) => onFilterChange("kind", value ?? "")}
+        />
+        <Input placeholder="Фильтр ID автора" value={filters.actor} onChange={(event) => onFilterChange("actor", event.target.value)} />
+        <Space wrap>
+          <Button type="primary" onClick={onApply}>Применить</Button>
+          <Button onClick={onReset}>Сбросить</Button>
+        </Space>
+      </div>
+      {error ? <Alert className="network-inline-alert" type="warning" showIcon message={error} /> : null}
+      {loading && events.length === 0 ? <div className="network-panel-loading"><Spin /></div> : events.length === 0 ? error ? null : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Событий аудита нет" /> : (
+        <List
+          className="network-audit-list"
+          dataSource={events}
+          renderItem={(event) => {
+            const state = auditStateLabel(event.state);
+            const parameters = safeAuditParameters(event);
+            return (
+              <List.Item actions={event.job_id ? [<Button key="job" type="link" onClick={() => onOpenJob(event.job_id as string)}>Открыть job</Button>] : undefined}>
+                <List.Item.Meta
+                  title={<span className="network-audit-event__title"><code>{event.kind}</code>{state ? <Tag color={state === "Успешно" ? "success" : state === "Ошибка" ? "error" : "default"}>{state}</Tag> : null}</span>}
+                  description={<span>{formatTime(event.timestamp)} · <strong>{auditActorLabel(event)}</strong> · автор: <code>{event.actor?.id || "—"}</code> · источник: {event.actor?.source || "—"}</span>}
+                />
+                <div className="network-audit-event__body">
+                  <div className="network-audit-event__route">
+                    {event.node_id ? <span>узел <code>{event.node_id}</code></span> : null}
+                    {event.action ? <span>действие <code>{event.action}</code></span> : null}
+                    {event.exit_code !== undefined ? <span>exit code <code>{event.exit_code}</code></span> : null}
+                  </div>
+                  {event.message ? <div className="network-audit-event__message">{event.message}</div> : null}
+                  {event.actor?.credential_name ? <div className="network-audit-event__meta">credential: {event.actor.credential_name}</div> : null}
+                  {parameters.length ? <div className="network-audit-event__parameters"><span>Параметры</span>{parameters.map(([key, value]) => <code key={key}>{key}={value}</code>)}</div> : null}
+                  <div className="network-audit-event__id">{event.id}</div>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
+      )}
+      <div className="network-audit__footer">
+        <Space>
+          <Button onClick={onPrevious} disabled={!hasPrevious || loading}>Предыдущая</Button>
+          <Button onClick={onNext} disabled={!hasNext || loading}>Следующая</Button>
+        </Space>
+        <Space>
+          <Checkbox checked={autoRefresh} onChange={(event) => onAutoRefreshChange(event.target.checked)}>Автообновление · 5 сек.</Checkbox>
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>Обновить</Button>
+        </Space>
+      </div>
+    </div>
+  );
+}
+
 export default function NetworkPage() {
   const [nodes, setNodes] = useState<NetworkNode[]>([]);
   const [actions, setActions] = useState<NetworkAction[]>([]);
   const [jobs, setJobs] = useState<NetworkJob[]>([]);
+  const [auditEvents, setAuditEvents] = useState<NetworkAuditEvent[]>([]);
+  const [auditFilters, setAuditFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
+  const [auditDraftFilters, setAuditDraftFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
+  const [auditBefore, setAuditBefore] = useState<string | undefined>();
+  const [auditBeforeHistory, setAuditBeforeHistory] = useState<Array<string | undefined>>([]);
+  const [auditNextCursor, setAuditNextCursor] = useState<string | undefined>();
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditLoaded, setAuditLoaded] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditAutoRefresh, setAuditAutoRefresh] = useState(true);
+  const [historyTab, setHistoryTab] = useState("jobs");
   const [credentials, setCredentials] = useState<NetworkPrincipal[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedActionName, setSelectedActionName] = useState<string | null>(null);
@@ -374,6 +547,8 @@ export default function NetworkPage() {
   const [credentialToken, setCredentialToken] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const requestKeyRef = useRef<string | null>(null);
+  const auditRequestRef = useRef(0);
+  const auditLoadingRef = useRef(false);
   const sampleSelectionRef = useRef<{ nodeId: string | null; actionName: string | null } | null>(null);
 
   const loadWorkspace = useCallback(async () => {
@@ -417,6 +592,71 @@ export default function NetworkPage() {
       setJobsError(errorMessage(error, "Не удалось обновить список job-ов."));
     }
   }, []);
+
+  const loadAudit = useCallback(async (filters: AuditFilters, before?: string): Promise<number | null> => {
+    const requestID = auditRequestRef.current + 1;
+    auditRequestRef.current = requestID;
+    auditLoadingRef.current = true;
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const response = await fetchNetworkAudit(auditQuery(filters, before));
+      if (requestID !== auditRequestRef.current) return null;
+      setAuditEvents(response.events ?? []);
+      setAuditNextCursor(response.next_cursor || undefined);
+      setAuditLoaded(true);
+      return requestID;
+    } catch (error) {
+      if (requestID !== auditRequestRef.current) return null;
+      setAuditError(errorMessage(error, "Не удалось загрузить журнал аудита."));
+      return null;
+    } finally {
+      if (requestID === auditRequestRef.current) {
+        auditLoadingRef.current = false;
+        setAuditLoading(false);
+      }
+    }
+  }, []);
+
+  const refreshAudit = useCallback(() => loadAudit(auditFilters, auditBefore), [auditBefore, auditFilters, loadAudit]);
+
+  const applyAuditFilters = async () => {
+    const filters = {
+      node: auditDraftFilters.node.trim(),
+      action: auditDraftFilters.action.trim(),
+      kind: auditDraftFilters.kind.trim(),
+      actor: auditDraftFilters.actor.trim(),
+    };
+    setAuditFilters(filters);
+    setAuditBefore(undefined);
+    setAuditBeforeHistory([]);
+    await loadAudit(filters);
+  };
+
+  const resetAuditFilters = async () => {
+    setAuditDraftFilters(EMPTY_AUDIT_FILTERS);
+    setAuditFilters(EMPTY_AUDIT_FILTERS);
+    setAuditBefore(undefined);
+    setAuditBeforeHistory([]);
+    await loadAudit(EMPTY_AUDIT_FILTERS);
+  };
+
+  const loadNextAuditPage = async () => {
+    if (!auditNextCursor || auditLoading) return;
+    const requestID = await loadAudit(auditFilters, auditNextCursor);
+    if (requestID === null || requestID !== auditRequestRef.current) return;
+    setAuditBeforeHistory((current) => [...current, auditBefore]);
+    setAuditBefore(auditNextCursor);
+  };
+
+  const loadPreviousAuditPage = async () => {
+    if (auditBeforeHistory.length === 0 || auditLoading) return;
+    const previous = auditBeforeHistory[auditBeforeHistory.length - 1];
+    const requestID = await loadAudit(auditFilters, previous);
+    if (requestID === null || requestID !== auditRequestRef.current) return;
+    setAuditBeforeHistory((current) => current.slice(0, -1));
+    setAuditBefore(previous);
+  };
 
   const loadCredentials = useCallback(async () => {
     setCredentialsLoading(true);
@@ -499,6 +739,24 @@ export default function NetworkPage() {
     }
   };
 
+  const openJobById = async (jobID: string) => {
+    const summary = jobs.find((job) => job.id === jobID);
+    if (summary) {
+      await openJob(summary);
+      return;
+    }
+    setJobLoading(true);
+    try {
+      const detail = await fetchNetworkJob(jobID);
+      setSelectedJob(detail);
+      setJobs((current) => current.some((job) => job.id === detail.id) ? current.map((job) => job.id === detail.id ? updateJobSummary(job, detail) : job) : [detail, ...current]);
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось загрузить результат job-а."));
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
   const refreshSelectedJob = useCallback(async () => {
     if (!selectedJob) return;
     setJobLoading(true);
@@ -523,6 +781,14 @@ export default function NetworkPage() {
       || summary.archived !== selectedJob.archived;
     if (changed) void refreshSelectedJob();
   }, [jobLoading, jobs, refreshSelectedJob, selectedJob]);
+
+  useEffect(() => {
+    if (historyTab !== "audit" || !auditLoaded || !auditAutoRefresh || auditLoading) return;
+    const poll = window.setInterval(() => {
+      if (!auditLoadingRef.current) void refreshAudit();
+    }, JOB_POLL_MS);
+    return () => window.clearInterval(poll);
+  }, [auditAutoRefresh, auditLoaded, auditLoading, historyTab, refreshAudit]);
 
   const cancelSelectedJob = async () => {
     if (!selectedJob || selectedJob.cancel_requested) return;
@@ -663,6 +929,15 @@ export default function NetworkPage() {
     }
   };
 
+  const changeAuditDraftFilter = (field: keyof AuditFilters, value: string) => {
+    setAuditDraftFilters((current) => ({ ...current, [field]: value }));
+  };
+
+  const changeHistoryTab = (key: string) => {
+    setHistoryTab(key);
+    if (key === "audit" && !auditLoaded) void loadAudit(auditFilters);
+  };
+
   return (
     <PageLayout
       title="Server Gateway"
@@ -739,14 +1014,47 @@ export default function NetworkPage() {
             ) : null}
           </AppPanel>
 
-          <AppPanel className="network-panel network-jobs-panel" title={`Job queue · ${jobs.length}`}>
-            {jobsError ? <Alert className="network-inline-alert" type="warning" showIcon message={jobsError} /> : null}
-            {loading && jobs.length === 0 ? <div className="network-panel-loading"><Spin /></div> : jobs.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Job-ов ещё нет" /> : <List className="network-jobs-list" dataSource={jobs} renderItem={(job) => {
-              const node = nodes.find((item) => item.id === job.request.node_id);
-              return <List.Item actions={[<Button key="open" type="link" onClick={() => void openJob(job)}>Открыть</Button>]}>
-                <List.Item.Meta avatar={<span className="network-job-icon"><CheckCircleOutlined /></span>} title={<span className="network-job-title"><code>{job.request.action}</code><JobStateTag state={job.state} /></span>} description={<span>{node?.name ?? job.request.node_id} · {formatTime(job.created_at)}{job.principal ? ` · ${job.principal}` : ""}</span>} />
-              </List.Item>;
-            }} />}
+          <AppPanel className="network-panel network-jobs-panel" title="История операций">
+            <Tabs
+              activeKey={historyTab}
+              onChange={changeHistoryTab}
+              items={[
+                {
+                  key: "jobs",
+                  label: `Job queue · ${jobs.length}`,
+                  children: <>
+                    {jobsError ? <Alert className="network-inline-alert" type="warning" showIcon message={jobsError} /> : null}
+                    {loading && jobs.length === 0 ? <div className="network-panel-loading"><Spin /></div> : jobs.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Job-ов ещё нет" /> : <List className="network-jobs-list" dataSource={jobs} renderItem={(job) => {
+                      const node = nodes.find((item) => item.id === job.request.node_id);
+                      return <List.Item actions={[<Button key="open" type="link" onClick={() => void openJob(job)}>Открыть</Button>]}>
+                        <List.Item.Meta avatar={<span className="network-job-icon"><CheckCircleOutlined /></span>} title={<span className="network-job-title"><code>{job.request.action}</code><JobStateTag state={job.state} /></span>} description={<span>{node?.name ?? job.request.node_id} · {formatTime(job.created_at)}{job.principal ? ` · ${job.principal}` : ""}</span>} />
+                      </List.Item>;
+                    }} />}
+                  </>,
+                },
+                {
+                  key: "audit",
+                  label: "Журнал",
+                  children: <AuditPanel
+                    events={auditEvents}
+                    filters={auditDraftFilters}
+                    loading={auditLoading}
+                    error={auditError}
+                    hasPrevious={auditBeforeHistory.length > 0}
+                    hasNext={Boolean(auditNextCursor)}
+                    autoRefresh={auditAutoRefresh}
+                    onFilterChange={changeAuditDraftFilter}
+                    onApply={() => void applyAuditFilters()}
+                    onReset={() => void resetAuditFilters()}
+                    onRefresh={() => void refreshAudit()}
+                    onPrevious={() => void loadPreviousAuditPage()}
+                    onNext={() => void loadNextAuditPage()}
+                    onAutoRefreshChange={setAuditAutoRefresh}
+                    onOpenJob={(jobID) => void openJobById(jobID)}
+                  />,
+                },
+              ]}
+            />
           </AppPanel>
         </div>
       </div>

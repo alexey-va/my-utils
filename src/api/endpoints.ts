@@ -13,6 +13,9 @@ export const apiEndpoints = {
     me: "/api/auth/me",
     credentials: "/api/auth/credentials",
   },
+  network: {
+    audit: "/api/network/v1/audit",
+  },
   admin: {
     settings: "/api/admin/settings",
     setting: (key: string) => `/api/admin/settings/${encodeURIComponent(key)}`,

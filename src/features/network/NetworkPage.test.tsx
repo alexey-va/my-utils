@@ -2,13 +2,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NetworkPage from "./NetworkPage";
 import { nodeStatus } from "./utils";
-import type { NetworkAction, NetworkJob, NetworkNode } from "./types";
+import type { NetworkAction, NetworkAuditEvent, NetworkJob, NetworkNode } from "./types";
 
 const api = vi.hoisted(() => ({
   cancelJob: vi.fn(),
   createCredential: vi.fn(),
   enrollNode: vi.fn(),
   fetchActions: vi.fn(),
+  fetchAudit: vi.fn(),
   fetchCredentials: vi.fn(),
   fetchJob: vi.fn(),
   fetchJobs: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("./api", () => ({
   createNetworkCredential: api.createCredential,
   enrollNetworkNode: api.enrollNode,
   fetchNetworkActions: api.fetchActions,
+  fetchNetworkAudit: api.fetchAudit,
   fetchNetworkCredentials: api.fetchCredentials,
   fetchNetworkJob: api.fetchJob,
   fetchNetworkJobs: api.fetchJobs,
@@ -104,6 +106,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.fetchNodes.mockResolvedValue({ nodes: [node] });
   api.fetchActions.mockResolvedValue({ actions: [readAction, mutatingAction, runtimeAction, fileAction] });
+  api.fetchAudit.mockResolvedValue({ events: [] });
   api.fetchJobs.mockResolvedValue({ jobs: [] });
   api.fetchCredentials.mockResolvedValue({ credentials: [] });
   api.fetchJob.mockResolvedValue(job);
@@ -153,16 +156,16 @@ describe("NetworkPage", () => {
     render(<NetworkPage />);
 
     await waitForLoadedPage();
-    expect(screen.getByRole("button", { name: /health\.check/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /backend-prod/ }));
+    expect(screen.getByText("health.check", { selector: ".network-action code" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("backend-prod", { selector: ".network-node strong" }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: /health\.check/ })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /runtime\.status/ })).toBeInTheDocument();
+      expect(screen.queryByText("health.check", { selector: ".network-action code" })).not.toBeInTheDocument();
+      expect(screen.getByText("runtime.status", { selector: ".network-action code" })).toBeInTheDocument();
     });
     expect(screen.getByLabelText("JSON arguments")).toHaveValue(JSON.stringify({ runtime: "python-3.12" }, null, 2));
 
-    fireEvent.click(screen.getByRole("button", { name: /file\.list/ }));
+    fireEvent.click(screen.getByText("file.list", { selector: ".network-action code" }));
     expect(screen.getByLabelText("JSON arguments")).toHaveValue(JSON.stringify({ root: "/srv/backend", path: "." }, null, 2));
   });
 
@@ -224,9 +227,8 @@ describe("NetworkPage", () => {
       completed_at: "2026-09-11T10:00:03.000Z",
       result: { ok: true, stdout: "gateway ok", exit_code: 0 },
     };
-    api.fetchJobs
-      .mockResolvedValueOnce({ jobs: [job] })
-      .mockResolvedValueOnce({ jobs: [succeededJob] });
+    let currentJobs = [job];
+    api.fetchJobs.mockImplementation(() => Promise.resolve({ jobs: currentJobs }));
     api.fetchJob.mockResolvedValueOnce(job).mockResolvedValueOnce(succeededJob);
 
     render(<NetworkPage />);
@@ -236,6 +238,7 @@ describe("NetworkPage", () => {
     await waitFor(() => expect(api.fetchJob).toHaveBeenCalledTimes(1));
     expect(screen.getAllByText("В очереди").length).toBeGreaterThan(0);
 
+    currentJobs = [succeededJob];
     fireEvent.click(screen.getByTestId("network-refresh"));
     await waitFor(() => expect(api.fetchJob).toHaveBeenCalledTimes(2));
     expect((await screen.findAllByText("Успешно")).length).toBeGreaterThan(0);
@@ -270,4 +273,138 @@ describe("NetworkPage", () => {
     expect(within(secretModal as HTMLElement).getByText(token)).toBeInTheDocument();
     expect(within(secretModal as HTMLElement).getByText(/RCNET_URL=https:\/\/utils\.alexeyav\.ru\/api\/network/)).not.toHaveTextContent(token);
   }, 15000);
+
+  it("shows a filtered audit event with safe parameters and opens its job detail", async () => {
+    api.fetchAudit.mockResolvedValue({
+      events: [{
+        id: "audit-1",
+        timestamp: "2026-09-11T10:00:03.000Z",
+        kind: "job.succeeded",
+        actor: { id: "web:user-17", name: "Alexey", source: "web" },
+        node_id: node.id,
+        action: "exec.run",
+        job_id: job.id,
+        state: "succeeded",
+        parameters: { root: "/srv/velocity", executable: "uptime", cwd: "/srv/velocity", job_id: "job-1", argv: "must-not-render" },
+        message: "Команда завершена",
+        exit_code: 0,
+      }],
+      next_cursor: "audit-cursor-2",
+    });
+    api.fetchJob.mockResolvedValue({ ...job, state: "succeeded", result: { ok: true, stdout: "up 1 day", exit_code: 0 } });
+
+    render(<NetworkPage />);
+    await waitForLoadedPage();
+    fireEvent.click(screen.getByRole("tab", { name: "Журнал" }));
+    const auditPanel = await screen.findByTestId("network-audit");
+
+    await waitFor(() => expect(within(auditPanel).getByText("Команда завершена")).toBeInTheDocument());
+    expect(api.fetchAudit).toHaveBeenCalledWith({ limit: 50 });
+    expect(within(auditPanel).getByText("Alexey")).toBeInTheDocument();
+    expect(within(auditPanel).getByText("web:user-17")).toBeInTheDocument();
+    expect(within(auditPanel).getByText(/root=\/srv\/velocity/)).toBeInTheDocument();
+    expect(within(auditPanel).getByText(/executable=uptime/)).toBeInTheDocument();
+    expect(within(auditPanel).getByText(/cwd=\/srv\/velocity/)).toBeInTheDocument();
+    expect(within(auditPanel).getByText(/job_id=job-1/)).toBeInTheDocument();
+    expect(within(auditPanel).queryByText("must-not-render")).not.toBeInTheDocument();
+
+    fireEvent.click(within(auditPanel).getByRole("button", { name: "Открыть job" }));
+    await waitFor(() => expect(api.fetchJob).toHaveBeenCalledWith(job.id));
+    expect(screen.getByText("up 1 day")).toBeInTheDocument();
+  }, 15000);
+
+  it("applies audit filters and walks to the next cursor page", async () => {
+    api.fetchAudit.mockResolvedValue({ events: [], next_cursor: "cursor-2" });
+    render(<NetworkPage />);
+    await waitForLoadedPage();
+    fireEvent.click(screen.getByRole("tab", { name: "Журнал" }));
+    const auditPanel = await screen.findByTestId("network-audit");
+    await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(within(auditPanel).getByPlaceholderText("Фильтр node_id"), { target: { value: node.id } });
+    fireEvent.change(within(auditPanel).getByPlaceholderText("Фильтр ID автора"), { target: { value: "web:user-17" } });
+    fireEvent.click(within(auditPanel).getByRole("button", { name: "Применить" }));
+    await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(2));
+    expect(api.fetchAudit.mock.calls[1][0]).toMatchObject({ node: node.id, actor: "web:user-17", limit: 50 });
+
+    fireEvent.click(within(auditPanel).getByRole("button", { name: "Следующая" }));
+    await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(3));
+    expect(api.fetchAudit.mock.calls[2][0]).toMatchObject({ node: node.id, actor: "web:user-17", before: "cursor-2", limit: 50 });
+  }, 15000);
+
+  it("keeps the latest audit response when requests finish out of order", async () => {
+    const initial = deferred<{ events: NetworkAuditEvent[]; next_cursor?: string }>();
+    const filtered = deferred<{ events: NetworkAuditEvent[]; next_cursor?: string }>();
+    const poll = deferred<{ events: NetworkAuditEvent[]; next_cursor?: string }>();
+    api.fetchAudit.mockReset();
+    api.fetchAudit
+      .mockImplementationOnce(() => initial.promise)
+      .mockImplementationOnce(() => filtered.promise)
+      .mockImplementation(() => poll.promise);
+
+    render(<NetworkPage />);
+    await waitForLoadedPage();
+    fireEvent.click(screen.getByRole("tab", { name: "Журнал" }));
+    const auditPanel = await screen.findByTestId("network-audit");
+    await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(within(auditPanel).getByPlaceholderText("Фильтр ID автора"), { target: { value: "web:latest" } });
+    fireEvent.click(within(auditPanel).getByRole("button", { name: "Применить" }));
+    await waitFor(() => expect(api.fetchAudit).toHaveBeenCalledTimes(2));
+
+    vi.useFakeTimers();
+    await act(async () => {
+      filtered.resolve({ events: [auditEvent("latest", "Новый фильтр")], next_cursor: "latest-cursor" });
+      await filtered.promise;
+    });
+    expect(within(auditPanel).getByText("Новый фильтр")).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(api.fetchAudit).toHaveBeenCalledTimes(3);
+    await act(async () => {
+      poll.resolve({ events: [auditEvent("latest", "Новый фильтр")], next_cursor: "latest-cursor" });
+      await poll.promise;
+    });
+    vi.useRealTimers();
+
+    await act(async () => {
+      initial.resolve({ events: [auditEvent("stale", "Старый ответ")], next_cursor: "stale-cursor" });
+    });
+    expect(within(auditPanel).queryByText("Старый ответ")).not.toBeInTheDocument();
+    expect(within(auditPanel).getByText("Новый фильтр")).toBeInTheDocument();
+    expect(within(auditPanel).getByRole("button", { name: "Следующая" })).toBeEnabled();
+  }, 15000);
+
+  it("does not present an empty journal when the audit request fails", async () => {
+    api.fetchAudit.mockRejectedValue(new Error("503 Service Unavailable"));
+    render(<NetworkPage />);
+    await waitForLoadedPage();
+    fireEvent.click(screen.getByRole("tab", { name: "Журнал" }));
+    const auditPanel = await screen.findByTestId("network-audit");
+
+    await waitFor(() => expect(within(auditPanel).getByText("Не удалось загрузить журнал аудита.")).toBeInTheDocument());
+    expect(within(auditPanel).queryByText("Событий аудита нет")).not.toBeInTheDocument();
+  }, 15000);
 });
+
+function auditEvent(id: string, message: string): NetworkAuditEvent {
+  return {
+    id,
+    timestamp: "2026-09-11T10:00:03.000Z",
+    kind: "job.succeeded",
+    actor: { id: "web:latest", name: "Alexey", source: "web" },
+    node_id: node.id,
+    action: "exec.run",
+    state: "succeeded",
+    message,
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}

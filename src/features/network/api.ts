@@ -10,6 +10,8 @@ import type {
   JobsResponse,
   NetworkJob,
   NetworkNode,
+  NetworkAuditQuery,
+  NetworkAuditResponse,
   NodesResponse,
   SubmitNetworkJobRequest,
 } from "./types";
@@ -46,3 +48,15 @@ export const revokeNetworkCredential = (id: string) =>
 
 export const setNetworkNodeDisabled = (id: string, disabled: boolean) =>
   apiClient.post<NetworkNode>(apiEndpoints.admin.network.disableNode(id), { disabled });
+
+export const fetchNetworkAudit = (query: NetworkAuditQuery = {}) => {
+  const params = new URLSearchParams();
+  if (query.node) params.set("node", query.node);
+  if (query.action) params.set("action", query.action);
+  if (query.kind) params.set("kind", query.kind);
+  if (query.actor) params.set("actor", query.actor);
+  if (query.before) params.set("before", query.before);
+  if (query.limit !== undefined) params.set("limit", String(Math.max(1, Math.min(200, Math.trunc(query.limit)))));
+  const suffix = params.toString();
+  return apiClient.get<NetworkAuditResponse>(`${apiEndpoints.network.audit}${suffix ? `?${suffix}` : ""}`, { cache: "no-store" });
+};

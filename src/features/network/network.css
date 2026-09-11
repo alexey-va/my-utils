@@ -134,6 +134,25 @@
 .network-schema pre { max-height: 180px; overflow: auto; padding: 10px; color: var(--linear-editor-text); background: var(--linear-surface-2); border-radius: var(--linear-radius-sm); }
 
 .network-jobs-list .ant-list-item { padding: 10px 0; }
+.network-jobs-panel .ant-tabs-nav { margin-bottom: 14px; }
+.network-audit { display: flex; min-width: 0; flex-direction: column; gap: 14px; overflow-wrap: anywhere; }
+.network-audit__toolbar { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; }
+.network-audit__toolbar .ant-select { min-width: 0; }
+.network-audit__toolbar > .ant-space { align-items: center; }
+.network-audit-list .ant-list-item { display: block; padding: 14px 0; }
+.network-audit-list .ant-list-item-meta { margin-bottom: 8px; }
+.network-audit-event__title { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.network-audit-event__title code { color: var(--linear-ink); font-size: 12px; }
+.network-audit-event__title .ant-tag { margin: 0; font-size: 10px; }
+.network-audit-event__body { display: flex; min-width: 0; flex-direction: column; gap: 7px; padding-right: 80px; }
+.network-audit-event__route { display: flex; flex-wrap: wrap; gap: 10px 14px; color: var(--linear-ink-muted); font-size: 12px; }
+.network-audit-event__route code,
+.network-audit-event__parameters code { min-width: 0; max-width: 100%; padding: 2px 5px; color: var(--linear-ink-secondary); background: var(--linear-surface-2); border-radius: 4px; }
+.network-audit-event__message { color: var(--linear-ink-secondary); font-size: 12px; }
+.network-audit-event__meta { color: var(--linear-ink-muted); font-size: 11px; }
+.network-audit-event__parameters { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--linear-ink-muted); font-size: 11px; }
+.network-audit-event__id { overflow: hidden; color: var(--linear-ink-quaternary); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.network-audit__footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--linear-hairline); flex-wrap: wrap; }
 .network-job-title { display: flex; align-items: center; gap: 8px; }
 .network-job-title code { color: var(--linear-ink); font-size: 12px; }
 .network-job-title .ant-tag { margin: 0; font-size: 10px; }
@@ -196,6 +215,10 @@
   .network-action-form__footer { align-items: stretch; flex-direction: column; }
   .network-action-form__footer > .ant-space { justify-content: flex-end; }
   .network-credentials-toolbar { align-items: stretch; flex-direction: column; }
+  .network-audit__toolbar { grid-template-columns: 1fr; }
+  .network-audit__toolbar > .ant-space { justify-content: flex-end; }
+  .network-audit-event__body { padding-right: 0; }
+  .network-audit__footer > .ant-space { width: 100%; justify-content: space-between; }
   .network-credential { grid-template-columns: minmax(0, 1fr) auto; }
   .network-credential__scopes { grid-column: 1; }
   .network-credential > .ant-btn { grid-column: 2; grid-row: 1 / span 2; }
