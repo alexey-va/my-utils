@@ -61,6 +61,30 @@ const mutatingAction: NetworkAction = {
   scope: "control",
 };
 
+const runtimeAction: NetworkAction = {
+  name: "runtime.status",
+  description: "Проверить runtime",
+  mutating: false,
+  scope: "read",
+};
+
+const fileAction: NetworkAction = {
+  name: "file.list",
+  description: "Список файлов",
+  mutating: false,
+  scope: "read",
+};
+
+const limitedNode: NetworkNode = {
+  ...node,
+  id: "node-2",
+  name: "backend-prod",
+  hostname: "backend.example",
+  roots: ["/srv/backend"],
+  runtimes: ["python-3.12"],
+  actions: [runtimeAction.name, fileAction.name],
+};
+
 const job: NetworkJob = {
   id: "job-1",
   request: {
@@ -79,7 +103,7 @@ const job: NetworkJob = {
 beforeEach(() => {
   vi.clearAllMocks();
   api.fetchNodes.mockResolvedValue({ nodes: [node] });
-  api.fetchActions.mockResolvedValue({ actions: [readAction, mutatingAction] });
+  api.fetchActions.mockResolvedValue({ actions: [readAction, mutatingAction, runtimeAction, fileAction] });
   api.fetchJobs.mockResolvedValue({ jobs: [] });
   api.fetchCredentials.mockResolvedValue({ credentials: [] });
   api.fetchJob.mockResolvedValue(job);
@@ -123,6 +147,24 @@ describe("NetworkPage", () => {
     expect(api.fetchNodes.mock.calls.length).toBeGreaterThanOrEqual(4);
     expect(screen.getAllByText("Онлайн").length).toBeGreaterThan(0);
   }, 15000);
+
+  it("limits actions to the selected node and rebuilds samples for its roots and runtimes", async () => {
+    api.fetchNodes.mockResolvedValue({ nodes: [node, limitedNode] });
+    render(<NetworkPage />);
+
+    await waitForLoadedPage();
+    expect(screen.getByRole("button", { name: /health\.check/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /backend-prod/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /health\.check/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /runtime\.status/ })).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("JSON arguments")).toHaveValue(JSON.stringify({ runtime: "python-3.12" }, null, 2));
+
+    fireEvent.click(screen.getByRole("button", { name: /file\.list/ }));
+    expect(screen.getByLabelText("JSON arguments")).toHaveValue(JSON.stringify({ root: "/srv/backend", path: "." }, null, 2));
+  });
 
   it("submits a read action with a Web Crypto idempotency key", async () => {
     render(<NetworkPage />);

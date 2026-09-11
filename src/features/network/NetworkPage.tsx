@@ -166,12 +166,26 @@ function errorMessage(error: unknown, fallback: string): string {
   return error.displayMessage() || fallback;
 }
 
-function actionSample(action: NetworkAction): Record<string, unknown> {
-  if (ACTION_SAMPLES[action.name]) return ACTION_SAMPLES[action.name];
-  if (action.name.startsWith("file.")) return { root: "srv", path: "path/to/file" };
+function actionSample(action: NetworkAction, node?: NetworkNode | null): Record<string, unknown> {
+  const root = node?.roots?.[0];
+  const runtime = node?.runtimes?.[0];
+  const catalogSample = ACTION_SAMPLES[action.name];
+  if (catalogSample) {
+    const sample = { ...catalogSample };
+    if ("root" in sample) {
+      if (root) sample.root = root;
+      else delete sample.root;
+    }
+    if ("runtime" in sample) {
+      if (runtime) sample.runtime = runtime;
+      else delete sample.runtime;
+    }
+    return sample;
+  }
+  if (action.name.startsWith("file.")) return root ? { root, path: "path/to/file" } : { path: "path/to/file" };
   if (action.name.startsWith("service.")) return { name: "proxyarc" };
   if (action.name.startsWith("container.")) return { name: "proxyarc" };
-  if (action.name.startsWith("runtime.")) return { runtime: "velocity" };
+  if (action.name.startsWith("runtime.")) return runtime ? { runtime } : {};
   return {};
 }
 
@@ -360,6 +374,7 @@ export default function NetworkPage() {
   const [credentialToken, setCredentialToken] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const requestKeyRef = useRef<string | null>(null);
+  const sampleSelectionRef = useRef<{ nodeId: string | null; actionName: string | null } | null>(null);
 
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
@@ -435,26 +450,36 @@ export default function NetworkPage() {
     return nodes.filter((node) => [node.name, node.hostname, node.os, node.arch, ...Object.values(node.labels)].some((value) => value.toLowerCase().includes(query)));
   }, [nodeSearch, nodes]);
 
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? nodes[0] ?? null;
+  const availableActions = useMemo(() => {
+    if (!selectedNode) return [];
+    const capabilities = new Set(selectedNode.actions);
+    return actions.filter((action) => capabilities.has(action.name));
+  }, [actions, selectedNode]);
+
   const filteredActions = useMemo(() => {
     const query = actionSearch.trim().toLowerCase();
-    if (!query) return actions;
-    return actions.filter((action) => `${action.name} ${action.description} ${action.scope}`.toLowerCase().includes(query));
-  }, [actionSearch, actions]);
+    if (!query) return availableActions;
+    return availableActions.filter((action) => `${action.name} ${action.description} ${action.scope}`.toLowerCase().includes(query));
+  }, [actionSearch, availableActions]);
 
-  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? nodes[0] ?? null;
-  const selectedAction = actions.find((action) => action.name === selectedActionName) ?? actions[0] ?? null;
+  const selectedAction = availableActions.find((action) => action.name === selectedActionName) ?? availableActions[0] ?? null;
 
   useEffect(() => {
     setSelectedNodeId((current) => current && nodes.some((node) => node.id === current) ? current : nodes[0]?.id ?? null);
   }, [nodes]);
 
   useEffect(() => {
-    setSelectedActionName((current) => current && actions.some((action) => action.name === current) ? current : actions[0]?.name ?? null);
-  }, [actions]);
+    setSelectedActionName((current) => current && availableActions.some((action) => action.name === current) ? current : availableActions[0]?.name ?? null);
+  }, [availableActions]);
 
   useEffect(() => {
-    if (selectedAction) setArgsText(jsonText(actionSample(selectedAction)));
-  }, [selectedAction]);
+    const actionName = selectedAction?.name ?? null;
+    const previous = sampleSelectionRef.current;
+    if (previous?.nodeId === selectedNodeId && previous.actionName === actionName) return;
+    sampleSelectionRef.current = { nodeId: selectedNodeId, actionName };
+    if (selectedAction) setArgsText(jsonText(actionSample(selectedAction, selectedNode)));
+  }, [selectedAction, selectedNode, selectedNodeId]);
 
   const onlineCount = nodes.filter((node) => nodeStatus(node, now) === "online").length;
   const offlineCount = nodes.filter((node) => nodeStatus(node, now) === "offline").length;
@@ -692,7 +717,7 @@ export default function NetworkPage() {
             <div className="network-action-picker">
               <Input.Search allowClear placeholder="Поиск в каталоге действий" value={actionSearch} onChange={(event) => setActionSearch(event.target.value)} />
               <div className="network-action-list">
-                {loading ? <div className="network-panel-loading"><Spin /></div> : filteredActions.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={actions.length ? "Ничего не найдено" : "Каталог действий пуст"} /> : filteredActions.map((action) => {
+                {loading ? <div className="network-panel-loading"><Spin /></div> : filteredActions.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={!selectedNode ? "Выберите узел для просмотра доступных действий" : availableActions.length ? "Ничего не найдено" : "Узел не объявил доступных действий"} /> : filteredActions.map((action) => {
                   const selected = action.name === selectedActionName;
                   return <button type="button" key={action.name} className={selected ? "network-action network-action--selected" : "network-action"} onClick={() => setSelectedActionName(action.name)}><span className="network-action__name"><code>{action.name}</code>{action.mutating ? <Tag color="error">mutating</Tag> : <Tag color="success">read</Tag>}</span><small>{action.description || "Без описания"} · scope: {action.scope}</small></button>;
                 })}
