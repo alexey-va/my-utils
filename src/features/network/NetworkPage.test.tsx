@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NetworkPage from "./NetworkPage";
 import { nodeStatus } from "./utils";
-import type { NetworkAction, NetworkAuditEvent, NetworkJob, NetworkNode } from "./types";
+import type { NetworkAction, NetworkAuditEvent, NetworkJob, NetworkNode, NetworkJobProgress } from "./types";
 
 const api = vi.hoisted(() => ({
   cancelJob: vi.fn(),
@@ -243,6 +243,52 @@ describe("NetworkPage", () => {
     await waitFor(() => expect(api.fetchJob).toHaveBeenCalledTimes(2));
     expect((await screen.findAllByText("Успешно")).length).toBeGreaterThan(0);
     expect(screen.getByText("gateway ok")).toBeInTheDocument();
+  }, 15000);
+
+  it("shows current workflow progress and caps a long detail timeline", async () => {
+    const events: NetworkJobProgress[] = Array.from({ length: 53 }, (_, index) => ({
+      sequence: index + 1,
+      at: `2026-09-11T10:00:${String(index).padStart(2, "0")}.000Z`,
+      phase: `phase-${index + 1}`,
+      status: index === 52 ? "waiting" : ["ok", "ready", "planned", "delivered", "joined"][index % 5],
+      target: index === 52 ? "proxyarc" : undefined,
+      message: index === 52 ? "Ожидается heartbeat агента" : undefined,
+    }));
+    const detail: NetworkJob = {
+      ...job,
+      state: "running",
+      progress: events[52],
+      events: [null, "malformed", ...events] as unknown as NetworkJobProgress[],
+    };
+    api.fetchJobs.mockResolvedValue({ jobs: [{ ...job, state: "running", progress: events[52] }] });
+    api.fetchJob.mockResolvedValue(detail);
+
+    render(<NetworkPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Открыть" }));
+    const progress = await screen.findByTestId("network-job-progress");
+
+    expect(progress.querySelector(".network-job-progress__current")).toHaveTextContent("phase-53");
+    expect(progress.querySelector(".network-job-progress__current")).toHaveTextContent("Ожидается heartbeat агента");
+    expect(within(progress).getByText("Этапы")).toBeInTheDocument();
+    expect(within(progress).getByText("Показаны последние 50 из 53")).toBeInTheDocument();
+    expect(progress.querySelector(".network-job-progress__current")).toHaveTextContent("Сервер: proxyarc");
+    expect(within(progress).getAllByText("ok", { selector: ".ant-tag" })[0]).toHaveClass("ant-tag-success");
+    expect(within(progress).getAllByText("waiting", { selector: ".ant-tag" })[0]).toHaveClass("ant-tag-processing");
+    expect(within(progress).getAllByRole("listitem")).toHaveLength(50);
+    expect(within(progress).queryByText("phase-1")).not.toBeInTheDocument();
+    expect(within(progress).getAllByText("phase-53")).toHaveLength(2);
+  }, 15000);
+
+  it("keeps the old gateway detail layout when progress fields are absent", async () => {
+    api.fetchJobs.mockResolvedValue({ jobs: [{ ...job, state: "succeeded" }] });
+    api.fetchJob.mockResolvedValue({ ...job, state: "succeeded", result: { ok: true, stdout: "legacy gateway" } });
+
+    render(<NetworkPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Открыть" }));
+    expect(await screen.findByText("legacy gateway")).toBeInTheDocument();
+    expect(screen.queryByTestId("network-job-progress")).not.toBeInTheDocument();
   }, 15000);
 
   it("requires confirmation for mutating actions and keeps a credential token out of listings and storage", async () => {

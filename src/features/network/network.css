@@ -194,6 +194,30 @@
 .network-result__block--error pre { color: var(--linear-red); }
 .network-result__exit code { padding: 2px 6px; color: var(--linear-ink-secondary); background: var(--linear-surface-2); border-radius: 4px; }
 
+.network-job-progress { display: flex; min-width: 0; flex-direction: column; gap: 12px; padding: 14px; background: var(--linear-surface-2); border: 1px solid var(--linear-hairline); border-radius: var(--linear-radius-md); }
+.network-job-progress__current { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.network-job-progress__headline,
+.network-job-progress__event-head { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px; }
+.network-job-progress__headline strong,
+.network-job-progress__event-head strong { min-width: 0; overflow: hidden; color: var(--linear-ink); text-overflow: ellipsis; }
+.network-job-progress__headline .ant-tag,
+.network-job-progress__event-head .ant-tag { margin: 0; font-size: 10px; line-height: 17px; }
+.network-job-progress__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; color: var(--linear-ink-muted); font-size: 11px; }
+.network-job-progress__meta code { padding: 2px 5px; color: var(--linear-ink-secondary); background: var(--linear-surface-1); border-radius: 4px; }
+.network-job-progress__current p,
+.network-job-progress__event p { margin: 0; color: var(--linear-ink-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.network-job-progress__timeline { display: flex; min-width: 0; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--linear-hairline); }
+.network-job-progress__timeline-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--linear-ink); }
+.network-job-progress__timeline-heading span { color: var(--linear-ink-muted); font-size: 11px; }
+.network-job-progress__timeline ol { display: flex; max-height: 320px; flex-direction: column; gap: 0; overflow: auto; padding: 0 8px 0 0; margin: 0; list-style: none; }
+.network-job-progress__timeline li { position: relative; display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; padding: 7px 0; }
+.network-job-progress__timeline li:not(:last-child)::after { position: absolute; top: 20px; bottom: -7px; left: 4px; width: 1px; background: var(--linear-hairline); content: ""; }
+.network-job-progress__dot { position: relative; z-index: 1; width: 9px; height: 9px; margin-top: 4px; border: 2px solid var(--linear-ink-quaternary); border-radius: 50%; background: var(--linear-surface-2); }
+.network-job-progress__dot[data-status="success"] { border-color: var(--linear-green); }
+.network-job-progress__dot[data-status="error"] { border-color: var(--linear-red); }
+.network-job-progress__dot[data-status="processing"] { border-color: var(--linear-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--linear-blue) 14%, transparent); }
+.network-job-progress__event { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+
 @media (max-width: 900px) {
   .network-status-strip { grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(60px, auto)); padding-inline: 10px; }
   .network-status-strip__metric { padding-inline: 8px; }

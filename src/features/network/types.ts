@@ -32,6 +32,15 @@ export type NetworkJobResult = {
   truncated?: boolean;
 };
 
+export type NetworkJobProgress = {
+  sequence: number;
+  at: string;
+  phase: string;
+  status: string;
+  target?: string | null;
+  message?: string | null;
+};
+
 export type NetworkJobState =
   | "queued"
   | "dispatched"
@@ -66,6 +75,10 @@ export type NetworkJob = {
   completed_at?: string | null;
   cancel_requested: boolean;
   result?: NetworkJobResult;
+  /** Newer gateways expose the latest workflow progress on both list and detail responses. */
+  progress?: NetworkJobProgress | null;
+  /** Detail responses may include a bounded, ordered workflow progress timeline. */
+  events?: NetworkJobProgress[] | null;
 };
 
 export type NetworkPrincipal = {

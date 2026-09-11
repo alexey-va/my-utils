@@ -56,6 +56,7 @@ import type {
   NetworkAuditEvent,
   NetworkAuditQuery,
   NetworkJob,
+  NetworkJobProgress,
   NetworkNode,
   NetworkPrincipal,
   SubmitNetworkJobRequest,
@@ -67,6 +68,7 @@ const JOB_POLL_MS = 5_000;
 const NODE_POLL_MS = 30_000;
 const DEFAULT_TIMEOUT = 60;
 const AUDIT_LIMIT = 50;
+const MAX_JOB_TIMELINE_EVENTS = 50;
 const SCOPES = ["read", "exec", "write", "control", "admin"];
 const NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SCOPE_LABELS: Record<string, string> = {
@@ -110,6 +112,7 @@ const AUDIT_KIND_OPTIONS = [
   "job.queued",
   "job.dispatched",
   "job.running",
+  "job.progress",
   "job.succeeded",
   "job.failed",
   "job.cancel_requested",
@@ -279,7 +282,7 @@ function jsonText(value: unknown): string {
 }
 
 function updateJobSummary(summary: NetworkJob, detail: NetworkJob): NetworkJob {
-  return {
+  const updated: NetworkJob = {
     ...summary,
     principal: detail.principal,
     state: detail.state,
@@ -288,6 +291,90 @@ function updateJobSummary(summary: NetworkJob, detail: NetworkJob): NetworkJob {
     cancel_requested: detail.cancel_requested,
     archived: detail.archived,
   };
+  if ("progress" in detail) updated.progress = detail.progress;
+  return updated;
+}
+
+function progressMarker(progress?: NetworkJobProgress | null): string {
+  if (!progress) return "";
+  return [progress.sequence, progress.at, progress.phase, progress.status, progress.target, progress.message].join("\u0000");
+}
+
+function progressText(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function progressSequence(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? `#${value}` : "#—";
+}
+
+function progressTagColor(status: unknown): string {
+  const normalized = progressText(status, "").toLowerCase();
+  if (["succeeded", "success", "completed", "complete", "done", "ok", "ready", "planned", "delivered"].includes(normalized)) return "success";
+  if (["failed", "failure", "error"].includes(normalized)) return "error";
+  if (["cancelled", "canceled"].includes(normalized)) return "default";
+  if (["running", "started", "in_progress", "in-progress", "pending", "waiting", "joined", "scheduled", "downloading", "staged"].includes(normalized)) return "processing";
+  return "default";
+}
+
+function isJobProgressEvent(value: unknown): value is NetworkJobProgress {
+  return isRecord(value);
+}
+
+function JobProgressPanel({ job }: { job: NetworkJob }) {
+  const timeline = Array.isArray(job.events) ? job.events.filter(isJobProgressEvent) : [];
+  const latest = job.progress ?? timeline[timeline.length - 1] ?? null;
+  if (!latest && timeline.length === 0) return null;
+
+  const visibleEvents = timeline.length > MAX_JOB_TIMELINE_EVENTS
+    ? timeline.slice(-MAX_JOB_TIMELINE_EVENTS)
+    : timeline;
+  const hiddenEvents = timeline.length - visibleEvents.length;
+
+  return (
+    <section className="network-job-progress" data-testid="network-job-progress">
+      {latest ? (
+        <div className="network-job-progress__current">
+          <span className="network-eyebrow">Текущий прогресс</span>
+          <div className="network-job-progress__headline">
+            <strong>{progressText(latest.phase, "Безымянный этап")}</strong>
+            <Tag color={progressTagColor(latest.status)}>{progressText(latest.status, "Статус неизвестен")}</Tag>
+          </div>
+          <div className="network-job-progress__meta">
+            <span>{progressSequence(latest.sequence)} · {formatTime(latest.at)}</span>
+            {progressText(latest.target, "") ? <span>Сервер: <code>{progressText(latest.target, "")}</code></span> : null}
+          </div>
+          {progressText(latest.message, "") ? <p>{progressText(latest.message, "")}</p> : null}
+        </div>
+      ) : null}
+      {visibleEvents.length ? (
+        <div className="network-job-progress__timeline">
+          <div className="network-job-progress__timeline-heading">
+            <strong>Этапы</strong>
+            <span>{hiddenEvents ? `Показаны последние ${visibleEvents.length} из ${timeline.length}` : `${timeline.length} событий`}</span>
+          </div>
+          <ol>
+            {visibleEvents.map((event, index) => (
+              <li key={`${progressSequence(event.sequence)}-${event.at}-${index}`}>
+                <span className="network-job-progress__dot" data-status={progressTagColor(event.status)} />
+                <div className="network-job-progress__event">
+                  <div className="network-job-progress__event-head">
+                    <strong>{progressText(event.phase, "Безымянный этап")}</strong>
+                    <Tag color={progressTagColor(event.status)}>{progressText(event.status, "Статус неизвестен")}</Tag>
+                  </div>
+                  <div className="network-job-progress__meta">
+                    <span>{progressSequence(event.sequence)} · {formatTime(event.at)}</span>
+                    {progressText(event.target, "") ? <span>Сервер: <code>{progressText(event.target, "")}</code></span> : null}
+                  </div>
+                  {progressText(event.message, "") ? <p>{progressText(event.message, "")}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function NodeStatusTag({ node, now }: { node: NetworkNode; now: number }) {
@@ -373,8 +460,9 @@ function JobResultDrawer({
           <div className="network-result__request">
             <span>Узел: <strong>{job.request.node_id}</strong></span>
             <span>Timeout: {job.request.timeout_seconds} сек.</span>
-          {job.cancel_requested ? <Tag color="warning">Отмена запрошена</Tag> : null}
+            {job.cancel_requested ? <Tag color="warning">Отмена запрошена</Tag> : null}
           </div>
+          <JobProgressPanel job={job} />
           {job.archived ? <Alert type="info" showIcon message="Сохранены только сведения о задании; полный результат вышел за лимит истории." /> : <>
             {result?.error ? <Alert type="error" showIcon message={result.error} /> : null}
             <ResultBlock title="stdout" value={result?.stdout} />
@@ -778,7 +866,8 @@ export default function NetworkPage() {
     const changed = summary.state !== selectedJob.state
       || summary.cancel_requested !== selectedJob.cancel_requested
       || summary.completed_at !== selectedJob.completed_at
-      || summary.archived !== selectedJob.archived;
+      || summary.archived !== selectedJob.archived
+      || progressMarker(summary.progress) !== progressMarker(selectedJob.progress);
     if (changed) void refreshSelectedJob();
   }, [jobLoading, jobs, refreshSelectedJob, selectedJob]);
 
