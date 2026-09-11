@@ -1,5 +1,6 @@
 import {
   DashboardOutlined,
+  ApiOutlined,
   HomeOutlined,
   MessageOutlined,
   ScheduleOutlined,
@@ -49,6 +50,13 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     path: "/wireguard",
     label: "WireGuard",
     icon: <SafetyCertificateOutlined />,
+    requiresAdmin: true,
+  },
+  {
+    id: "network",
+    path: "/network",
+    label: "Server Gateway",
+    icon: <ApiOutlined />,
     requiresAdmin: true,
   },
   {

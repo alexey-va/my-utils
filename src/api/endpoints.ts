@@ -46,6 +46,20 @@ export const apiEndpoints = {
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}/credentials`,
     wireguardPeerMetrics: (relayId: string, peerId: string) =>
       `/api/admin/wireguard/relays/${encodeURIComponent(relayId)}/peers/${encodeURIComponent(peerId)}/metrics`,
+    network: {
+      nodes: "/api/admin/network/v1/nodes",
+      actions: "/api/admin/network/v1/actions",
+      jobs: "/api/admin/network/v1/jobs",
+      job: (id: string) => `/api/admin/network/v1/jobs/${encodeURIComponent(id)}`,
+      cancelJob: (id: string) =>
+        `/api/admin/network/v1/jobs/${encodeURIComponent(id)}/cancel`,
+      enrollments: "/api/admin/network/v1/enrollments",
+      credentials: "/api/admin/network/v1/credentials",
+      credential: (id: string) =>
+        `/api/admin/network/v1/credentials/${encodeURIComponent(id)}`,
+      disableNode: (id: string) =>
+        `/api/admin/network/v1/nodes/${encodeURIComponent(id)}/disable`,
+    },
   },
   workouts: {
     snapshot: "/api/workouts/snapshot",

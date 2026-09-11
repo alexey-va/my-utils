@@ -1,0 +1,767 @@
+import {
+  CheckCircleOutlined,
+  CloudServerOutlined,
+  CodeOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  KeyOutlined,
+  LockOutlined,
+  ReloadOutlined,
+  SendOutlined,
+  StopOutlined,
+  SyncOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Drawer,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  message,
+} from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import PageLayout from "../../shared/components/PageLayout";
+import AppPanel from "../../shared/components/AppPanel";
+import CopyButton from "../../shared/components/CopyButton";
+import { ApiError } from "../../api/errors";
+import {
+  cancelNetworkJob,
+  createNetworkCredential,
+  enrollNetworkNode,
+  fetchNetworkActions,
+  fetchNetworkCredentials,
+  fetchNetworkJob,
+  fetchNetworkJobs,
+  fetchNetworkNodes,
+  revokeNetworkCredential,
+  setNetworkNodeDisabled,
+  submitNetworkJob,
+} from "./api";
+import type {
+  CreateCredentialRequest,
+  EnrollmentToken,
+  NetworkAction,
+  NetworkJob,
+  NetworkNode,
+  NetworkPrincipal,
+  SubmitNetworkJobRequest,
+} from "./types";
+import { nodeStatus } from "./utils";
+import "./network.css";
+
+const JOB_POLL_MS = 5_000;
+const NODE_POLL_MS = 30_000;
+const DEFAULT_TIMEOUT = 60;
+const SCOPES = ["read", "exec", "write", "control", "admin"];
+const NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+const SCOPE_LABELS: Record<string, string> = {
+  read: "read — диагностика",
+  exec: "exec — выполнение команд",
+  write: "write — запись файлов",
+  control: "control — управление сервисами",
+  admin: "admin — управление доступами",
+};
+
+const ACTION_SAMPLES: Record<string, Record<string, unknown>> = {
+  "system.info": {},
+  "process.list": {},
+  "file.list": { root: "srv", path: "." },
+  "file.read": { root: "srv", path: "path/to/file", max_bytes: 8192 },
+  "file.hash": { root: "srv", path: "path/to/file" },
+  "file.write": { root: "srv", path: "path/to/file", expected_sha256: "<sha256>", content: "", dry_run: true },
+  "file.rollback": { job_id: "<job-id>" },
+  "log.tail": { root: "srv", path: "logs/service.log", max_bytes: 8192 },
+  "exec.run": { argv: ["uptime"], root: "srv" },
+  "runtime.status": { runtime: "velocity" },
+  "runtime.console": { runtime: "velocity", command: "say gateway check" },
+  "service.status": { name: "proxyarc" },
+  "service.restart": { name: "proxyarc" },
+  "container.list": {},
+  "container.logs": { name: "proxyarc", tail: 100 },
+  "container.restart": { name: "proxyarc" },
+};
+
+const stateLabels: Record<NetworkJob["state"], string> = {
+  queued: "В очереди",
+  dispatched: "Отправлена",
+  running: "Выполняется",
+  succeeded: "Успешно",
+  failed: "Ошибка",
+  cancelled: "Отменена",
+  unknown: "Неизвестно",
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function createIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"));
+  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+}
+
+function statusLabel(status: ReturnType<typeof nodeStatus>): string {
+  if (status === "online") return "Онлайн";
+  if (status === "disabled") return "Отключён";
+  return "Офлайн";
+}
+
+function statusColor(status: ReturnType<typeof nodeStatus>): string {
+  if (status === "online") return "success";
+  if (status === "disabled") return "default";
+  return "error";
+}
+
+function formatTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function relativeTime(value: string | null, now = Date.now()): string {
+  if (!value) return "нет heartbeat";
+  const seconds = Math.max(0, Math.round((now - new Date(value).getTime()) / 1000));
+  if (seconds < 10) return "только что";
+  if (seconds < 60) return `${seconds} сек. назад`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} мин. назад`;
+  return `${Math.floor(minutes / 60)} ч. назад`;
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof ApiError)) return fallback;
+  if (error.status === 503) return "Server Gateway не настроен или временно недоступен (503). Проверьте сервис gateway.";
+  if (error.status === 401 || error.status === 403) return "Сессия администратора истекла или не имеет доступа к Server Gateway.";
+  if (error.body) {
+    try {
+      const payload = JSON.parse(error.body) as { error?: unknown; message?: unknown };
+      if (typeof payload.error === "string" && payload.error.trim()) return payload.error.trim();
+      if (typeof payload.message === "string" && payload.message.trim()) return payload.message.trim();
+    } catch {
+      // Keep ApiError's normal display fallback for non-JSON bodies.
+    }
+  }
+  return error.displayMessage() || fallback;
+}
+
+function actionSample(action: NetworkAction): Record<string, unknown> {
+  if (ACTION_SAMPLES[action.name]) return ACTION_SAMPLES[action.name];
+  if (action.name.startsWith("file.")) return { root: "srv", path: "path/to/file" };
+  if (action.name.startsWith("service.")) return { name: "proxyarc" };
+  if (action.name.startsWith("container.")) return { name: "proxyarc" };
+  if (action.name.startsWith("runtime.")) return { runtime: "velocity" };
+  return {};
+}
+
+function normalizeNode(node: NetworkNode): NetworkNode {
+  return {
+    ...node,
+    roots: node.roots ?? [],
+    runtimes: node.runtimes ?? [],
+    actions: node.actions ?? [],
+    labels: node.labels ?? {},
+  };
+}
+
+function isValidNodeId(value: string): boolean {
+  return NODE_ID_PATTERN.test(value.trim());
+}
+
+function jsonText(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+function updateJobSummary(summary: NetworkJob, detail: NetworkJob): NetworkJob {
+  return {
+    ...summary,
+    principal: detail.principal,
+    state: detail.state,
+    started_at: detail.started_at,
+    completed_at: detail.completed_at,
+    cancel_requested: detail.cancel_requested,
+    archived: detail.archived,
+  };
+}
+
+function NodeStatusTag({ node, now }: { node: NetworkNode; now: number }) {
+  const status = nodeStatus(node, now);
+  return <Tag color={statusColor(status)}>{statusLabel(status)}</Tag>;
+}
+
+function JobStateTag({ state }: { state: NetworkJob["state"] }) {
+  const color = state === "succeeded" ? "success" : state === "failed" ? "error" : state === "cancelled" ? "default" : state === "running" ? "processing" : "warning";
+  return <Tag color={color}>{stateLabels[state]}</Tag>;
+}
+
+function SecretTokenModal({
+  token,
+  title,
+  command,
+  instructions,
+  onClose,
+}: {
+  token: string | null;
+  title: string;
+  command: string;
+  instructions: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal open={Boolean(token)} title={title} footer={null} onCancel={onClose} destroyOnHidden>
+      {token ? (
+        <div className="network-secret">
+          <Alert
+            type="warning"
+            showIcon
+            message="Секрет показывается один раз"
+            description="Скопируйте его сейчас. После закрытия окна восстановить токен через панель нельзя."
+          />
+          <div className="network-secret__value">
+            <code>{token}</code>
+            <CopyButton value={token} />
+          </div>
+          <Typography.Text type="secondary">Команда для подключения агента</Typography.Text>
+          <Typography.Paragraph type="secondary">{instructions}</Typography.Paragraph>
+          <div className="network-secret__command">
+            <code>{command}</code>
+            <CopyButton value={command} />
+          </div>
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
+function JobResultDrawer({
+  job,
+  loading,
+  onClose,
+  onRefresh,
+  onCancel,
+}: {
+  job: NetworkJob | null;
+  loading: boolean;
+  onClose: () => void;
+  onRefresh: () => void;
+  onCancel: () => void;
+}) {
+  const result = job?.result;
+  return (
+    <Drawer
+      open={Boolean(job)}
+      title={job ? `Результат · ${job.request.action}` : "Результат job"}
+      onClose={onClose}
+      width={760}
+      className="network-result-drawer"
+    >
+      {loading && !job ? <Spin /> : null}
+      {job ? (
+        <div className="network-result">
+          <div className="network-result__meta">
+            <span><strong>Job</strong> <code>{job.id}</code></span>
+            <JobStateTag state={job.state} />
+            <span>создана {formatTime(job.created_at)}</span>
+            <Button type="text" icon={<ReloadOutlined />} onClick={onRefresh}>Обновить</Button>
+          </div>
+          <div className="network-result__request">
+            <span>Узел: <strong>{job.request.node_id}</strong></span>
+            <span>Timeout: {job.request.timeout_seconds} сек.</span>
+          {job.cancel_requested ? <Tag color="warning">Отмена запрошена</Tag> : null}
+          </div>
+          {job.archived ? <Alert type="info" showIcon message="Сохранены только сведения о задании; полный результат вышел за лимит истории." /> : <>
+            {result?.error ? <Alert type="error" showIcon message={result.error} /> : null}
+            <ResultBlock title="stdout" value={result?.stdout} />
+            <ResultBlock title="stderr" value={result?.stderr} error />
+            <div className="network-result__exit">
+              <span>exit code</span>
+              <code>{result?.exit_code ?? "—"}</code>
+              {result?.truncated ? <Tag color="warning">Вывод обрезан</Tag> : null}
+            </div>
+            {result?.data !== undefined ? <ResultBlock title="data (JSON)" value={jsonText(result.data)} /> : null}
+          </>}
+          {job.state === "queued" || job.state === "dispatched" || job.state === "running" ? (
+            <Button danger icon={<StopOutlined />} onClick={onCancel} loading={job.cancel_requested}>
+              Отменить job
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </Drawer>
+  );
+}
+
+function ResultBlock({ title, value, error = false }: { title: string; value?: string; error?: boolean }) {
+  return (
+    <section className={error ? "network-result__block network-result__block--error" : "network-result__block"}>
+      <header><span>{title}</span>{value ? <CopyButton value={value} /> : null}</header>
+      <pre>{value || "Нет данных"}</pre>
+    </section>
+  );
+}
+
+export default function NetworkPage() {
+  const [nodes, setNodes] = useState<NetworkNode[]>([]);
+  const [actions, setActions] = useState<NetworkAction[]>([]);
+  const [jobs, setJobs] = useState<NetworkJob[]>([]);
+  const [credentials, setCredentials] = useState<NetworkPrincipal[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedActionName, setSelectedActionName] = useState<string | null>(null);
+  const [nodeSearch, setNodeSearch] = useState("");
+  const [actionSearch, setActionSearch] = useState("");
+  const [argsText, setArgsText] = useState("{}");
+  const [timeoutSeconds, setTimeoutSeconds] = useState(DEFAULT_TIMEOUT);
+  const [loading, setLoading] = useState(true);
+  const [credentialsLoading, setCredentialsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [nodesError, setNodesError] = useState<string | null>(null);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const [credentialsError, setCredentialsError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [retryRequest, setRetryRequest] = useState<SubmitNetworkJobRequest | null>(null);
+  const [mutatingRequest, setMutatingRequest] = useState<{ request: SubmitNetworkJobRequest; actionName: string; nodeName: string } | null>(null);
+  const [selectedJob, setSelectedJob] = useState<NetworkJob | null>(null);
+  const [jobLoading, setJobLoading] = useState(false);
+  const [enrollmentOpen, setEnrollmentOpen] = useState(false);
+  const [enrollmentName, setEnrollmentName] = useState("");
+  const [enrollmentNodeId, setEnrollmentNodeId] = useState("");
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [enrollmentToken, setEnrollmentToken] = useState<EnrollmentToken | null>(null);
+  const [credentialOpen, setCredentialOpen] = useState(false);
+  const [credentialName, setCredentialName] = useState("");
+  const [credentialNodes, setCredentialNodes] = useState<string[]>([]);
+  const [credentialScopes, setCredentialScopes] = useState<string[]>(["read"]);
+  const [credentialLoading, setCredentialLoading] = useState(false);
+  const [credentialToken, setCredentialToken] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const requestKeyRef = useRef<string | null>(null);
+
+  const loadWorkspace = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [nodeResponse, actionResponse, jobResponse] = await Promise.all([
+        fetchNetworkNodes(),
+        fetchNetworkActions(),
+        fetchNetworkJobs(),
+      ]);
+      setNodes((nodeResponse.nodes ?? []).map(normalizeNode));
+      setNodesError(null);
+      setActions(actionResponse.actions ?? []);
+      setJobs(jobResponse.jobs ?? []);
+      setJobsError(null);
+    } catch (error) {
+      setLoadError(errorMessage(error, "Не удалось загрузить Server Gateway."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const refreshNodes = useCallback(async () => {
+    try {
+      const response = await fetchNetworkNodes();
+      setNodes((response.nodes ?? []).map(normalizeNode));
+      setNodesError(null);
+    } catch (error) {
+      // Keep the last known node snapshot while the heartbeat endpoint is unavailable.
+      setNodesError(errorMessage(error, "Не удалось обновить heartbeat узлов."));
+    }
+  }, []);
+
+  const refreshJobs = useCallback(async () => {
+    try {
+      const response = await fetchNetworkJobs();
+      setJobs(response.jobs ?? []);
+      setJobsError(null);
+    } catch (error) {
+      setJobsError(errorMessage(error, "Не удалось обновить список job-ов."));
+    }
+  }, []);
+
+  const loadCredentials = useCallback(async () => {
+    setCredentialsLoading(true);
+    setCredentialsError(null);
+    try {
+      const response = await fetchNetworkCredentials();
+      setCredentials(response.credentials ?? []);
+    } catch (error) {
+      setCredentialsError(errorMessage(error, "Не удалось загрузить credentials."));
+    } finally {
+      setCredentialsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadWorkspace();
+    void loadCredentials();
+    const clock = window.setInterval(() => setNow(Date.now()), NODE_POLL_MS);
+    const nodePoll = window.setInterval(() => void refreshNodes(), NODE_POLL_MS);
+    const poll = window.setInterval(() => void refreshJobs(), JOB_POLL_MS);
+    return () => {
+      window.clearInterval(clock);
+      window.clearInterval(nodePoll);
+      window.clearInterval(poll);
+    };
+  }, [loadCredentials, loadWorkspace, refreshJobs, refreshNodes]);
+
+  const filteredNodes = useMemo(() => {
+    const query = nodeSearch.trim().toLowerCase();
+    if (!query) return nodes;
+    return nodes.filter((node) => [node.name, node.hostname, node.os, node.arch, ...Object.values(node.labels)].some((value) => value.toLowerCase().includes(query)));
+  }, [nodeSearch, nodes]);
+
+  const filteredActions = useMemo(() => {
+    const query = actionSearch.trim().toLowerCase();
+    if (!query) return actions;
+    return actions.filter((action) => `${action.name} ${action.description} ${action.scope}`.toLowerCase().includes(query));
+  }, [actionSearch, actions]);
+
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? nodes[0] ?? null;
+  const selectedAction = actions.find((action) => action.name === selectedActionName) ?? actions[0] ?? null;
+
+  useEffect(() => {
+    setSelectedNodeId((current) => current && nodes.some((node) => node.id === current) ? current : nodes[0]?.id ?? null);
+  }, [nodes]);
+
+  useEffect(() => {
+    setSelectedActionName((current) => current && actions.some((action) => action.name === current) ? current : actions[0]?.name ?? null);
+  }, [actions]);
+
+  useEffect(() => {
+    if (selectedAction) setArgsText(jsonText(actionSample(selectedAction)));
+  }, [selectedAction]);
+
+  const onlineCount = nodes.filter((node) => nodeStatus(node, now) === "online").length;
+  const offlineCount = nodes.filter((node) => nodeStatus(node, now) === "offline").length;
+  const disabledCount = nodes.filter((node) => nodeStatus(node, now) === "disabled").length;
+
+  const openJob = async (job: NetworkJob) => {
+    setSelectedJob(job);
+    setJobLoading(true);
+    try {
+      const detail = await fetchNetworkJob(job.id);
+      setSelectedJob(detail);
+      setJobs((current) => current.map((item) => item.id === detail.id ? updateJobSummary(item, detail) : item));
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось загрузить результат job-а."));
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const refreshSelectedJob = useCallback(async () => {
+    if (!selectedJob) return;
+    setJobLoading(true);
+    try {
+      const detail = await fetchNetworkJob(selectedJob.id);
+      setSelectedJob(detail);
+      setJobs((current) => current.map((job) => job.id === detail.id ? updateJobSummary(job, detail) : job));
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось обновить job."));
+    } finally {
+      setJobLoading(false);
+    }
+  }, [selectedJob]);
+
+  useEffect(() => {
+    if (!selectedJob || jobLoading) return;
+    const summary = jobs.find((job) => job.id === selectedJob.id);
+    if (!summary) return;
+    const changed = summary.state !== selectedJob.state
+      || summary.cancel_requested !== selectedJob.cancel_requested
+      || summary.completed_at !== selectedJob.completed_at
+      || summary.archived !== selectedJob.archived;
+    if (changed) void refreshSelectedJob();
+  }, [jobLoading, jobs, refreshSelectedJob, selectedJob]);
+
+  const cancelSelectedJob = async () => {
+    if (!selectedJob || selectedJob.cancel_requested) return;
+    try {
+      const updated = await cancelNetworkJob(selectedJob.id);
+      setSelectedJob(updated);
+      setJobs((current) => current.map((job) => job.id === updated.id ? updateJobSummary(job, updated) : job));
+      message.success("Запрос на отмену отправлен");
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось отменить job."));
+    }
+  };
+
+  const executeRequest = async (request: SubmitNetworkJobRequest) => {
+    setSubmitting(true);
+    requestKeyRef.current = request.idempotency_key;
+    try {
+      const job = await submitNetworkJob(request);
+      setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
+      setRetryRequest(null);
+      requestKeyRef.current = null;
+      setSelectedJob(job);
+      message.success(`Job ${job.id.slice(0, 8)} отправлена`);
+    } catch (error) {
+      setRetryRequest(request);
+      message.error(errorMessage(error, "Не удалось отправить job. Ключ idempotency сохранён для повтора."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitAction = async () => {
+    if (!selectedNode || !selectedAction || submitting) return;
+    let args: unknown;
+    try {
+      args = JSON.parse(argsText);
+    } catch {
+      message.error("Аргументы должны быть корректным JSON.");
+      return;
+    }
+    if (!isRecord(args)) {
+      message.error("Корень аргументов должен быть JSON-объектом.");
+      return;
+    }
+    const request: SubmitNetworkJobRequest = {
+      node_id: selectedNode.id,
+      action: selectedAction.name,
+      args,
+      idempotency_key: requestKeyRef.current ?? createIdempotencyKey(),
+      timeout_seconds: Math.max(1, Math.min(900, Number(timeoutSeconds) || DEFAULT_TIMEOUT)),
+    };
+    if (selectedAction.mutating) {
+      setMutatingRequest({ request, actionName: selectedAction.name, nodeName: selectedNode.name });
+      return;
+    }
+    await executeRequest(request);
+  };
+
+  const disableNode = (node: NetworkNode) => {
+    Modal.confirm({
+      title: node.disabled ? `Включить ${node.name}?` : `Отключить ${node.name}?`,
+      content: node.disabled ? "Агент снова сможет принимать job-ы." : "Новые job-ы для узла будут заблокированы.",
+      okText: node.disabled ? "Включить" : "Отключить",
+      okType: node.disabled ? "primary" : "danger",
+      cancelText: "Отмена",
+      onOk: async () => {
+        try {
+          const updated = await setNetworkNodeDisabled(node.id, !node.disabled);
+          setNodes((current) => current.map((item) => item.id === updated.id ? normalizeNode(updated) : item));
+          message.success(updated.disabled ? "Узел отключён" : "Узел включён");
+        } catch (error) {
+          message.error(errorMessage(error, "Не удалось изменить состояние узла."));
+        }
+      },
+    });
+  };
+
+  const openEnrollment = () => {
+    setEnrollmentName("");
+    setEnrollmentNodeId("");
+    setEnrollmentOpen(true);
+  };
+
+  const enroll = async () => {
+    const nodeId = enrollmentNodeId.trim();
+    if (!enrollmentName.trim() || !isValidNodeId(nodeId) || enrollmentLoading) {
+      if (nodeId && !isValidNodeId(nodeId)) message.error("node_id: 1–64 символа, только латиница, цифры, _, ., -; первый символ — буква или цифра.");
+      return;
+    }
+    setEnrollmentLoading(true);
+    try {
+      const token = await enrollNetworkNode({ name: enrollmentName.trim(), node_id: nodeId });
+      setEnrollmentOpen(false);
+      setEnrollmentToken(token);
+      message.success("Одноразовый токен выпущен");
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось выпустить токен enrollment."));
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  };
+
+  const openCredential = () => {
+    setCredentialName("");
+    setCredentialNodes(selectedNode ? [selectedNode.id] : []);
+    setCredentialScopes(["read"]);
+    setCredentialOpen(true);
+  };
+
+  const createCredential = async () => {
+    const body: CreateCredentialRequest = {
+      name: credentialName.trim(),
+      nodes: credentialNodes,
+      scopes: Array.from(new Set(["read", ...credentialScopes])),
+    };
+    if (!body.name || body.nodes.length === 0 || body.scopes.length === 0 || credentialLoading) return;
+    setCredentialLoading(true);
+    try {
+      const created = await createNetworkCredential(body);
+      setCredentials((current) => [created.credential, ...current]);
+      setCredentialOpen(false);
+      setCredentialToken(created.token);
+      message.success("Credential создана");
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось создать credential."));
+    } finally {
+      setCredentialLoading(false);
+    }
+  };
+
+  const revokeCredential = async (credential: NetworkPrincipal) => {
+    try {
+      await revokeNetworkCredential(credential.id);
+      setCredentials((current) => current.filter((item) => item.id !== credential.id));
+      message.success("Credential отозвана");
+    } catch (error) {
+      message.error(errorMessage(error, "Не удалось отозвать credential."));
+    }
+  };
+
+  return (
+    <PageLayout
+      title="Server Gateway"
+      subtitle="Админский шлюз для SSH и MCP операций по узлам RCNet"
+      actions={<Button data-testid="network-refresh" icon={<ReloadOutlined />} onClick={() => { void loadWorkspace(); void loadCredentials(); }}>Обновить</Button>}
+    >
+      {loadError ? <Alert type="error" showIcon icon={<ExclamationCircleOutlined />} message={loadError} action={<Button size="small" onClick={() => { void loadWorkspace(); }}>Повторить</Button>} /> : null}
+
+      <div className="network-status-strip" aria-label="Состояние узлов">
+        <div className="network-status-strip__lead"><CloudServerOutlined /><span>RCNet</span><small>{nodes.length ? "gateway подключён" : "ожидает конфигурации"}</small></div>
+        <div className="network-status-strip__metric network-status-strip__metric--online"><strong>{onlineCount}</strong><span>онлайн</span></div>
+        <div className="network-status-strip__metric network-status-strip__metric--offline"><strong>{offlineCount}</strong><span>офлайн</span></div>
+        <div className="network-status-strip__metric"><strong>{disabledCount}</strong><span>отключено</span></div>
+        <div className="network-status-strip__metric"><strong>{jobs.length}</strong><span>job-ов</span></div>
+      </div>
+
+      <div className="network-console">
+        <AppPanel className="network-panel network-nodes-panel" title={`Узлы · ${nodes.length}`}>
+          <Input.Search allowClear placeholder="Поиск по имени, hostname, label" value={nodeSearch} onChange={(event) => setNodeSearch(event.target.value)} />
+          {nodesError ? <Alert className="network-inline-alert" type="warning" showIcon message={nodesError} /> : null}
+          <div className="network-node-list">
+            {loading ? <div className="network-panel-loading"><Spin /></div> : filteredNodes.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={nodes.length ? "Ничего не найдено" : "Узлы ещё не зарегистрированы"} /> : filteredNodes.map((node) => {
+              const selected = node.id === selectedNodeId;
+              return (
+                <button type="button" key={node.id} className={selected ? "network-node network-node--selected" : "network-node"} onClick={() => setSelectedNodeId(node.id)}>
+                  <span className="network-node__dot" data-status={nodeStatus(node, now)} />
+                  <span className="network-node__body"><strong>{node.name}</strong><small>{node.hostname} · {node.os}/{node.arch}</small></span>
+                  <NodeStatusTag node={node} now={now} />
+                </button>
+              );
+            })}
+          </div>
+          <Button block icon={<KeyOutlined />} aria-label="Подключить узел" data-testid="network-enroll" onClick={openEnrollment}>Подключить узел</Button>
+        </AppPanel>
+
+        <div className="network-console__main">
+          <AppPanel className="network-panel network-runner-panel" title="Выполнить действие">
+            {selectedNode ? (
+              <div className="network-selected-node">
+                <div><span className="network-eyebrow">Целевой узел</span><strong>{selectedNode.name}</strong><small>{selectedNode.hostname} · {relativeTime(selectedNode.last_seen, now)}</small></div>
+                <Space>
+                  <NodeStatusTag node={selectedNode} now={now} />
+                  <Button size="small" icon={selectedNode.disabled ? <UnlockOutlined /> : <LockOutlined />} onClick={() => disableNode(selectedNode)}>{selectedNode.disabled ? "Включить" : "Отключить"}</Button>
+                </Space>
+                <div className="network-node-capabilities">
+                  <div><span>roots</span><strong>{selectedNode.roots.length ? selectedNode.roots.join(", ") : "—"}</strong></div>
+                  <div><span>runtimes</span><strong>{selectedNode.runtimes.length ? selectedNode.runtimes.join(", ") : "—"}</strong></div>
+                  <div><span>actions</span><strong>{selectedNode.actions.length ? selectedNode.actions.join(", ") : "—"}</strong></div>
+                </div>
+              </div>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Выберите узел для выполнения действия" />}
+            <div className="network-action-picker">
+              <Input.Search allowClear placeholder="Поиск в каталоге действий" value={actionSearch} onChange={(event) => setActionSearch(event.target.value)} />
+              <div className="network-action-list">
+                {loading ? <div className="network-panel-loading"><Spin /></div> : filteredActions.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={actions.length ? "Ничего не найдено" : "Каталог действий пуст"} /> : filteredActions.map((action) => {
+                  const selected = action.name === selectedActionName;
+                  return <button type="button" key={action.name} className={selected ? "network-action network-action--selected" : "network-action"} onClick={() => setSelectedActionName(action.name)}><span className="network-action__name"><code>{action.name}</code>{action.mutating ? <Tag color="error">mutating</Tag> : <Tag color="success">read</Tag>}</span><small>{action.description || "Без описания"} · scope: {action.scope}</small></button>;
+                })}
+              </div>
+            </div>
+            {selectedAction ? (
+              <div className="network-action-form">
+                <div className="network-form-heading"><div><span className="network-eyebrow">JSON arguments</span><strong>{selectedAction.name}</strong></div>{selectedAction.input_schema ? <Tag icon={<CodeOutlined />}>schema доступна</Tag> : null}</div>
+                <Input.TextArea aria-label="JSON arguments" className="network-json-input" value={argsText} onChange={(event) => setArgsText(event.target.value)} autoSize={{ minRows: 5, maxRows: 12 }} spellCheck={false} />
+                <div className="network-action-form__footer">
+                  <label>Timeout, сек. <Input type="number" min={1} max={900} value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(Number(event.target.value))} /></label>
+                  <Space>
+                    {retryRequest ? <Button data-testid="network-retry" icon={<SyncOutlined />} onClick={() => void executeRequest(retryRequest)} disabled={submitting}>Повторить последний</Button> : null}
+                    <Button data-testid="network-submit" type="primary" icon={<SendOutlined />} onClick={() => void submitAction()} loading={submitting} disabled={!selectedNode || selectedNode.disabled}>{selectedAction.mutating ? "Подтвердить и выполнить" : "Выполнить"}</Button>
+                  </Space>
+                </div>
+                {selectedAction.input_schema ? <details className="network-schema"><summary>Показать input schema</summary><pre>{jsonText(selectedAction.input_schema)}</pre></details> : null}
+              </div>
+            ) : null}
+          </AppPanel>
+
+          <AppPanel className="network-panel network-jobs-panel" title={`Job queue · ${jobs.length}`}>
+            {jobsError ? <Alert className="network-inline-alert" type="warning" showIcon message={jobsError} /> : null}
+            {loading && jobs.length === 0 ? <div className="network-panel-loading"><Spin /></div> : jobs.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Job-ов ещё нет" /> : <List className="network-jobs-list" dataSource={jobs} renderItem={(job) => {
+              const node = nodes.find((item) => item.id === job.request.node_id);
+              return <List.Item actions={[<Button key="open" type="link" onClick={() => void openJob(job)}>Открыть</Button>]}>
+                <List.Item.Meta avatar={<span className="network-job-icon"><CheckCircleOutlined /></span>} title={<span className="network-job-title"><code>{job.request.action}</code><JobStateTag state={job.state} /></span>} description={<span>{node?.name ?? job.request.node_id} · {formatTime(job.created_at)}{job.principal ? ` · ${job.principal}` : ""}</span>} />
+              </List.Item>;
+            }} />}
+          </AppPanel>
+        </div>
+      </div>
+
+      <AppPanel className="network-panel network-credentials-panel" title="Доступы агентов">
+        <div className="network-credentials-toolbar"><Typography.Text type="secondary">Scoped credentials для CLI/MCP. В списке токены никогда не показываются.</Typography.Text><Button data-testid="network-create-credential" type="primary" icon={<KeyOutlined />} onClick={openCredential}>Создать credential</Button></div>
+        {credentialsError ? <Alert type="warning" showIcon message={credentialsError} action={<Button size="small" onClick={() => void loadCredentials()}>Повторить</Button>} /> : null}
+        {credentialsLoading ? <div className="network-panel-loading"><Spin /></div> : credentials.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Scoped credentials ещё не созданы" /> : <div className="network-credentials-list">{credentials.map((credential) => <div className="network-credential" key={credential.id}><div><strong>{credential.name}</strong><small>{credential.nodes.join(", ")} · создана {formatTime(credential.created_at)}</small></div><div className="network-credential__scopes">{credential.scopes.map((scope) => <Tag key={scope}>{scope}</Tag>)}</div><Popconfirm title="Отозвать credential?" description="Агент потеряет доступ сразу после ответа gateway." okText="Отозвать" cancelText="Отмена" onConfirm={() => void revokeCredential(credential)}><Button danger type="text" icon={<DeleteOutlined />} aria-label={`Отозвать ${credential.name}`} /></Popconfirm></div>)}</div>}
+      </AppPanel>
+
+      <Modal open={enrollmentOpen} title="Подключить узел" onCancel={() => setEnrollmentOpen(false)} onOk={() => void enroll()} okText="Выпустить одноразовый токен" cancelText="Отмена" confirmLoading={enrollmentLoading} okButtonProps={{ disabled: !enrollmentName.trim() || !isValidNodeId(enrollmentNodeId.trim()), "data-testid": "network-enrollment-submit" }} destroyOnHidden>
+        <div className="network-modal-form"><Alert type="info" showIcon message="Укажите новый node_id. Он должен быть ещё не зарегистрирован в gateway; токен enrollment действует один раз и не хранится в браузере." /><label>Имя агента<Input value={enrollmentName} onChange={(event) => setEnrollmentName(event.target.value)} placeholder="например, velocity-prod" autoFocus /></label><label>Новый node_id<Input value={enrollmentNodeId} onChange={(event) => setEnrollmentNodeId(event.target.value)} placeholder="например, velocity-prod-01" maxLength={64} status={enrollmentNodeId && !isValidNodeId(enrollmentNodeId) ? "error" : undefined} /><Typography.Text type="secondary">1–64 символа: A–Z, a–z, 0–9, _, ., -. Первый символ — буква или цифра.</Typography.Text></label></div>
+      </Modal>
+
+      <Modal open={credentialOpen} title="Создать scoped credential" onCancel={() => setCredentialOpen(false)} onOk={() => void createCredential()} okText="Создать и показать токен" cancelText="Отмена" confirmLoading={credentialLoading} okButtonProps={{ disabled: !credentialName.trim() || credentialNodes.length === 0 || credentialScopes.length === 0, "data-testid": "network-credential-submit" }} destroyOnHidden>
+        <div className="network-modal-form"><label>Название credential<Input value={credentialName} onChange={(event) => setCredentialName(event.target.value)} placeholder="например, deploy-bot" autoFocus /></label><label>Узлы<Select mode="multiple" value={credentialNodes} onChange={setCredentialNodes} options={[{ value: "*", label: "Все узлы (*) — явно" }, ...nodes.map((node) => ({ value: node.id, label: `${node.name} · ${node.hostname}` }))]} placeholder="Выберите точные id или *" /></label><label>Scopes<Checkbox.Group value={credentialScopes} onChange={(value) => setCredentialScopes(Array.from(new Set(["read", ...value.map(String)])))} options={SCOPES.map((scope) => ({ label: SCOPE_LABELS[scope], value: scope, disabled: scope === "read" }))} /></label><Typography.Paragraph type="secondary">read обязателен для диагностики и остаётся включённым. Добавьте exec для команд, write для файлов, control для сервисов; admin выдаёт управление доступами и требует отдельного решения.</Typography.Paragraph></div>
+      </Modal>
+
+      <Modal
+        open={Boolean(mutatingRequest)}
+        title="Подтвердить mutating action?"
+        onCancel={() => setMutatingRequest(null)}
+        onOk={async () => {
+          if (!mutatingRequest) return;
+          const pending = mutatingRequest;
+          await executeRequest(pending.request);
+          setMutatingRequest(null);
+        }}
+        okText="Выполнить"
+        okType="danger"
+        cancelText="Отмена"
+        confirmLoading={submitting}
+        destroyOnHidden
+      >
+        {mutatingRequest ? `«${mutatingRequest.actionName}» изменит состояние узла ${mutatingRequest.nodeName}. Запрос уйдёт с текущими JSON-аргументами.` : null}
+      </Modal>
+
+      <SecretTokenModal token={enrollmentToken?.token ?? null} title="Токен enrollment" command="rcnet enroll --config /private/path/node.json --enrollment-token-file /private/path/enrollment.token" instructions="Скопируйте токен в /private/path/enrollment.token, выставьте права 0600 и передайте этот файл команде rcnet enroll." onClose={() => setEnrollmentToken(null)} />
+      <SecretTokenModal token={credentialToken} title="Токен credential" command="RCNET_URL=https://utils.alexeyav.ru/api/network RCNET_TOKEN_FILE=/private/path/agent.token" instructions="Скопируйте токен в /private/path/agent.token с правами 0600. Передавайте путь через RCNET_TOKEN_FILE; не вставляйте значение токена в команду." onClose={() => setCredentialToken(null)} />
+      <JobResultDrawer job={selectedJob} loading={jobLoading} onClose={() => setSelectedJob(null)} onRefresh={() => void refreshSelectedJob()} onCancel={() => void cancelSelectedJob()} />
+    </PageLayout>
+  );
+}

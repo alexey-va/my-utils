@@ -26,6 +26,7 @@ describe("App authentication", () => {
     render(<App />);
 
     expect(screen.getByRole("menuitem", { name: /WireGuard/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Server Gateway/ })).toBeInTheDocument();
   });
 
   it("shows administrator menu items immediately after sign in", async () => {
