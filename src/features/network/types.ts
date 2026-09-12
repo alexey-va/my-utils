@@ -11,6 +11,40 @@ export type NetworkNode = {
   actions: string[];
   labels: Record<string, string>;
   disabled: boolean;
+  diagnostics?: NetworkNodeDiagnostics | null;
+};
+
+export type NetworkBuildInfo = {
+  revision: string;
+  go_version: string;
+  executable_sha256?: string;
+  workflow_sha256?: string;
+};
+
+export type NetworkNodeDiagnostics = {
+  build: NetworkBuildInfo;
+  config_sha256: string;
+  workflow_sha256?: string;
+};
+
+export type NetworkDoctorIssue = {
+  code: string;
+  severity: string;
+  message: string;
+};
+
+export type NetworkDoctorNode = {
+  node: NetworkNode;
+  issues: NetworkDoctorIssue[];
+};
+
+export type NetworkDoctorReport = {
+  checked_at: string;
+  protocol: string;
+  gateway: NetworkBuildInfo;
+  client?: NetworkBuildInfo | null;
+  nodes: NetworkDoctorNode[];
+  issues: NetworkDoctorIssue[];
 };
 
 export type NetworkAction = {
@@ -30,6 +64,26 @@ export type NetworkJobResult = {
   exit_code?: number | null;
   error?: string;
   truncated?: boolean;
+};
+
+export type NetworkWorkflowFileEvidence = {
+  runtime?: string;
+  path?: string;
+  expected_sha256?: string;
+  actual_sha256?: string;
+  status?: string;
+};
+
+export type NetworkWorkflowResultData = {
+  operation_id?: string;
+  checked_at?: string;
+  delivery?: string;
+  activation?: string;
+  files?: NetworkWorkflowFileEvidence[];
+  runtime?: unknown;
+  record?: Record<string, unknown>;
+  next_steps?: string[];
+  cancellation_boundary?: string;
 };
 
 export type NetworkJobProgress = {
@@ -150,4 +204,60 @@ export type NetworkAuditQuery = {
 export type NetworkAuditResponse = {
   events: NetworkAuditEvent[];
   next_cursor?: string;
+};
+
+export type NetworkActivityWindow = "1h" | "24h" | "7d";
+
+export type NetworkActivityQuery = {
+  window: NetworkActivityWindow;
+  node?: string;
+  action?: string;
+  actor?: string;
+};
+
+export type NetworkActivityLatency = {
+  samples: number;
+  mean_ms?: number;
+  p95_ms?: number;
+};
+
+export type NetworkActivitySummary = {
+  requests: number;
+  succeeded: number;
+  failed: number;
+  cancelled: number;
+  unknown: number;
+  pending: number;
+  queue_ms: NetworkActivityLatency;
+  execution_ms: NetworkActivityLatency;
+  transfer_bytes: number;
+  transfer_samples: number;
+  transfer_unknown: number;
+};
+
+export type NetworkActivityBucket = NetworkActivitySummary & {
+  start: string;
+  end: string;
+};
+
+export type NetworkActivityAction = NetworkActivitySummary & {
+  action: string;
+};
+
+export type NetworkActivityCoverage = {
+  retained_jobs: number;
+  oldest_job_at?: string;
+  archived_in_window: number;
+};
+
+export type NetworkActivity = {
+  window: NetworkActivityWindow;
+  from: string;
+  to: string;
+  bucket_seconds: number;
+  basis: string;
+  coverage: NetworkActivityCoverage;
+  totals: NetworkActivitySummary;
+  buckets: NetworkActivityBucket[];
+  actions: NetworkActivityAction[];
 };

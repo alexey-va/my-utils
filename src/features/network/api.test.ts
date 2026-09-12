@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchNetworkAudit, fetchNetworkAuditActivity } from "./api";
+import { fetchNetworkActivity, fetchNetworkAudit, fetchNetworkDoctor } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -29,17 +29,32 @@ describe("Network audit API contract", () => {
     );
   });
 
-  it("loads up to 200 queued requests for activity histograms", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ events: [] }), {
+  it("loads exact activity metrics with the selected window and filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), {
       status: 200,
       headers: { "content-type": "application/json" },
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchNetworkAuditActivity({ node: "gercena", action: "exec.run", actor: "mcp:agent" });
+    await fetchNetworkActivity({ window: "7d", node: "gercena", action: "exec.run", actor: "mcp:agent" });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/network/v1/audit?node=gercena&action=exec.run&kind=job.queued&actor=mcp%3Aagent&limit=200",
+      "/api/admin/network/v1/activity?window=7d&node=gercena&action=exec.run&actor=mcp%3Aagent",
+      expect.objectContaining({ method: "GET", cache: "no-store" }),
+    );
+  });
+
+  it("loads read-only gateway and node diagnostics without caching", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchNetworkDoctor();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/network/v1/doctor",
       expect.objectContaining({ method: "GET", cache: "no-store" }),
     );
   });

@@ -41,8 +41,9 @@ import {
   enrollNetworkNode,
   fetchNetworkActions,
   fetchNetworkAudit,
-  fetchNetworkAuditActivity,
+  fetchNetworkActivity,
   fetchNetworkCredentials,
+  fetchNetworkDoctor,
   fetchNetworkJob,
   fetchNetworkJobs,
   fetchNetworkNodes,
@@ -56,14 +57,21 @@ import type {
   NetworkAction,
   NetworkAuditEvent,
   NetworkAuditQuery,
+  NetworkActivity,
+  NetworkActivityQuery,
+  NetworkActivityWindow,
+  NetworkDoctorReport,
   NetworkJob,
   NetworkJobProgress,
   NetworkNode,
   NetworkPrincipal,
+  NetworkWorkflowFileEvidence,
+  NetworkWorkflowResultData,
   SubmitNetworkJobRequest,
 } from "./types";
 import { nodeStatus } from "./utils";
 import NetworkAuditActivity from "./NetworkAuditActivity";
+import NetworkDoctor from "./NetworkDoctor";
 import "./network.css";
 
 const JOB_POLL_MS = 5_000;
@@ -72,6 +80,8 @@ const DEFAULT_TIMEOUT = 60;
 const MAX_TIMEOUT = 1_800;
 const AUDIT_LIMIT = 50;
 const MAX_JOB_TIMELINE_EVENTS = 50;
+const WORKFLOW_OPERATION_ACTIONS = new Set(["workflow.plan", "workflow.deploy", "workflow.restart"]);
+const WORKFLOW_RECONCILE_ACTION = "workflow.reconcile";
 const SCOPES = ["read", "exec", "write", "control", "admin"];
 const NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SCOPE_LABELS: Record<string, string> = {
@@ -140,6 +150,9 @@ const AUDIT_PARAMETER_KEYS = new Set([
   "credential_id",
   "scopes",
   "nodes",
+  "phase",
+  "status",
+  "target",
 ]);
 
 type AuditFilters = {
@@ -161,8 +174,8 @@ function auditQuery(filters: AuditFilters, before?: string): NetworkAuditQuery {
   return query;
 }
 
-function auditActivityQuery(filters: AuditFilters): Omit<NetworkAuditQuery, "kind" | "before" | "limit"> {
-  const query: Omit<NetworkAuditQuery, "kind" | "before" | "limit"> = {};
+function networkActivityQuery(filters: AuditFilters, window: NetworkActivityWindow): NetworkActivityQuery {
+  const query: NetworkActivityQuery = { window };
   if (filters.node.trim()) query.node = filters.node.trim();
   if (filters.action.trim()) query.action = filters.action.trim();
   if (filters.actor.trim()) query.actor = filters.actor.trim();
@@ -298,6 +311,74 @@ function jsonText(value: unknown): string {
   }
 }
 
+function isWorkflowOperationAction(action?: string): boolean {
+  return Boolean(action && WORKFLOW_OPERATION_ACTIONS.has(action));
+}
+
+function workflowOperationID(job: NetworkJob): string | null {
+  if (isWorkflowOperationAction(job.request.action)) return job.id;
+  if (job.request.action !== WORKFLOW_RECONCILE_ACTION) return null;
+  const operationID = job.request.args?.operation_id;
+  return typeof operationID === "string" && operationID.trim() ? operationID : null;
+}
+
+function workflowResultData(value: unknown): NetworkWorkflowResultData | null {
+  if (!isRecord(value)) return null;
+  const files = Array.isArray(value.files) ? value.files.filter(isRecord) as NetworkWorkflowFileEvidence[] : undefined;
+  const nextSteps = Array.isArray(value.next_steps) ? value.next_steps.filter((step): step is string => typeof step === "string") : undefined;
+  return {
+    operation_id: typeof value.operation_id === "string" ? value.operation_id : undefined,
+    checked_at: typeof value.checked_at === "string" ? value.checked_at : undefined,
+    delivery: typeof value.delivery === "string" ? value.delivery : undefined,
+    activation: typeof value.activation === "string" ? value.activation : undefined,
+    files,
+    runtime: value.runtime,
+    record: isRecord(value.record) ? value.record : undefined,
+    next_steps: nextSteps,
+    cancellation_boundary: typeof value.cancellation_boundary === "string" ? value.cancellation_boundary : undefined,
+  };
+}
+
+const WORKFLOW_DELIVERY_LABELS: Record<string, string> = {
+  delivered: "Доставлено",
+  planned: "Запланировано",
+  not_applicable: "Не применимо",
+  unknown: "Неизвестно",
+};
+
+const WORKFLOW_ACTIVATION_LABELS: Record<string, string> = {
+  activated: "Активировано",
+  not_requested: "Не запрашивалось",
+  unknown: "Неизвестно",
+};
+
+const WORKFLOW_FILE_STATUS_LABELS: Record<string, string> = {
+  matches: "Совпадает",
+  missing: "Файл отсутствует",
+  changed: "Изменён",
+  unreadable: "Не удалось прочитать",
+  unknown: "Неизвестно",
+};
+
+function workflowStatusLabel(value: unknown, labels: Record<string, string>): string {
+  if (typeof value !== "string" || !value.trim()) return "Неизвестно";
+  return labels[value] ?? value;
+}
+
+function workflowStatusColor(value: unknown): string {
+  if (value === "delivered" || value === "activated") return "success";
+  if (value === "planned") return "processing";
+  if (value === "unknown") return "warning";
+  return "default";
+}
+
+function workflowFileMismatch(file: NetworkWorkflowFileEvidence): boolean {
+  const expected = file.expected_sha256?.trim();
+  const actual = file.actual_sha256?.trim();
+  return file.status === "changed" || file.status === "missing" || file.status === "unreadable"
+    || Boolean(expected && actual && expected.toLowerCase() !== actual.toLowerCase());
+}
+
 function updateJobSummary(summary: NetworkJob, detail: NetworkJob): NetworkJob {
   const updated: NetworkJob = {
     ...summary,
@@ -399,9 +480,10 @@ function NodeStatusTag({ node, now }: { node: NetworkNode; now: number }) {
   return <Tag color={statusColor(status)}>{statusLabel(status)}</Tag>;
 }
 
-function JobStateTag({ state }: { state: NetworkJob["state"] }) {
-  const color = state === "succeeded" ? "success" : state === "failed" ? "error" : state === "cancelled" ? "default" : state === "running" ? "processing" : "warning";
-  return <Tag color={color}>{stateLabels[state]}</Tag>;
+function JobStateTag({ state, workflowAction = false }: { state: NetworkJob["state"]; workflowAction?: boolean }) {
+  const color = state === "succeeded" && workflowAction ? "default" : state === "succeeded" ? "success" : state === "failed" ? "error" : state === "cancelled" ? "default" : state === "running" ? "processing" : "warning";
+  const label = state === "succeeded" && workflowAction ? "Job завершён" : stateLabels[state];
+  return <Tag color={color}>{label}</Tag>;
 }
 
 function SecretTokenModal({
@@ -443,18 +525,145 @@ function SecretTokenModal({
   );
 }
 
+function workflowCollectionSummary(value: unknown, fallback = "нет данных"): string {
+  if (Array.isArray(value)) return `${value.length} ${value.length === 1 ? "элемент" : "элементов"}`;
+  if (isRecord(value)) return `${Object.keys(value).length} ${Object.keys(value).length === 1 ? "запись" : "записей"}`;
+  if (typeof value === "boolean") return value ? "да" : "нет";
+  if (typeof value === "string" && value.trim()) return value;
+  return fallback;
+}
+
+function WorkflowFileEvidence({ file }: { file: NetworkWorkflowFileEvidence }) {
+  const mismatch = workflowFileMismatch(file);
+  const status = file.status?.trim() || "unknown";
+  const expected = file.expected_sha256?.trim();
+  const actual = file.actual_sha256?.trim();
+  return (
+    <li className={mismatch ? "network-workflow-evidence__file network-workflow-evidence__file--mismatch" : "network-workflow-evidence__file"}>
+      <div className="network-workflow-evidence__file-heading">
+        <span><strong>{file.runtime || "runtime"}</strong> · <code>{file.path || "путь неизвестен"}</code></span>
+        <Tag color={mismatch ? "error" : status === "matches" ? "success" : "warning"}>{mismatch ? "Хэш не совпадает" : workflowStatusLabel(status, WORKFLOW_FILE_STATUS_LABELS)}</Tag>
+      </div>
+      {expected || actual ? (
+        <details>
+          <summary>Сверить SHA-256</summary>
+          <div className="network-workflow-evidence__hashes">
+            <span>Ожидался <code>{expected || "—"}</code></span>
+            <span>Получен <code>{actual || "—"}</code></span>
+          </div>
+        </details>
+      ) : null}
+    </li>
+  );
+}
+
+function WorkflowEvidencePanel({
+  job,
+  onReconcile,
+  reconciling,
+}: {
+  job: NetworkJob;
+  onReconcile: () => void;
+  reconciling: boolean;
+}) {
+  const operation = isWorkflowOperationAction(job.request.action) || job.request.action === WORKFLOW_RECONCILE_ACTION;
+  const operationID = workflowOperationID(job);
+  if (!operation || !operationID) return null;
+
+  const data = workflowResultData(job.result?.data);
+  const files = data?.files ?? [];
+  const delivery = data?.delivery;
+  const activation = data?.activation;
+  const confirmed = (delivery === "delivered" || delivery === "not_applicable")
+    && (activation === "activated" || activation === "not_requested");
+  const terminal = ["succeeded", "failed", "cancelled", "unknown"].includes(job.state);
+  const record = data?.record;
+  const hasMismatch = files.some(workflowFileMismatch);
+  const canReconcile = isWorkflowOperationAction(job.request.action);
+
+  return (
+    <section className="network-workflow-evidence" data-testid="network-workflow-evidence">
+      <div className="network-workflow-evidence__heading">
+        <div>
+          <span className="network-eyebrow">Операция</span>
+          <div className="network-workflow-evidence__operation"><code>{operationID}</code><CopyButton value={operationID} /></div>
+        </div>
+        {canReconcile ? <Button icon={<SyncOutlined />} onClick={onReconcile} loading={reconciling} disabled={reconciling}>
+          Сверить результат
+        </Button> : null}
+      </div>
+      {isWorkflowOperationAction(job.request.action) ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Граница отмены"
+          description="Отмена останавливает ожидание или выполнение, где это возможно; доставленные файлы и общий countdown могут остаться. Отмена не является откатом."
+        />
+      ) : null}
+      <div className="network-workflow-evidence__statuses">
+        <span>Доставка <Tag color={workflowStatusColor(delivery)}>{workflowStatusLabel(delivery, WORKFLOW_DELIVERY_LABELS)}</Tag></span>
+        <span>Активация <Tag color={workflowStatusColor(activation)}>{workflowStatusLabel(activation, WORKFLOW_ACTIVATION_LABELS)}</Tag></span>
+      </div>
+      {terminal && !confirmed ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Job завершён, но это не подтверждает доставку или активацию"
+          description={data ? "Смотрите статусы и файловые хэши выше; при неопределённости запустите сверку результата." : "Подтверждающее readback-данные отсутствуют; запустите сверку результата."}
+          data-testid="network-workflow-unconfirmed"
+        />
+      ) : null}
+      {hasMismatch ? <Alert type="error" showIcon message="Есть несовпадения файловых хэшей" /> : null}
+      {files.length ? (
+        <div className="network-workflow-evidence__section">
+          <div className="network-workflow-evidence__section-heading"><strong>Файлы</strong><span>{files.length}</span></div>
+          <ul>{files.map((file, index) => <WorkflowFileEvidence key={`${file.runtime}-${file.path}-${index}`} file={file} />)}</ul>
+        </div>
+      ) : null}
+      {data?.runtime !== undefined || record ? (
+        <div className="network-workflow-evidence__section">
+          <div className="network-workflow-evidence__section-heading"><strong>Readback</strong><span>{data?.checked_at ? `проверено ${formatTime(data.checked_at)}` : "текущая сверка"}</span></div>
+          <div className="network-workflow-evidence__record">
+            {data?.runtime !== undefined ? <span>Runtime: <strong>{workflowCollectionSummary(data.runtime)}</strong></span> : null}
+            {record ? <>
+              <span>События: <strong>{workflowCollectionSummary(record.events, "0 событий")}</strong></span>
+              <span>До: <strong>{workflowCollectionSummary(record.before)}</strong></span>
+              <span>После: <strong>{workflowCollectionSummary(record.after)}</strong></span>
+              <span>Артефакты: <strong>{workflowCollectionSummary(record.artifacts)}</strong></span>
+              <span>Цели: <strong>{workflowCollectionSummary(record.targets)}</strong></span>
+              <span>Общий countdown: <strong>{workflowCollectionSummary(record.shared_countdown)}</strong></span>
+              {typeof record.native_manifest_id === "string" && record.native_manifest_id ? <span>Manifest: <code>{record.native_manifest_id}</code></span> : null}
+            </> : null}
+          </div>
+        </div>
+      ) : null}
+      {data?.next_steps?.length ? (
+        <div className="network-workflow-evidence__section">
+          <div className="network-workflow-evidence__section-heading"><strong>Следующие шаги</strong><span>{data.next_steps.length}</span></div>
+          <ul className="network-workflow-evidence__steps">{data.next_steps.map((step, index) => <li key={`${step}-${index}`}>{step}</li>)}</ul>
+        </div>
+      ) : null}
+      {data?.cancellation_boundary ? <Typography.Text type="secondary">{data.cancellation_boundary}</Typography.Text> : null}
+    </section>
+  );
+}
+
 function JobResultDrawer({
   job,
   loading,
   onClose,
   onRefresh,
   onCancel,
+  onReconcile,
+  reconciling,
 }: {
   job: NetworkJob | null;
   loading: boolean;
   onClose: () => void;
   onRefresh: () => void;
   onCancel: () => void;
+  onReconcile: () => void;
+  reconciling: boolean;
 }) {
   const result = job?.result;
   return (
@@ -470,7 +679,7 @@ function JobResultDrawer({
         <div className="network-result">
           <div className="network-result__meta">
             <span><strong>Job</strong> <code>{job.id}</code></span>
-            <JobStateTag state={job.state} />
+            <JobStateTag state={job.state} workflowAction={isWorkflowOperationAction(job.request.action) || job.request.action === WORKFLOW_RECONCILE_ACTION} />
             <span>создана {formatTime(job.created_at)}</span>
             <Button type="text" icon={<ReloadOutlined />} onClick={onRefresh}>Обновить</Button>
           </div>
@@ -479,6 +688,7 @@ function JobResultDrawer({
             <span>Timeout: {job.request.timeout_seconds} сек.</span>
             {job.cancel_requested ? <Tag color="warning">Отмена запрошена</Tag> : null}
           </div>
+          <WorkflowEvidencePanel job={job} onReconcile={onReconcile} reconciling={reconciling} />
           <JobProgressPanel job={job} />
           {job.archived ? <Alert type="info" showIcon message="Сохранены только сведения о задании; полный результат вышел за лимит истории." /> : <>
             {result?.error ? <Alert type="error" showIcon message={result.error} /> : null}
@@ -513,10 +723,10 @@ function ResultBlock({ title, value, error = false }: { title: string; value?: s
 
 function AuditPanel({
   events,
-  activityEvents,
+  activity,
   activityLoading,
   activityError,
-  activityHasMore,
+  activityWindow,
   filters,
   loading,
   error,
@@ -530,13 +740,14 @@ function AuditPanel({
   onPrevious,
   onNext,
   onAutoRefreshChange,
+  onActivityWindowChange,
   onOpenJob,
 }: {
   events: NetworkAuditEvent[];
-  activityEvents: NetworkAuditEvent[];
+  activity: NetworkActivity | null;
   activityLoading: boolean;
   activityError: string | null;
-  activityHasMore: boolean;
+  activityWindow: NetworkActivityWindow;
   filters: AuditFilters;
   loading: boolean;
   error: string | null;
@@ -550,6 +761,7 @@ function AuditPanel({
   onPrevious: () => void;
   onNext: () => void;
   onAutoRefreshChange: (value: boolean) => void;
+  onActivityWindowChange: (value: NetworkActivityWindow) => void;
   onOpenJob: (jobID: string) => void;
 }) {
   return (
@@ -570,7 +782,7 @@ function AuditPanel({
           <Button onClick={onReset}>Сбросить</Button>
         </Space>
       </div>
-      <NetworkAuditActivity events={activityEvents} loading={activityLoading} error={activityError} hasMore={activityHasMore} />
+      <NetworkAuditActivity activity={activity} loading={activityLoading} error={activityError} window={activityWindow} onWindowChange={onActivityWindowChange} />
       {error ? <Alert className="network-inline-alert" type="warning" showIcon message={error} /> : null}
       {loading && events.length === 0 ? <div className="network-panel-loading"><Spin /></div> : events.length === 0 ? error ? null : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Событий аудита нет" /> : (
         <List
@@ -620,10 +832,13 @@ export default function NetworkPage() {
   const [actions, setActions] = useState<NetworkAction[]>([]);
   const [jobs, setJobs] = useState<NetworkJob[]>([]);
   const [auditEvents, setAuditEvents] = useState<NetworkAuditEvent[]>([]);
-  const [auditActivityEvents, setAuditActivityEvents] = useState<NetworkAuditEvent[]>([]);
-  const [auditActivityLoading, setAuditActivityLoading] = useState(false);
-  const [auditActivityError, setAuditActivityError] = useState<string | null>(null);
-  const [auditActivityHasMore, setAuditActivityHasMore] = useState(false);
+  const [networkActivity, setNetworkActivity] = useState<NetworkActivity | null>(null);
+  const [activityWindow, setActivityWindow] = useState<NetworkActivityWindow>("24h");
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [doctorReport, setDoctorReport] = useState<NetworkDoctorReport | null>(null);
+  const [doctorLoading, setDoctorLoading] = useState(false);
+  const [doctorError, setDoctorError] = useState<string | null>(null);
   const [auditFilters, setAuditFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   const [auditDraftFilters, setAuditDraftFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   const [auditBefore, setAuditBefore] = useState<string | undefined>();
@@ -652,6 +867,7 @@ export default function NetworkPage() {
   const [mutatingRequest, setMutatingRequest] = useState<{ request: SubmitNetworkJobRequest; actionName: string; nodeName: string } | null>(null);
   const [selectedJob, setSelectedJob] = useState<NetworkJob | null>(null);
   const [jobLoading, setJobLoading] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [enrollmentName, setEnrollmentName] = useState("");
   const [enrollmentNodeId, setEnrollmentNodeId] = useState("");
@@ -667,8 +883,29 @@ export default function NetworkPage() {
   const requestKeyRef = useRef<string | null>(null);
   const auditRequestRef = useRef(0);
   const auditLoadingRef = useRef(false);
-  const auditActivityFilterRef = useRef("");
+  const activityRequestRef = useRef(0);
+  const activityQueryRef = useRef("");
+  const doctorRequestRef = useRef(0);
   const sampleSelectionRef = useRef<{ nodeId: string | null; actionName: string | null } | null>(null);
+  const jobRequestRef = useRef(0);
+  const submitRequestRef = useRef(0);
+
+  const loadDoctor = useCallback(async () => {
+    const requestID = doctorRequestRef.current + 1;
+    doctorRequestRef.current = requestID;
+    setDoctorLoading(true);
+    setDoctorError(null);
+    try {
+      const response = await fetchNetworkDoctor();
+      if (requestID !== doctorRequestRef.current) return;
+      setDoctorReport(response);
+    } catch (error) {
+      if (requestID !== doctorRequestRef.current) return;
+      setDoctorError(errorMessage(error, "Не удалось получить диагностику gateway."));
+    } finally {
+      if (requestID === doctorRequestRef.current) setDoctorLoading(false);
+    }
+  }, []);
 
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
@@ -712,49 +949,55 @@ export default function NetworkPage() {
     }
   }, []);
 
+  const loadActivity = useCallback(async (filters: AuditFilters, window: NetworkActivityWindow) => {
+    const requestID = activityRequestRef.current + 1;
+    activityRequestRef.current = requestID;
+    const query = networkActivityQuery(filters, window);
+    const queryKey = JSON.stringify(query);
+    if (queryKey !== activityQueryRef.current) {
+      activityQueryRef.current = queryKey;
+      setNetworkActivity(null);
+    }
+    setActivityLoading(true);
+    setActivityError(null);
+    try {
+      const response = await fetchNetworkActivity(query);
+      if (requestID !== activityRequestRef.current) return;
+      setNetworkActivity(response);
+    } catch (error) {
+      if (requestID !== activityRequestRef.current) return;
+      setNetworkActivity(null);
+      setActivityError(errorMessage(error, "Не удалось загрузить метрики активности."));
+    } finally {
+      if (requestID === activityRequestRef.current) setActivityLoading(false);
+    }
+  }, []);
+
   const loadAudit = useCallback(async (filters: AuditFilters, before?: string): Promise<number | null> => {
-    const activityQuery = auditActivityQuery(filters);
-    const activityFilter = JSON.stringify(activityQuery);
     const requestID = auditRequestRef.current + 1;
     auditRequestRef.current = requestID;
     auditLoadingRef.current = true;
     setAuditLoading(true);
-    setAuditActivityLoading(true);
     setAuditError(null);
-    setAuditActivityError(null);
-    if (activityFilter !== auditActivityFilterRef.current) {
-      auditActivityFilterRef.current = activityFilter;
-      setAuditActivityEvents([]);
-      setAuditActivityHasMore(false);
-    }
+    void loadActivity(filters, activityWindow);
     try {
-      const [response, activityResponse] = await Promise.allSettled([
-        fetchNetworkAudit(auditQuery(filters, before)),
-        fetchNetworkAuditActivity(activityQuery),
-      ]);
+      const response = await fetchNetworkAudit(auditQuery(filters, before));
       if (requestID !== auditRequestRef.current) return null;
-      if (activityResponse.status === "fulfilled") {
-        setAuditActivityEvents(activityResponse.value.events ?? []);
-        setAuditActivityHasMore(Boolean(activityResponse.value.next_cursor));
-      } else {
-        setAuditActivityError(errorMessage(activityResponse.reason, "Не удалось загрузить частоту запросов."));
-      }
-      if (response.status === "rejected") {
-        setAuditError(errorMessage(response.reason, "Не удалось загрузить журнал аудита."));
-        return null;
-      }
-      setAuditEvents(response.value.events ?? []);
-      setAuditNextCursor(response.value.next_cursor || undefined);
+      setAuditEvents(response.events ?? []);
+      setAuditNextCursor(response.next_cursor || undefined);
       setAuditLoaded(true);
       return requestID;
+    } catch (error) {
+      if (requestID !== auditRequestRef.current) return null;
+      setAuditError(errorMessage(error, "Не удалось загрузить журнал аудита."));
+      return null;
     } finally {
       if (requestID === auditRequestRef.current) {
         auditLoadingRef.current = false;
         setAuditLoading(false);
-        setAuditActivityLoading(false);
       }
     }
-  }, []);
+  }, [activityWindow, loadActivity]);
 
   const refreshAudit = useCallback(() => loadAudit(auditFilters, auditBefore), [auditBefore, auditFilters, loadAudit]);
 
@@ -777,6 +1020,11 @@ export default function NetworkPage() {
     setAuditBefore(undefined);
     setAuditBeforeHistory([]);
     await loadAudit(EMPTY_AUDIT_FILTERS);
+  };
+
+  const changeActivityWindow = (window: NetworkActivityWindow) => {
+    setActivityWindow(window);
+    if (historyTab === "audit" && auditLoaded) void loadActivity(auditFilters, window);
   };
 
   const loadNextAuditPage = async () => {
@@ -812,6 +1060,7 @@ export default function NetworkPage() {
   useEffect(() => {
     void loadWorkspace();
     void loadCredentials();
+    void loadDoctor();
     const clock = window.setInterval(() => setNow(Date.now()), NODE_POLL_MS);
     const nodePoll = window.setInterval(() => void refreshNodes(), NODE_POLL_MS);
     const poll = window.setInterval(() => void refreshJobs(), JOB_POLL_MS);
@@ -820,7 +1069,7 @@ export default function NetworkPage() {
       window.clearInterval(nodePoll);
       window.clearInterval(poll);
     };
-  }, [loadCredentials, loadWorkspace, refreshJobs, refreshNodes]);
+  }, [loadCredentials, loadDoctor, loadWorkspace, refreshJobs, refreshNodes]);
 
   const filteredNodes = useMemo(() => {
     const query = nodeSearch.trim().toLowerCase();
@@ -865,16 +1114,20 @@ export default function NetworkPage() {
   const disabledCount = nodes.filter((node) => nodeStatus(node, now) === "disabled").length;
 
   const openJob = async (job: NetworkJob) => {
+    const requestID = ++jobRequestRef.current;
     setSelectedJob(job);
+    setReconciling(false);
     setJobLoading(true);
     try {
       const detail = await fetchNetworkJob(job.id);
+      if (requestID !== jobRequestRef.current) return;
       setSelectedJob(detail);
       setJobs((current) => current.map((item) => item.id === detail.id ? updateJobSummary(item, detail) : item));
     } catch (error) {
+      if (requestID !== jobRequestRef.current) return;
       message.error(errorMessage(error, "Не удалось загрузить результат job-а."));
     } finally {
-      setJobLoading(false);
+      if (requestID === jobRequestRef.current) setJobLoading(false);
     }
   };
 
@@ -884,29 +1137,39 @@ export default function NetworkPage() {
       await openJob(summary);
       return;
     }
+    const requestID = ++jobRequestRef.current;
+    setSelectedJob(null);
+    setReconciling(false);
     setJobLoading(true);
     try {
       const detail = await fetchNetworkJob(jobID);
+      if (requestID !== jobRequestRef.current) return;
       setSelectedJob(detail);
       setJobs((current) => current.some((job) => job.id === detail.id) ? current.map((job) => job.id === detail.id ? updateJobSummary(job, detail) : job) : [detail, ...current]);
     } catch (error) {
+      if (requestID !== jobRequestRef.current) return;
       message.error(errorMessage(error, "Не удалось загрузить результат job-а."));
     } finally {
-      setJobLoading(false);
+      if (requestID === jobRequestRef.current) setJobLoading(false);
     }
   };
 
   const refreshSelectedJob = useCallback(async () => {
     if (!selectedJob) return;
+    const requestID = ++jobRequestRef.current;
+    const jobID = selectedJob.id;
+    setReconciling(false);
     setJobLoading(true);
     try {
-      const detail = await fetchNetworkJob(selectedJob.id);
+      const detail = await fetchNetworkJob(jobID);
+      if (requestID !== jobRequestRef.current) return;
       setSelectedJob(detail);
       setJobs((current) => current.map((job) => job.id === detail.id ? updateJobSummary(job, detail) : job));
     } catch (error) {
+      if (requestID !== jobRequestRef.current) return;
       message.error(errorMessage(error, "Не удалось обновить job."));
     } finally {
-      setJobLoading(false);
+      if (requestID === jobRequestRef.current) setJobLoading(false);
     }
   }, [selectedJob]);
 
@@ -932,31 +1195,75 @@ export default function NetworkPage() {
 
   const cancelSelectedJob = async () => {
     if (!selectedJob || selectedJob.cancel_requested) return;
+    const requestID = ++jobRequestRef.current;
+    const jobID = selectedJob.id;
+    setReconciling(false);
     try {
-      const updated = await cancelNetworkJob(selectedJob.id);
+      const updated = await cancelNetworkJob(jobID);
+      if (requestID !== jobRequestRef.current) return;
+      ++jobRequestRef.current;
       setSelectedJob(updated);
       setJobs((current) => current.map((job) => job.id === updated.id ? updateJobSummary(job, updated) : job));
+      setJobLoading(false);
       message.success("Запрос на отмену отправлен");
     } catch (error) {
+      if (requestID !== jobRequestRef.current) return;
+      setJobLoading(false);
       message.error(errorMessage(error, "Не удалось отменить job."));
     }
   };
 
+  const reconcileSelectedJob = async () => {
+    if (!selectedJob || !isWorkflowOperationAction(selectedJob.request.action) || reconciling) return;
+    const operationID = selectedJob.id;
+    const requestID = ++jobRequestRef.current;
+    setReconciling(true);
+    setJobLoading(false);
+    try {
+      const job = await submitNetworkJob({
+        node_id: selectedJob.request.node_id,
+        action: WORKFLOW_RECONCILE_ACTION,
+        args: { operation_id: operationID },
+        idempotency_key: createIdempotencyKey(),
+        timeout_seconds: DEFAULT_TIMEOUT,
+      });
+      if (requestID !== jobRequestRef.current) return;
+      setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
+      setSelectedJob(job);
+      setReconciling(false);
+      setJobLoading(false);
+      message.success(`Сверка ${job.id.slice(0, 8)} отправлена`);
+    } catch (error) {
+      if (requestID !== jobRequestRef.current) return;
+      setReconciling(false);
+      setJobLoading(false);
+      message.error(errorMessage(error, "Не удалось запустить сверку результата."));
+    }
+  };
+
   const executeRequest = async (request: SubmitNetworkJobRequest) => {
+    const requestID = ++jobRequestRef.current;
+    const submitID = ++submitRequestRef.current;
     setSubmitting(true);
     requestKeyRef.current = request.idempotency_key;
     try {
       const job = await submitNetworkJob(request);
       setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
-      setRetryRequest(null);
-      requestKeyRef.current = null;
+      if (submitID === submitRequestRef.current) {
+        requestKeyRef.current = null;
+        setRetryRequest(null);
+      }
+      if (requestID !== jobRequestRef.current) return;
       setSelectedJob(job);
+      setReconciling(false);
+      setJobLoading(false);
       message.success(`Job ${job.id.slice(0, 8)} отправлена`);
     } catch (error) {
-      setRetryRequest(request);
+      if (submitID === submitRequestRef.current) setRetryRequest(request);
+      if (requestID !== jobRequestRef.current) return;
       message.error(errorMessage(error, "Не удалось отправить job. Ключ idempotency сохранён для повтора."));
     } finally {
-      setSubmitting(false);
+      if (submitID === submitRequestRef.current) setSubmitting(false);
     }
   };
 
@@ -1082,7 +1389,7 @@ export default function NetworkPage() {
     <PageLayout
       title="Server Gateway"
       subtitle="Админский шлюз для SSH и MCP операций по узлам RCNet"
-      actions={<Button data-testid="network-refresh" icon={<ReloadOutlined />} onClick={() => { void loadWorkspace(); void loadCredentials(); }}>Обновить</Button>}
+      actions={<Button data-testid="network-refresh" icon={<ReloadOutlined />} onClick={() => { void loadWorkspace(); void loadCredentials(); void loadDoctor(); }}>Обновить</Button>}
     >
       {loadError ? <Alert type="error" showIcon icon={<ExclamationCircleOutlined />} message={loadError} action={<Button size="small" onClick={() => { void loadWorkspace(); }}>Повторить</Button>} /> : null}
 
@@ -1093,6 +1400,10 @@ export default function NetworkPage() {
         <div className="network-status-strip__metric"><strong>{disabledCount}</strong><span>отключено</span></div>
         <div className="network-status-strip__metric"><strong>{jobs.length}</strong><span>job-ов</span></div>
       </div>
+
+      <AppPanel className="network-panel network-doctor-panel" title="Диагностика gateway и узлов">
+        <NetworkDoctor report={doctorReport} loading={doctorLoading} error={doctorError} onRefresh={() => void loadDoctor()} />
+      </AppPanel>
 
       <div className="network-console">
         <AppPanel className="network-panel network-nodes-panel" title={`Узлы · ${nodes.length}`}>
@@ -1167,7 +1478,7 @@ export default function NetworkPage() {
                     {loading && jobs.length === 0 ? <div className="network-panel-loading"><Spin /></div> : jobs.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Job-ов ещё нет" /> : <List className="network-jobs-list" dataSource={jobs} renderItem={(job) => {
                       const node = nodes.find((item) => item.id === job.request.node_id);
                       return <List.Item actions={[<Button key="open" type="link" onClick={() => void openJob(job)}>Открыть</Button>]}>
-                        <List.Item.Meta avatar={<span className="network-job-icon"><CheckCircleOutlined /></span>} title={<span className="network-job-title"><code>{job.request.action}</code><JobStateTag state={job.state} /></span>} description={<span>{node?.name ?? job.request.node_id} · {formatTime(job.created_at)}{job.principal ? ` · ${job.principal}` : ""}</span>} />
+                        <List.Item.Meta avatar={<span className="network-job-icon"><CheckCircleOutlined /></span>} title={<span className="network-job-title"><code>{job.request.action}</code><JobStateTag state={job.state} workflowAction={isWorkflowOperationAction(job.request.action) || job.request.action === WORKFLOW_RECONCILE_ACTION} /></span>} description={<span>{node?.name ?? job.request.node_id} · {formatTime(job.created_at)}{job.principal ? ` · ${job.principal}` : ""}</span>} />
                       </List.Item>;
                     }} />}
                   </>,
@@ -1177,10 +1488,10 @@ export default function NetworkPage() {
                   label: "Журнал",
                   children: <AuditPanel
                     events={auditEvents}
-                    activityEvents={auditActivityEvents}
-                    activityLoading={auditActivityLoading}
-                    activityError={auditActivityError}
-                    activityHasMore={auditActivityHasMore}
+                    activity={networkActivity}
+                    activityLoading={activityLoading}
+                    activityError={activityError}
+                    activityWindow={activityWindow}
                     filters={auditDraftFilters}
                     loading={auditLoading}
                     error={auditError}
@@ -1194,6 +1505,7 @@ export default function NetworkPage() {
                     onPrevious={() => void loadPreviousAuditPage()}
                     onNext={() => void loadNextAuditPage()}
                     onAutoRefreshChange={setAuditAutoRefresh}
+                    onActivityWindowChange={changeActivityWindow}
                     onOpenJob={(jobID) => void openJobById(jobID)}
                   />,
                 },
@@ -1238,7 +1550,15 @@ export default function NetworkPage() {
 
       <SecretTokenModal token={enrollmentToken?.token ?? null} title="Токен enrollment" command="rcnet enroll --config /private/path/node.json --enrollment-token-file /private/path/enrollment.token" instructions="Скопируйте токен в /private/path/enrollment.token, выставьте права 0600 и передайте этот файл команде rcnet enroll." onClose={() => setEnrollmentToken(null)} />
       <SecretTokenModal token={credentialToken} title="Токен credential" command="RCNET_URL=https://utils.alexeyav.ru/api/network RCNET_TOKEN_FILE=/private/path/agent.token" instructions="Скопируйте токен в /private/path/agent.token с правами 0600. Передавайте путь через RCNET_TOKEN_FILE; не вставляйте значение токена в команду." onClose={() => setCredentialToken(null)} />
-      <JobResultDrawer job={selectedJob} loading={jobLoading} onClose={() => setSelectedJob(null)} onRefresh={() => void refreshSelectedJob()} onCancel={() => void cancelSelectedJob()} />
+      <JobResultDrawer
+        job={selectedJob}
+        loading={jobLoading}
+        reconciling={reconciling}
+        onClose={() => { ++jobRequestRef.current; setSelectedJob(null); setJobLoading(false); setReconciling(false); }}
+        onRefresh={() => void refreshSelectedJob()}
+        onCancel={() => void cancelSelectedJob()}
+        onReconcile={() => void reconcileSelectedJob()}
+      />
     </PageLayout>
   );
 }

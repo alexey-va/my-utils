@@ -12,6 +12,9 @@ import type {
   NetworkNode,
   NetworkAuditQuery,
   NetworkAuditResponse,
+  NetworkActivity,
+  NetworkActivityQuery,
+  NetworkDoctorReport,
   NodesResponse,
   SubmitNetworkJobRequest,
 } from "./types";
@@ -61,5 +64,13 @@ export const fetchNetworkAudit = (query: NetworkAuditQuery = {}) => {
   return apiClient.get<NetworkAuditResponse>(`${apiEndpoints.network.audit}${suffix ? `?${suffix}` : ""}`, { cache: "no-store" });
 };
 
-export const fetchNetworkAuditActivity = (query: Omit<NetworkAuditQuery, "kind" | "before" | "limit"> = {}) =>
-  fetchNetworkAudit({ ...query, kind: "job.queued", limit: 200 });
+export const fetchNetworkActivity = (query: NetworkActivityQuery) => {
+  const params = new URLSearchParams({ window: query.window });
+  if (query.node) params.set("node", query.node);
+  if (query.action) params.set("action", query.action);
+  if (query.actor) params.set("actor", query.actor);
+  return apiClient.get<NetworkActivity>(`${apiEndpoints.admin.network.activity}?${params.toString()}`, { cache: "no-store" });
+};
+
+export const fetchNetworkDoctor = () =>
+  apiClient.get<NetworkDoctorReport>(apiEndpoints.admin.network.doctor, { cache: "no-store" });

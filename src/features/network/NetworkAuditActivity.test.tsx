@@ -1,62 +1,77 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import NetworkAuditActivity from "./NetworkAuditActivity";
-import { buildAuditActivity } from "./auditActivity";
-import type { NetworkAuditEvent } from "./types";
+import type { NetworkActivity, NetworkActivitySummary } from "./types";
 
-const events: NetworkAuditEvent[] = [
-  request("one", "2026-09-11T10:00:00.000Z", "exec.run"),
-  request("two", "2026-09-11T10:04:00.000Z", "file.read"),
-  request("three", "2026-09-11T10:06:00.000Z", "exec.run"),
-  { ...request("result", "2026-09-11T10:07:00.000Z", "exec.run"), kind: "job.succeeded" },
-  { ...request("invalid", "not-a-date", "workflow.online") },
-];
+const summary: NetworkActivitySummary = {
+  requests: 3,
+  succeeded: 1,
+  failed: 1,
+  cancelled: 0,
+  unknown: 0,
+  pending: 1,
+  queue_ms: { samples: 2, mean_ms: 12, p95_ms: 20 },
+  execution_ms: { samples: 1, mean_ms: 240, p95_ms: 240 },
+  transfer_bytes: 2_048,
+  transfer_samples: 1,
+  transfer_unknown: 1,
+};
+
+const activity: NetworkActivity = {
+  window: "24h",
+  from: "2026-09-11T00:00:00.000Z",
+  to: "2026-09-12T00:00:00.000Z",
+  bucket_seconds: 1_800,
+  basis: "job_created_at",
+  coverage: { retained_jobs: 12, archived_in_window: 2, oldest_job_at: "2026-08-01T00:00:00.000Z" },
+  totals: summary,
+  buckets: [
+    { ...summary, requests: 2, start: "2026-09-11T00:00:00.000Z", end: "2026-09-11T00:30:00.000Z" },
+    { ...summary, requests: 0, succeeded: 0, failed: 0, pending: 0, start: "2026-09-11T00:30:00.000Z", end: "2026-09-11T01:00:00.000Z" },
+    { ...summary, requests: 1, succeeded: 0, failed: 1, pending: 0, start: "2026-09-11T01:00:00.000Z", end: "2026-09-11T01:30:00.000Z" },
+  ],
+  actions: [
+    { ...summary, action: "exec.run", requests: 2 },
+    { ...summary, action: "file.read", requests: 1 },
+  ],
+};
 
 describe("NetworkAuditActivity", () => {
-  it("counts queued requests once and builds ordered action and time histograms", () => {
-    const activity = buildAuditActivity(events);
+  afterEach(cleanup);
 
-    expect(activity.total).toBe(3);
-    expect(activity.actions).toEqual([
-      { action: "exec.run", count: 2 },
-      { action: "file.read", count: 1 },
-    ]);
-    expect(activity.buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(3);
-    expect(activity.buckets.some((bucket) => bucket.count === 0)).toBe(true);
-  });
+  it("renders exact summaries, per-action counts, and zero buckets", () => {
+    const panel = render(<NetworkAuditActivity activity={activity} loading={false} error={null} window="24h" onWindowChange={vi.fn()} />).container;
 
-  it("renders both histograms and states when the sample is truncated", () => {
-    render(<NetworkAuditActivity events={events} loading={false} error={null} hasMore />);
-
-    const panel = screen.getByTestId("network-audit-activity");
-    expect(within(panel).getByText("Частота запросов")).toBeInTheDocument();
-    expect(within(panel).getByText("3", { selector: "strong" })).toBeInTheDocument();
-    expect(within(panel).getByText("2", { selector: ".network-audit-action-chart strong" })).toBeInTheDocument();
+    expect(within(panel).getByText("Активность заданий")).toBeInTheDocument();
+    expect(within(panel).getByText("2.0 КиБ")).toBeInTheDocument();
+    expect(within(panel).getByText(/ср\. 12 мс · p95 20 мс/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Сохранено заданий: 12/)).toBeInTheDocument();
     expect(within(panel).getByRole("img", { name: "Частота 3 запросов по времени" })).toBeInTheDocument();
-    expect(within(panel).getByRole("list", { name: "Частота запросов по действиям" })).toBeInTheDocument();
-    expect(within(panel).getByText(/Последние 3\+ запросов/)).toBeInTheDocument();
-  });
+    expect(within(panel).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(panel).getByText("exec.run", { selector: ".network-audit-action-chart code" })).toBeInTheDocument();
+    expect(within(panel).getByText("file.read", { selector: ".network-audit-action-chart code" })).toBeInTheDocument();
+    expect(panel.querySelectorAll(".network-audit-time-chart__bucket")).toHaveLength(3);
+    expect(panel.querySelectorAll(".network-audit-time-chart__bucket")[1]).toHaveAttribute("title", expect.stringContaining("0 запросов"));
+  }, 15000);
 
-  it("keeps the time histogram bounded for a very sparse long-lived audit", () => {
-    const activity = buildAuditActivity([
-      request("old", "2020-01-01T00:00:00.000Z", "exec.run"),
-      request("new", "2026-09-11T10:00:00.000Z", "exec.run"),
-    ]);
+  it("keeps the date in 7-day bucket labels", () => {
+    const sevenDayActivity: NetworkActivity = {
+      ...activity,
+      window: "7d",
+      bucket_seconds: 10_800,
+      buckets: [{ ...activity.buckets[0], start: "2026-09-11T00:00:00.000Z", end: "2026-09-11T03:00:00.000Z" }],
+    };
+    const panel = render(<NetworkAuditActivity activity={sevenDayActivity} loading={false} error={null} window="7d" onWindowChange={vi.fn()} />).container;
 
-    expect(activity.buckets.length).toBeLessThanOrEqual(14);
-    expect(activity.buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(2);
+    expect(panel.querySelector(".network-audit-time-chart__bucket")).toHaveAttribute("title", expect.stringMatching(/11 сент\., \d{2}:\d{2}/));
+  }, 15000);
+
+  it("shows loading and activity errors without falling back to audit samples", () => {
+    const { rerender } = render(<NetworkAuditActivity activity={null} loading error={null} window="1h" onWindowChange={vi.fn()} />);
+    expect(screen.getByTestId("network-audit-activity").querySelector(".network-audit-activity__loading")).toBeInTheDocument();
+
+    rerender(<NetworkAuditActivity activity={null} loading={false} error="gateway unavailable" window="1h" onWindowChange={vi.fn()} />);
+    expect(screen.getByText("gateway unavailable")).toBeInTheDocument();
+    expect(screen.queryByText(/Частота/)).not.toBeInTheDocument();
   });
 });
-
-function request(id: string, timestamp: string, action: string): NetworkAuditEvent {
-  return {
-    id,
-    timestamp,
-    kind: "job.queued",
-    actor: { id: "mcp:test", name: "MCP", source: "mcp" },
-    node_id: "gercena",
-    action,
-    job_id: `job-${id}`,
-    state: "queued",
-  };
-}

@@ -54,6 +54,8 @@ export const apiEndpoints = {
       actions: "/api/admin/network/v1/actions",
       jobs: "/api/admin/network/v1/jobs",
       job: (id: string) => `/api/admin/network/v1/jobs/${encodeURIComponent(id)}`,
+      activity: "/api/admin/network/v1/activity",
+      doctor: "/api/admin/network/v1/doctor",
       cancelJob: (id: string) =>
         `/api/admin/network/v1/jobs/${encodeURIComponent(id)}/cancel`,
       enrollments: "/api/admin/network/v1/enrollments",
