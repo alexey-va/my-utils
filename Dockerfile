@@ -33,8 +33,9 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
+COPY serve.json ./serve.json
 ENV NODE_ENV=production
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
   CMD ["wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
-CMD ["serve", "-s", "dist", "-l", "80"]
+CMD ["serve", "-s", "dist", "-l", "80", "-c", "/app/serve.json"]
