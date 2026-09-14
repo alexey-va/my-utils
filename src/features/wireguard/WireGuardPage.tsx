@@ -264,6 +264,7 @@ export default function WireGuardPage() {
   const [peerName, setPeerName] = useState("");
   const [peerCategory, setPeerCategory] = useState(DEFAULT_PEER_CATEGORY);
   const [editingPeer, setEditingPeer] = useState<WireGuardPeer | null>(null);
+  const [openPeerActions, setOpenPeerActions] = useState<string | null>(null);
   const [peerOrderPending, setPeerOrderPending] = useState(false);
   const [categoryOrderPending, setCategoryOrderPending] = useState(false);
   const [categoryEditor, setCategoryEditor] = useState<{
@@ -654,6 +655,8 @@ export default function WireGuardPage() {
         <div className="wireguard-peer__actions">
           <Dropdown
             trigger={["click"]}
+            open={openPeerActions === peer.id}
+            onOpenChange={(open) => setOpenPeerActions(open ? peer.id : null)}
             overlayClassName="wireguard-peer-menu"
             menu={{
               items: [
@@ -664,6 +667,7 @@ export default function WireGuardPage() {
                 { key: "delete", label: "Удалить", danger: true },
               ],
               onClick: ({ key }) => {
+                setOpenPeerActions(null);
                 if (key === "config") void showCredentials(peer);
                 if (key === "edit") openPeerEditor(peer);
                 if (key === "enabled") void setPeerEnabled(peer, !peer.enabled);

@@ -498,6 +498,22 @@ describe("WireGuardPage", () => {
     expect(menu.querySelector(".anticon-key")).toBeNull();
   }, 10_000);
 
+  it("keeps the peer actions menu open while live data refreshes", async () => {
+    const polls: Array<() => void> = [];
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 3_000 && typeof handler === "function") polls.push(handler as () => void);
+      return 1;
+    }) as typeof setInterval);
+    render(<WireGuardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Действия grophone" }));
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    await act(async () => { polls[0](); });
+    await waitFor(() => expect(api.fetchSnapshot).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  }, 10_000);
+
   it("creates and keeps an empty custom category as its own record", async () => {
     const workCategory = { ...userCategory, id: "category-work", name: "Рабочие", sortOrder: 2 };
     api.createCategory.mockResolvedValue(workCategory);
