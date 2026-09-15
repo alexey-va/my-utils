@@ -200,6 +200,43 @@ describe("NetworkPage", () => {
     expect(screen.getAllByText("Онлайн").length).toBeGreaterThan(0);
   }, 15000);
 
+  it("does not start another background refresh while the previous request is pending", async () => {
+    vi.useFakeTimers();
+    render(<NetworkPage />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const pendingJobs = deferred<{ jobs: NetworkJob[] }>();
+    const pendingNodes = deferred<{ nodes: NetworkNode[] }>();
+    api.fetchJobs.mockReturnValue(pendingJobs.promise);
+    api.fetchNodes.mockReturnValue(pendingNodes.promise);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(90_000);
+    });
+
+    expect(api.fetchJobs).toHaveBeenCalledTimes(2);
+    expect(api.fetchNodes).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      pendingJobs.resolve({ jobs: [] });
+      pendingNodes.resolve({ nodes: [node] });
+      await Promise.all([pendingJobs.promise, pendingNodes.promise]);
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(api.fetchJobs).toHaveBeenCalledTimes(3);
+    expect(api.fetchNodes).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+
+    expect(api.fetchNodes).toHaveBeenCalledTimes(3);
+  }, 15000);
+
   it("limits actions to the selected node and rebuilds samples for its roots and runtimes", async () => {
     api.fetchNodes.mockResolvedValue({ nodes: [node, limitedNode] });
     render(<NetworkPage />);

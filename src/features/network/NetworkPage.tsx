@@ -889,6 +889,8 @@ export default function NetworkPage() {
   const sampleSelectionRef = useRef<{ nodeId: string | null; actionName: string | null } | null>(null);
   const jobRequestRef = useRef(0);
   const submitRequestRef = useRef(0);
+  const nodesRefreshPendingRef = useRef(false);
+  const jobsRefreshPendingRef = useRef(false);
 
   const loadDoctor = useCallback(async () => {
     const requestID = doctorRequestRef.current + 1;
@@ -929,6 +931,8 @@ export default function NetworkPage() {
   }, []);
 
   const refreshNodes = useCallback(async () => {
+    if (nodesRefreshPendingRef.current) return;
+    nodesRefreshPendingRef.current = true;
     try {
       const response = await fetchNetworkNodes();
       setNodes((response.nodes ?? []).map(normalizeNode));
@@ -936,16 +940,22 @@ export default function NetworkPage() {
     } catch (error) {
       // Keep the last known node snapshot while the heartbeat endpoint is unavailable.
       setNodesError(errorMessage(error, "Не удалось обновить heartbeat узлов."));
+    } finally {
+      nodesRefreshPendingRef.current = false;
     }
   }, []);
 
   const refreshJobs = useCallback(async () => {
+    if (jobsRefreshPendingRef.current) return;
+    jobsRefreshPendingRef.current = true;
     try {
       const response = await fetchNetworkJobs();
       setJobs(response.jobs ?? []);
       setJobsError(null);
     } catch (error) {
       setJobsError(errorMessage(error, "Не удалось обновить список job-ов."));
+    } finally {
+      jobsRefreshPendingRef.current = false;
     }
   }, []);
 
