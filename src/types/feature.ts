@@ -13,6 +13,8 @@ export type AppFeature = {
   requiresAdmin?: boolean;
   /** Renders as `<Route index />` when true. */
   index?: boolean;
+  /** Additional browser paths that render this feature directly. */
+  paths?: string[];
   /** Extra paths that redirect to `path` (no leading slash). */
   aliases?: string[];
 };

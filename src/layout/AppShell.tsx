@@ -9,7 +9,9 @@ import AppSider from "./AppSider";
 export default function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
-  const page = featureCatalog.find((feature) => feature.path === pathname);
+  const page = featureCatalog.find(
+    (feature) => feature.path === pathname || feature.paths?.includes(pathname),
+  );
   return (
     <Layout hasSider className="workspace">
       <div className="workspace__desktop-nav">

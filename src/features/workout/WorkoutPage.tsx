@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Button, Modal, Select, Spin } from "antd";
 import type { RefSelectProps } from "antd/es/select";
+import { useLocation, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import PageLayout from "../../shared/components/PageLayout";
 import {
@@ -50,6 +51,11 @@ import { useWorkoutGrid } from "./useWorkoutGrid";
 import { sendWorkoutPageViewOnce } from "../../telemetry/workoutTelemetry";
 import WorkoutLanguageSwitch from "./WorkoutLanguageSwitch";
 import { WorkoutLocaleProvider, useWorkoutLocale } from "./workoutLocale";
+import {
+  PATH_HOME,
+  PATH_WORKOUT_JOURNAL,
+  PATH_WORKOUT_OVERVIEW,
+} from "../../config/paths";
 
 const WorkoutSessionList = lazy(() => import("./WorkoutSessionList"));
 const WorkoutGridTable = lazy(() => import("./WorkoutGridTable"));
@@ -87,6 +93,8 @@ function newSessionDraft(
 
 function WorkoutPageContent() {
   const { t, formatDate } = useWorkoutLocale();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     sendWorkoutPageViewOnce();
@@ -120,10 +128,20 @@ function WorkoutPageContent() {
     null,
   );
   const [showAllExercises, setShowAllExercises] = useState(true);
-  const [view, setView] = useState<"overview" | "journal">("overview");
+  const view = location.pathname === PATH_WORKOUT_JOURNAL ? "journal" : "overview";
   const [stepsPeriod, setStepsPeriod] = useState<StepsPeriod>("p31");
   const [weightPeriod, setWeightPeriod] = useState<WeightPeriod>("p31");
   const exerciseSelectRef = useRef<RefSelectProps>(null);
+
+  const selectView = useCallback(
+    (nextView: "overview" | "journal") => {
+      if (nextView === "overview" && location.pathname === PATH_HOME) {
+        return;
+      }
+      navigate(nextView === "journal" ? PATH_WORKOUT_JOURNAL : PATH_WORKOUT_OVERVIEW);
+    },
+    [location.pathname, navigate],
+  );
 
   const {
     history: stepsHistory,
@@ -304,7 +322,7 @@ function WorkoutPageContent() {
             <button
               className="workout-view-tab"
               aria-pressed={view === "overview"}
-              onClick={() => setView("overview")}
+              onClick={() => selectView("overview")}
             >
               <AppstoreOutlined />
               {t("overview.tab")}
@@ -312,7 +330,7 @@ function WorkoutPageContent() {
             <button
               className="workout-view-tab"
               aria-pressed={view === "journal"}
-              onClick={() => setView("journal")}
+              onClick={() => selectView("journal")}
             >
               <CalendarOutlined />
               {t("overview.journal")}

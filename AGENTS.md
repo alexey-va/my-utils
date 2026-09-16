@@ -29,7 +29,7 @@ page mapping. Do not infer routes from folder names.
 
 | id | path | access |
 |----|------|------|
-| workout | `/` | public |
+| workout | `/`, `/workout/overview`, `/workout/journal` | public |
 | properties | `/properties` | administrator |
 | agents | `/agents` | administrator |
 | observability | `/observability` | administrator (Grafana iframe) |

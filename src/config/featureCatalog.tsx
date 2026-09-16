@@ -10,6 +10,9 @@ import {
 } from "@ant-design/icons";
 import type { ReactNode } from "react";
 
+export const PATH_WORKOUT_OVERVIEW = "/workout/overview";
+export const PATH_WORKOUT_JOURNAL = "/workout/journal";
+
 /** Sidebar / route metadata without page components (avoids import cycles). */
 export type FeatureCatalogEntry = {
   id: string;
@@ -19,6 +22,8 @@ export type FeatureCatalogEntry = {
   requiresAuth?: boolean;
   requiresAdmin?: boolean;
   index?: boolean;
+  /** Additional browser paths that render this feature directly. */
+  paths?: string[];
   aliases?: string[];
 };
 
@@ -29,6 +34,7 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     label: "Workout",
     icon: <TrophyOutlined />,
     index: true,
+    paths: [PATH_WORKOUT_OVERVIEW, PATH_WORKOUT_JOURNAL],
     aliases: ["workout", "generators", "json"],
   },
   {

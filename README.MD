@@ -8,7 +8,7 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 
 | Area | Route | Access | Purpose |
 | --- | --- | --- | --- |
-| Workout | `/` | Public | Training grid and progress views backed by the API. |
+| Workout | `/`, `/workout/overview`, `/workout/journal` | Public | Training grid and progress views backed by the API. |
 | Properties | `/properties` | Administrator | Runtime application settings. |
 | Agents | `/agents` | Administrator | Isolated Workout AI sandbox chats, tool calls, and agent memory. |
 | WireGuard | `/wireguard` | Administrator | Relay, peer credentials, handshake, and traffic management. |

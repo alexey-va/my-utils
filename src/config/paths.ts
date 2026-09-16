@@ -1,5 +1,10 @@
 import { featurePath } from "./featureCatalog";
 
+export {
+  PATH_WORKOUT_JOURNAL,
+  PATH_WORKOUT_OVERVIEW,
+} from "./featureCatalog";
+
 export const PATH_HOME = featurePath("workout");
 export const PATH_ADMIN = featurePath("dashboard");
 

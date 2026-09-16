@@ -58,40 +58,56 @@ export default function AppRoutes() {
       <Suspense fallback={<RouteLoading />}>
         <Routes>
           {appFeatures.map((feature) => {
-          const { id, path, Page, requiresAuth, requiresAdmin, index, aliases } = feature;
-          const routePath = featureRoutePath(path);
+            const { id, path, Page, requiresAuth, requiresAdmin, index, paths, aliases } = feature;
+            const routePath = featureRoutePath(path);
 
-          return (
-            <Route key={id}>
-              {index ? (
-                <Route
-                  index
-                  element={
-                    <FeatureRoute
-                      Page={Page}
-                      requiresAuth={requiresAuth}
-                      requiresAdmin={requiresAdmin}
+            return (
+              <Route key={id}>
+                {index ? (
+                  <Route
+                    index
+                    element={
+                      <FeatureRoute
+                        Page={Page}
+                        requiresAuth={requiresAuth}
+                        requiresAdmin={requiresAdmin}
+                      />
+                    }
+                  />
+                ) : null}
+                {routePath ? (
+                  <Route
+                    path={routePath}
+                    element={
+                      <FeatureRoute
+                        Page={Page}
+                        requiresAuth={requiresAuth}
+                        requiresAdmin={requiresAdmin}
+                      />
+                    }
+                  />
+                ) : null}
+                {paths?.map((additionalPath) => {
+                  const additionalRoutePath = featureRoutePath(additionalPath);
+                  return additionalRoutePath ? (
+                    <Route
+                      key={`${id}-${additionalPath}`}
+                      path={additionalRoutePath}
+                      element={
+                        <FeatureRoute
+                          Page={Page}
+                          requiresAuth={requiresAuth}
+                          requiresAdmin={requiresAdmin}
+                        />
+                      }
                     />
-                  }
-                />
-              ) : null}
-              {routePath ? (
-                <Route
-                  path={routePath}
-                  element={
-                    <FeatureRoute
-                      Page={Page}
-                      requiresAuth={requiresAuth}
-                      requiresAdmin={requiresAdmin}
-                    />
-                  }
-                />
-              ) : null}
-              {aliases?.map((alias) => (
-                <Route key={`${id}-${alias}`} path={alias} element={<Navigate to={path} replace />} />
-              ))}
-            </Route>
-          );
+                  ) : null;
+                })}
+                {aliases?.map((alias) => (
+                  <Route key={`${id}-${alias}`} path={alias} element={<Navigate to={path} replace />} />
+                ))}
+              </Route>
+            );
           })}
           <Route path={PATH_LOGIN.replace(/^\//, "")} element={<LoginPage />} />
           <Route path={PATH_REGISTER.replace(/^\//, "")} element={<RegisterPage />} />
