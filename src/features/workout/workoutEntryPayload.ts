@@ -7,6 +7,7 @@ export function upsertRequestFromValues(
   weightKg: number,
   repsPattern: string,
   defaultSetCount = 3,
+  existingSetReps?: number[] | null,
 ): UpsertWorkoutEntryRequest {
   const weight = Math.max(0.25, Math.round(weightKg * 4) / 4);
   const reps = parseRepsPattern(repsPattern);
@@ -28,11 +29,25 @@ export function upsertRequestFromValues(
     exerciseId,
     performedOn,
     weightKg: weight,
-    setCount: reps.length,
+    setCount: setCountForReps(reps, defaultSetCount, existingSetReps),
     repsPerSet: Math.min(...reps),
     maxReps: Math.max(...reps),
     setReps: reps,
   };
+}
+
+export function setCountForReps(
+  reps: number[],
+  existingSetCount: number,
+  existingSetReps?: number[] | null,
+): number {
+  if (
+    existingSetReps?.length === existingSetCount + 1 &&
+    reps.length === existingSetReps.length
+  ) {
+    return existingSetCount;
+  }
+  return reps.length;
 }
 
 export function upsertRequestFromCell(
@@ -47,5 +62,6 @@ export function upsertRequestFromCell(
     overrides?.weightKg ?? cell.weightKg,
     overrides?.repsPattern ?? repsPatternFromCell(cell),
     cell.setCount,
+    cell.setReps,
   );
 }

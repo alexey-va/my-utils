@@ -3,6 +3,7 @@ import { Button, DatePicker, Form, Input, InputNumber, Popconfirm, Space, messag
 import dayjs, { type Dayjs } from "dayjs";
 import type { UpsertWorkoutEntryRequest, WorkoutCell } from "../../api/types";
 import type { WorkoutEntryDraft } from "./types";
+import { setCountForReps } from "./workoutEntryPayload";
 import { parseRepsPattern, repsPatternFromCell } from "./workoutSetReps";
 import { useWorkoutLocale } from "./workoutLocale";
 
@@ -68,7 +69,7 @@ function buildUpsertPayload(
     exerciseId: draft.exerciseId,
     performedOn: values.performedOn.format("YYYY-MM-DD"),
     weightKg: values.weightKg,
-    setCount: reps.length,
+    setCount: setCountForReps(reps, draft.setCount, draft.setReps),
     repsPerSet: Math.min(...reps),
     maxReps: Math.max(...reps),
     setReps: reps,
