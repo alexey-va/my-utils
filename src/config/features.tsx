@@ -4,6 +4,7 @@ import { featureCatalog } from "./featureCatalog";
 
 const pagesById: Record<string, AppFeature["Page"]> = {
   workout: lazy(() => import("../features/workout/WorkoutPage")),
+  business: lazy(() => import("../features/business/BusinessPage")),
   properties: lazy(() => import("../features/properties/PropertiesPage")),
   agents: lazy(() => import("../features/agents/AgentsPage")),
   wireguard: lazy(() => import("../features/wireguard/WireGuardPage")),

@@ -17,6 +17,13 @@ export const apiEndpoints = {
     audit: "/api/network/v1/audit",
   },
   admin: {
+    business: "/api/admin/business/",
+    businessInvoices: "/api/admin/business/invoices",
+    businessFile: (id: string) => `/api/admin/business/files/${encodeURIComponent(id)}`,
+    businessAllocations: "/api/admin/business/allocations",
+    businessAllocation: (id: string) => `/api/admin/business/allocations/${encodeURIComponent(id)}`,
+    businessBankConnect: "/api/admin/business/bank/connect",
+    businessBankSync: "/api/admin/business/bank/sync",
     settings: "/api/admin/settings",
     setting: (key: string) => `/api/admin/settings/${encodeURIComponent(key)}`,
     agentTestChats: "/api/admin/agent-test-chats",

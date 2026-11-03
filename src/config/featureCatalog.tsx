@@ -7,6 +7,7 @@ import {
   SettingOutlined,
   TrophyOutlined,
   SafetyCertificateOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 import type { ReactNode } from "react";
 
@@ -36,6 +37,13 @@ export const featureCatalog: FeatureCatalogEntry[] = [
     index: true,
     paths: [PATH_WORKOUT_OVERVIEW, PATH_WORKOUT_JOURNAL],
     aliases: ["workout", "generators", "json"],
+  },
+  {
+    id: "business",
+    path: "/business",
+    label: "Бизнес",
+    icon: <BankOutlined />,
+    requiresAdmin: true,
   },
   {
     id: "properties",

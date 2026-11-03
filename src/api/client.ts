@@ -15,6 +15,8 @@ export type ApiRequestOptions = RequestInit & {
   json?: unknown;
   /** Skip Authorization header even when a token exists. */
   skipAuth?: boolean;
+  /** Download a protected file through the same session refresh flow. */
+  responseType?: "blob";
 };
 
 export function buildApiUrl(path: string): string {
@@ -102,7 +104,8 @@ async function performRequest(
  * Set `VITE_API_BASE_URL` in `.env` when the API is available.
  */
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  let performed = await performRequest(path, options);
+  const { responseType, ...requestOptions } = options;
+  let performed = await performRequest(path, requestOptions);
   let response = performed.response;
   if (response.status === 401 && !options.skipAuth && isLoggedIn()) {
     const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -110,7 +113,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       ? "refreshed"
       : await refreshSession();
     if (refreshResult === "refreshed") {
-      performed = await performRequest(path, options);
+      performed = await performRequest(path, requestOptions);
       response = performed.response;
       if (response.status === 401) {
         clearSession();
@@ -140,6 +143,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (responseType === "blob") {
+    return (await response.blob()) as T;
   }
 
   const contentType = response.headers.get("content-type") ?? "";

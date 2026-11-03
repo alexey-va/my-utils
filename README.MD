@@ -9,6 +9,7 @@ Internal utilities SPA for workouts and operational tools. Built with [Refine](h
 | Area | Route | Access | Purpose |
 | --- | --- | --- | --- |
 | Workout | `/`, `/workout/overview`, `/workout/journal` | Public | Training grid and progress views backed by the API. |
+| Business | `/business` | Administrator | Private invoice/act archive, payer balances, incoming payments and reconciliation. |
 | Properties | `/properties` | Administrator | Runtime application settings. |
 | Agents | `/agents` | Administrator | Isolated Workout AI sandbox chats, tool calls, and agent memory. |
 | WireGuard | `/wireguard` | Administrator | Relay, peer credentials, handshake, and traffic management. |
@@ -22,6 +23,13 @@ Guests can use Workout without signing in. Registration creates a regular
 All operational areas require an `ADMIN` role enforced by the API, not only by
 the browser. The bootstrap administrator must replace its initial password
 before opening administrative routes.
+
+Business opens the latest available invoice period and supports a combined
+overview, payer history, document downloads and invoice creation. Local PDF
+creation works without a bank connection. Imported Tochka statements remain
+visible when no live connection is stored. Payment allocations and statement
+coverage are shown separately: an unknown payment state is never displayed as
+a confirmed unpaid debt. See [docs/BUSINESS.md](docs/BUSINESS.md).
 
 The browser keeps an access JWT and receives a same-origin HttpOnly refresh
 cookie at login. When a protected request gets `401`, the API client refreshes
