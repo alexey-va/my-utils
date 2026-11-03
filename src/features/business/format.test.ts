@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { hasPeriodCoverage, lineAmountMinor, parseMoneyMinor } from "./format";
+import { formatInvoicePeriod, hasPeriodCoverage, lineAmountMinor, parseMoneyMinor } from "./format";
+
+describe("Business invoice periods", () => {
+  it("keeps monthly labels and shows the full actual range for cumulative invoices", () => {
+    expect(formatInvoicePeriod({ period: "2030-02", periodStart: "2030-02-01", periodEnd: "2030-08-31" })).toBe("01.02.2030 — 31.08.2030");
+    expect(formatInvoicePeriod({ period: "2030-10", periodStart: "2030-10-01", periodEnd: "2030-10-31" })).toBe("Октябрь 2030");
+    expect(formatInvoicePeriod({ period: "2030-10", periodStart: "", periodEnd: "" })).toBe("Октябрь 2030");
+  });
+});
 
 describe("Business monetary inputs", () => {
   it("parses decimal strings without floating point rounding", () => {

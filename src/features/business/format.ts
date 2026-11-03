@@ -1,8 +1,14 @@
-import type { InvoiceStatus } from "./types";
+import type { BusinessInvoice, BusinessPaymentView, InvoiceStatus, PaymentClassification } from "./types";
 
 export const invoiceStatusLabels: Record<InvoiceStatus, string> = {
   paid: "Оплачен", partial: "Частичная оплата", unmatched: "Оплата не найдена в выписках Точки", unreviewed: "Не сверено", archived: "Архивная версия",
 };
+
+export const paymentClassificationLabels: Record<PaymentClassification, string> = {
+  rental: "Поступление по аренде", historical: "Оплата прошлых периодов", outside_period: "До периода учёта", unclassified: "Назначение требует проверки",
+};
+export const paymentOutsideAccounting = (payment: Pick<BusinessPaymentView, "classification">): boolean => payment.classification === "historical" || payment.classification === "outside_period";
+export const amountRequiringAllocation = (value: Pick<BusinessPaymentView, "unallocatedMinor" | "advanceMinor">): number => Math.max(0, value.unallocatedMinor - value.advanceMinor);
 
 const moneyFormatter = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 export const formatMoney = (minor: number): string => `${moneyFormatter.format(minor / 100)} ₽`;
@@ -18,6 +24,12 @@ export const formatPeriod = (period: string): string => {
   if (Number.isNaN(date.valueOf())) return period;
   const label = date.toLocaleDateString("ru-RU", { month: "long", year: "numeric" }).replace(/ г\.$/, "");
   return label[0].toUpperCase() + label.slice(1);
+};
+export const formatInvoicePeriod = (invoice: Pick<BusinessInvoice, "period" | "periodStart" | "periodEnd">): string => {
+  if (invoice.periodStart && invoice.periodEnd && invoice.periodStart.slice(0, 7) !== invoice.periodEnd.slice(0, 7)) {
+    return `${formatDate(invoice.periodStart)} — ${formatDate(invoice.periodEnd)}`;
+  }
+  return formatPeriod(invoice.period);
 };
 export function parseMoneyMinor(value: string): number | null {
   const normalized = value.trim().replace(/\s/g, "").replace(",", ".");

@@ -1,4 +1,4 @@
-import { ArrowRightOutlined, BankOutlined, CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, BankOutlined, CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, WalletOutlined } from "@ant-design/icons";
 import { Button, Empty } from "antd";
 import { formatDate, formatMoney, invoiceStatusLabels } from "./format";
 import type { BusinessBank, BusinessCounterpartyView, BusinessSummary, InvoiceStatus } from "./types";
@@ -26,6 +26,11 @@ export function BusinessOverview({ summary, bank, onBank }: { summary: BusinessS
         <strong className="business-metric__value">{formatMoney(summary.outstandingMinor)}</strong>
         <span className="business-metric__caption"><ClockCircleOutlined /> {summary.reconciliationComplete ? "По сверенным счетам" : "Сверка не завершена · это не подтверждённый долг"}</span>
       </div>
+      <div className="business-metric">
+        <span className="business-metric__label">Аванс</span>
+        <strong className={`business-metric__value${noPaymentEvidence && summary.advanceMinor === 0 ? " business-metric__value--unknown" : ""}`}>{noPaymentEvidence && summary.advanceMinor === 0 ? "Нет данных" : formatMoney(summary.advanceMinor)}</strong>
+        <span className="business-metric__caption"><WalletOutlined /> За все периоды · для будущих счетов</span>
+      </div>
     </section>
     <div className="business-bank-strip">
       <BankOutlined className="business-bank-strip__icon" />
@@ -42,7 +47,7 @@ export function CounterpartyLedger({ rows, onOpen }: { rows: BusinessCounterpart
   if (!rows.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Плательщики не найдены. Измените поиск или выберите другой период." />;
   return <div className="business-ledger" role="table" aria-label="Плательщики">
     <div className="business-ledger__head business-payer-grid" role="row">
-      <span role="columnheader">Плательщик</span><span role="columnheader">Выставлено</span><span role="columnheader">Оплачено</span><span role="columnheader">Остаток</span><span role="columnheader" className="business-sr-only">Открыть</span>
+      <span role="columnheader">Плательщик</span><span role="columnheader">Выставлено</span><span role="columnheader">Оплачено</span><span role="columnheader">Остаток</span><span role="columnheader">Аванс</span><span role="columnheader" className="business-sr-only">Открыть</span>
     </div>
     {rows.map(row => <div className="business-payer-grid business-ledger__row" role="row" key={row.id}>
       <div className="business-payer-name" role="cell">
@@ -52,6 +57,7 @@ export function CounterpartyLedger({ rows, onOpen }: { rows: BusinessCounterpart
       <div className="business-money-cell" role="cell"><span className="business-mobile-label">Выставлено</span>{formatMoney(row.invoicedMinor)}</div>
       <div className="business-money-cell" role="cell"><span className="business-mobile-label">Оплачено</span>{row.unreviewedCount > 0 && row.paidMinor === 0 ? <span className="business-muted">Не сверено</span> : formatMoney(row.paidMinor)}</div>
       <div className="business-money-cell" role="cell"><span className="business-mobile-label">Остаток</span>{formatMoney(row.outstandingMinor)}{row.unreviewedCount > 0 && <span className="business-cell-note">Без подтверждения оплаты</span>}</div>
+      <div className="business-money-cell" role="cell"><span className="business-mobile-label">Аванс</span>{row.unreviewedCount > 0 && row.paidMinor === 0 && row.advanceMinor === 0 ? <span className="business-muted">Не сверено</span> : formatMoney(row.advanceMinor)}</div>
       <div className="business-row-arrow" role="cell"><Button type="text" icon={<ArrowRightOutlined />} aria-label={`Открыть ${row.name}`} onClick={() => onOpen(row.id)} /></div>
     </div>)}
   </div>;

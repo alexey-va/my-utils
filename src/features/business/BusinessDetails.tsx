@@ -4,7 +4,7 @@ import { ApiError } from "../../api/errors";
 import { allocateBusinessPayment, fetchBusinessWorkspace, reverseBusinessAllocation } from "./api";
 import { DocumentButton } from "./BusinessLedgers";
 import { InvoiceStatusLabel } from "./BusinessOverview";
-import { formatAmountInput, formatDate, formatMoney, formatPeriod, parseMoneyMinor } from "./format";
+import { amountRequiringAllocation, formatAmountInput, formatDate, formatMoney, formatInvoicePeriod, parseMoneyMinor, paymentClassificationLabels, paymentOutsideAccounting } from "./format";
 import type { BusinessAllocation, BusinessInvoiceView, BusinessPaymentView, BusinessWorkspace } from "./types";
 
 function useDetailWorkspace(open: boolean) {
@@ -33,7 +33,7 @@ function AllocationForm({ workspace, invoiceId, paymentId, onChanged }: { worksp
   const payment = workspace.payments.find(item => item.id === selectedPayment);
   const limit = Math.min(invoice?.outstandingMinor ?? 0, payment?.unallocatedMinor ?? 0);
   const validInvoices = workspace.invoices.filter(item => item.isCurrent && item.outstandingMinor > 0);
-  const validPayments = workspace.payments.filter(item => item.unallocatedMinor > 0);
+  const validPayments = workspace.payments.filter(item => !paymentOutsideAccounting(item) && item.unallocatedMinor > 0);
   const names = new Map(workspace.counterparties.map(item => [item.id, item.name]));
   async function allocate() {
     const minor = parseMoneyMinor(amount);
@@ -46,8 +46,8 @@ function AllocationForm({ workspace, invoiceId, paymentId, onChanged }: { worksp
   return <div className="business-allocation-form">{context}<h3 className="business-section-heading">Зачесть оплату</h3><p className="business-intro">Проверьте плательщика, номер счёта и назначение. Можно зачесть часть платежа.</p>
     {error && <Alert type="error" showIcon message={error} className="business-form-alert" />}
     <Form layout="vertical" onFinish={allocate} disabled={saving}>
-      {!invoiceId && <Form.Item label="Счёт" required><Select aria-label="Счёт для оплаты" showSearch optionFilterProp="label" value={selectedInvoice || undefined} placeholder="Выберите счёт" onChange={value => { setSelectedInvoice(value); setAmount(""); }} options={validInvoices.map(item => ({ value: item.id, label: `№ ${item.number} · ${names.get(item.counterpartyId)} · ${formatPeriod(item.period)} · ${formatMoney(item.outstandingMinor)}` }))} /></Form.Item>}
-      {!paymentId && <Form.Item label="Поступление" required><Select aria-label="Поступление для счёта" showSearch optionFilterProp="label" value={selectedPayment || undefined} placeholder="Выберите поступление" onChange={value => { setSelectedPayment(value); setAmount(""); }} options={validPayments.map(item => ({ value: item.id, label: `${formatDate(item.date)} · ${item.counterpartyName || item.payerInn} · ${formatMoney(item.unallocatedMinor)}` }))} /></Form.Item>}
+      {!invoiceId && <Form.Item label="Счёт" required><Select aria-label="Счёт для оплаты" showSearch optionFilterProp="label" value={selectedInvoice || undefined} placeholder="Выберите счёт" onChange={value => { setSelectedInvoice(value); setAmount(""); }} options={validInvoices.map(item => ({ value: item.id, label: `№ ${item.number} · ${names.get(item.counterpartyId)} · ${formatInvoicePeriod(item)} · ${formatMoney(item.outstandingMinor)}` }))} /></Form.Item>}
+      {!paymentId && <Form.Item label="Поступление" required><Select aria-label="Поступление для счёта" showSearch optionFilterProp="label" value={selectedPayment || undefined} placeholder="Выберите поступление" onChange={value => { setSelectedPayment(value); setAmount(""); }} options={validPayments.map(item => ({ value: item.id, label: `${formatDate(item.date)} · ${item.counterpartyName || item.payerInn} · ${formatMoney(item.unallocatedMinor)}${item.advanceMinor > 0 ? ` · в том числе аванс ${formatMoney(item.advanceMinor)}` : ""}` }))} /></Form.Item>}
       {payment && <div className="business-payment-excerpt"><strong>{payment.counterpartyName}</strong><p>{payment.description}</p></div>}
       <Form.Item label="Сумма к зачёту, ₽" required extra={limit > 0 ? <button type="button" className="business-text-button business-amount-fill" onClick={() => setAmount(formatAmountInput(limit))}>Зачесть доступные {formatMoney(limit)}</button> : "Выберите счёт и поступление с доступным остатком"}><Input inputMode="decimal" aria-label="Сумма к зачёту, ₽" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0,00" /></Form.Item>
       <Button type="primary" htmlType="submit" loading={saving} disabled={!invoice || !payment || limit <= 0}>Зачесть оплату</Button>
@@ -81,7 +81,7 @@ export function InvoiceDetailDrawer({ invoice: initialInvoice, onClose, onChange
     <div className="business-invoice-hero"><div><p>{payer?.name ?? ""}</p><strong>{formatMoney(invoice.amountMinor)}</strong></div><InvoiceStatusLabel status={invoice.status} /></div>
     {invoice.providerState === "unknown" && <Alert showIcon type="warning" message="Создание в Точке требует проверки" description="Банк не подтвердил результат запроса. Проверьте документ в Точке перед повторным созданием." className="business-form-alert" />}
     {!invoice.isCurrent && <Alert showIcon type="info" message="Архивная версия" description="Документ сохранён для истории и не учитывается в суммах к оплате." className="business-form-alert" />}
-    <dl className="business-details"><div><dt>Период услуг</dt><dd>{formatPeriod(invoice.period)}</dd></div><div><dt>Дата счёта</dt><dd>{formatDate(invoice.issueDate)}</dd></div><div><dt>Оплатить до</dt><dd>{invoice.dueDate ? formatDate(invoice.dueDate) : "Не указано"}</dd></div><div><dt>НДС</dt><dd>{invoice.vat || "Без НДС"}</dd></div><div><dt>Основание</dt><dd>{invoice.basis || "—"}</dd></div></dl>
+    <dl className="business-details"><div><dt>Период услуг</dt><dd>{formatInvoicePeriod(invoice)}</dd></div><div><dt>Дата счёта</dt><dd>{formatDate(invoice.issueDate)}</dd></div><div><dt>Оплатить до</dt><dd>{invoice.dueDate ? formatDate(invoice.dueDate) : "Не указано"}</dd></div><div><dt>НДС</dt><dd>{invoice.vat || "Без НДС"}</dd></div><div><dt>Основание</dt><dd>{invoice.basis || "—"}</dd></div></dl>
     <section><h3 className="business-section-heading">Документы</h3>{invoice.documents.length ? <div className="business-document-list">{invoice.documents.map(document => <div key={document.id}><span className="business-document-kind">{document.kind === "invoice" ? "Счёт" : document.kind === "act" ? "Акт" : "Документ"}</span><DocumentButton document={document} /><span className="business-cell-note">{Math.max(1, Math.round(document.size / 1024))} КБ</span></div>)}</div> : <p className="business-intro">Файл пока недоступен. Обновите данные после завершения создания.</p>}</section>
     <section><h3 className="business-section-heading">Состав счёта</h3><div className="business-item-list">{invoice.items.map((item, index) => <div key={index}><div><strong>{item.description}</strong><span className="business-cell-note">{item.quantity} {item.unit} × {formatMoney(item.priceMinor)}</span></div><strong>{formatMoney(item.amountMinor)}</strong></div>)}</div></section>
     {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={reload}>Повторить</Button>} />}
@@ -96,11 +96,14 @@ export function InvoiceDetailDrawer({ invoice: initialInvoice, onClose, onChange
 export function PaymentDetailDrawer({ payment: initialPayment, onClose, onChanged }: { payment: BusinessPaymentView | null; onClose: () => void; onChanged: () => void }) {
   const { workspace, loading, error, reload } = useDetailWorkspace(!!initialPayment);
   const payment = workspace?.payments.find(item => item.id === initialPayment?.id) ?? initialPayment;
+  const outsideAccounting = payment ? paymentOutsideAccounting(payment) : false;
   const changed = () => { reload(); onChanged(); };
   return <Drawer open={!!initialPayment} title="Поступление" width={620} rootClassName="business-drawer" onClose={onClose} destroyOnHidden>{payment && <>
     <div className="business-invoice-hero"><div><p>{payment.counterpartyName || "Плательщик не определён"}</p><strong>{formatMoney(payment.amountMinor)}</strong></div></div>
-    <dl className="business-details"><div><dt>Дата поступления</dt><dd>{formatDate(payment.date)}</dd></div><div><dt>ИНН плательщика</dt><dd>{payment.payerInn || "Не указан"}</dd></div><div><dt>Счёт зачисления</dt><dd>{payment.accountLabel || "—"}</dd></div><div><dt>Назначение</dt><dd>{payment.description || "Не указано"}</dd></div><div><dt>Не распределено</dt><dd>{formatMoney(payment.unallocatedMinor)}</dd></div></dl>
+    {outsideAccounting && <Alert type="info" showIcon message={paymentClassificationLabels[payment.classification]} description={payment.classification === "historical" ? "Поступление отнесено к истории до начала текущего учёта и не предлагается для зачёта по текущим счетам." : "Поступление получено до месяцев текущего учёта. Это не подтверждает оплату старых счетов; запись сохранена для истории."} />}
+    <dl className="business-details"><div><dt>Дата поступления</dt><dd>{formatDate(payment.date)}</dd></div><div><dt>ИНН плательщика</dt><dd>{payment.payerInn || "Не указан"}</dd></div><div><dt>Счёт зачисления</dt><dd>{payment.accountLabel || "—"}</dd></div><div><dt>Назначение</dt><dd>{payment.description || "Не указано"}</dd></div>{!outsideAccounting && <><div><dt>Зачтено по счетам</dt><dd>{formatMoney(payment.allocatedMinor)}</dd></div><div><dt>Требует распределения</dt><dd>{formatMoney(amountRequiringAllocation(payment))}</dd></div><div><dt>Аванс</dt><dd>{formatMoney(payment.advanceMinor)}</dd></div></>}</dl>
+    {!outsideAccounting && payment.advanceMinor > 0 && <p className="business-intro business-advance-note">Аванс сохранён отдельно и доступен для зачёта по будущим счетам.</p>}
     {error && <Alert type="error" showIcon message={error} action={<Button onClick={reload}>Повторить</Button>} />}
-    {loading && !workspace ? <Skeleton active /> : workspace ? <><Allocations allocations={payment.allocations} workspace={workspace} onChanged={changed} />{payment.unallocatedMinor > 0 && <AllocationForm key={payment.id} workspace={workspace} paymentId={payment.id} onChanged={changed} />}</> : <Empty description="История не загружена" />}
+    {loading && !workspace ? <Skeleton active /> : workspace ? !outsideAccounting && <><Allocations allocations={payment.allocations} workspace={workspace} onChanged={changed} />{payment.unallocatedMinor > 0 && <AllocationForm key={payment.id} workspace={workspace} paymentId={payment.id} onChanged={changed} />}</> : <Empty description="История не загружена" />}
   </>}</Drawer>;
 }

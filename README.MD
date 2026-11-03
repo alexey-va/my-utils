@@ -24,8 +24,8 @@ All operational areas require an `ADMIN` role enforced by the API, not only by
 the browser. The bootstrap administrator must replace its initial password
 before opening administrative routes.
 
-Business opens the latest available invoice period and supports a combined
-overview, payer history, document downloads and invoice creation. Local PDF
+Business opens the balance for all invoice periods and supports payer history,
+document downloads and invoice creation. Local PDF
 creation works without a bank connection. Imported Tochka statements remain
 visible when no live connection is stored. Payment allocations and statement
 coverage are shown separately: an unknown payment state is never displayed as

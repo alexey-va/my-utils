@@ -11,7 +11,7 @@ import { InvoiceLedger, PaymentLedger } from "./BusinessLedgers";
 import { InvoiceDetailDrawer, PaymentDetailDrawer } from "./BusinessDetails";
 import InvoiceEditor from "./InvoiceEditor";
 import BankDrawer from "./BankDrawer";
-import { formatMoney, formatPeriod, hasPeriodCoverage, invoiceStatusLabels } from "./format";
+import { amountRequiringAllocation, formatMoney, formatPeriod, hasPeriodCoverage, invoiceStatusLabels, paymentOutsideAccounting } from "./format";
 import type { BusinessInvoiceView, BusinessPaymentView, BusinessWorkspace, InvoiceStatus } from "./types";
 import "./business.css";
 
@@ -31,6 +31,7 @@ export default function BusinessPage() {
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus | "all">("all");
   const [includeArchive, setIncludeArchive] = useState(false);
   const [unallocatedOnly, setUnallocatedOnly] = useState(false);
+  const [includePaymentHistory, setIncludePaymentHistory] = useState(false);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
@@ -43,6 +44,13 @@ export default function BusinessPage() {
   const workspace = result?.scope === scope ? result.data : null;
   const payer = workspace?.counterparties.find(item => item.id === counterpartyId);
   const paymentsKnown = !!workspace && (workspace.payments.length > 0 || hasPeriodCoverage(period, workspace.bank.coverageStart, workspace.bank.coverageEnd));
+  const accountingPeriods = Array.from(new Set(result?.data.accountingPeriods ?? [])).sort();
+  const accountingPeriodLabel = accountingPeriods.map(value => formatPeriod(value).toLocaleLowerCase("ru")).join(" · ");
+  const periodOptions = Array.from(new Set([...(result?.data.periods ?? []), ...(period !== "all" ? [period] : [])])).sort().reverse();
+  const requiresAllocation = workspace ? amountRequiringAllocation(workspace.summary) : 0;
+  const currentPaymentCount = workspace?.payments.filter(item => !paymentOutsideAccounting(item)).length ?? 0;
+  const historicalPaymentCount = (workspace?.payments.length ?? 0) - currentPaymentCount;
+  const scopeTitle = period === "all" ? "Расчёты за все периоды" : `Расчёты за ${formatPeriod(period).toLocaleLowerCase("ru")}`;
   const reload = () => setRevision(value => value + 1);
 
   useEffect(() => {
@@ -50,15 +58,12 @@ export default function BusinessPage() {
     setLoading(true); setError("");
     fetchBusinessWorkspace(period, counterpartyId || undefined, controller.signal).then(data => {
       if (controller.signal.aborted) return;
-      const latest = data.invoices.filter(invoice => invoice.isCurrent).map(invoice => invoice.period).sort().reverse()[0];
-      if (!periodParam && latest && !counterpartyId) {
-        setParams(current => { const next = new URLSearchParams(current); next.set("period", latest); return next; }, { replace: true });
-      } else setResult({ scope, data });
+      setResult({ scope, data });
     }).catch(() => {
       if (!controller.signal.aborted) setError("Не удалось загрузить данные. Проверьте соединение и повторите запрос.");
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [period, periodParam, counterpartyId, scope, revision, setParams]);
+  }, [period, counterpartyId, scope, revision]);
 
   const rows = useMemo(() => {
     if (!workspace) return { payers: [], invoices: [], payments: [] };
@@ -68,9 +73,9 @@ export default function BusinessPage() {
     return {
       payers: workspace.counterparties.filter(item => matches(`${item.name} ${item.inn}`)),
       invoices: workspace.invoices.filter(item => (includeArchive || item.isCurrent) && (invoiceStatus === "all" || item.status === invoiceStatus) && matches(`${item.number} ${item.basis} ${names.get(item.counterpartyId) ?? ""}`)).sort((a, b) => b.period.localeCompare(a.period) || Number(b.isCurrent) - Number(a.isCurrent) || b.number.localeCompare(a.number, "ru", { numeric: true })),
-      payments: workspace.payments.filter(item => (!unallocatedOnly || item.unallocatedMinor > 0) && matches(`${item.counterpartyName} ${item.payerInn} ${item.description}`)).sort((a, b) => b.date.localeCompare(a.date)),
+      payments: workspace.payments.filter(item => (includePaymentHistory || !paymentOutsideAccounting(item)) && (!unallocatedOnly || (!paymentOutsideAccounting(item) && amountRequiringAllocation(item) > 0)) && matches(`${item.counterpartyName} ${item.payerInn} ${item.description}`)).sort((a, b) => b.date.localeCompare(a.date)),
     };
-  }, [workspace, query, includeArchive, invoiceStatus, unallocatedOnly]);
+  }, [workspace, query, includeArchive, invoiceStatus, unallocatedOnly, includePaymentHistory]);
   const selectedRows = rows[view];
   const currentPage = Math.min(page, Math.max(1, Math.ceil(selectedRows.length / PAGE_SIZE)));
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -88,21 +93,23 @@ export default function BusinessPage() {
 
   return <ConfigProvider locale={ruRU}><div className="business-page">{context}<PageLayout title={payer?.name ?? "Бизнес"} subtitle={payer ? "Счета и поступления плательщика" : "Счета, акты и сверка поступлений"} actions={<Button type="primary" icon={<PlusOutlined />} disabled={!workspace?.counterparties.length} onClick={() => setCreateOpen(true)}>Создать счёт</Button>}>
     {counterpartyId && <Button type="text" className="business-back" icon={<ArrowLeftOutlined />} onClick={() => changeScope({ payer: null, view: "payers" })}>Все плательщики</Button>}
-    <div className="business-context-bar"><Select aria-label="Период" value={period} onChange={value => changeScope({ period: value })} options={[{ value: "all", label: "Все периоды" }, ...Array.from(new Set([...(result?.data.periods ?? []), ...(period !== "all" ? [period] : [])])).sort().reverse().map(value => ({ value, label: formatPeriod(value) }))]} /><Button type="text" icon={<ReloadOutlined />} loading={loading} onClick={reload}>Обновить</Button></div>
+    <div className="business-context-bar"><div className="business-period-control"><Select aria-label="Период" value={period} onChange={value => changeScope({ period: value })} options={[{ value: "all", label: "Все периоды" }, ...periodOptions.map(value => ({ value, label: formatPeriod(value) }))]} />{period !== "all" && <Button onClick={() => changeScope({ period: "all" })}>Показать все периоды</Button>}</div><Button type="text" icon={<ReloadOutlined />} loading={loading} onClick={reload}>Обновить</Button></div>
+    <section className="business-scope" aria-label="Область расчётов"><h2>{scopeTitle}</h2><p>{period === "all" ? `${accountingPeriodLabel ? `Текущие счета: ${accountingPeriodLabel}.` : "Общий баланс по счетам всех месяцев."} Архивные версии не увеличивают сумму.` : "Начисления, оплаты и остаток по счетам — только за выбранный месяц. Авансы показаны отдельно за все периоды."}</p>{accountingPeriods.length > 0 && <nav className="business-period-links" aria-label="Месяцы учёта"><span>Месяцы учёта:</span>{accountingPeriods.map(value => <Button key={value} type="text" size="small" aria-pressed={period === value} onClick={() => changeScope({ period: value })}>{formatPeriod(value)}</Button>)}</nav>}</section>
     {error && <Alert className="business-load-error" type="error" showIcon message={error} description={workspace ? "На экране остаются данные последней успешной загрузки." : undefined} action={<Button onClick={reload}>Повторить</Button>} />}
     {!workspace ? !error && <div className="business-loading"><Skeleton active paragraph={{ rows: 3 }} /><Skeleton active paragraph={{ rows: 8 }} /></div> : <>
       <BusinessOverview summary={workspace.summary} bank={workspace.bank} onBank={() => setBankOpen(true)} />
-      {workspace.summary.unallocatedMinor > 0 && <div className="business-review-strip"><InfoCircleOutlined /><p><strong>{formatMoney(workspace.summary.unallocatedMinor)} поступлений не распределено.</strong> Эти деньги ещё не зачтены по счетам.</p><Button type="link" onClick={() => { setUnallocatedOnly(true); changeScope({ view: "payments" }); }}>Распределить</Button></div>}
+      {requiresAllocation > 0 && <div className="business-review-strip"><InfoCircleOutlined /><p><strong>{formatMoney(requiresAllocation)} требуют распределения.</strong> Авансы учтены отдельно и не входят в эту сумму.</p><Button type="link" onClick={() => { setUnallocatedOnly(true); changeScope({ view: "payments" }); }}>Распределить</Button></div>}
       {payer && <details className="business-payer-details"><summary>Реквизиты и контакты</summary><dl className="business-details"><div><dt>ИНН</dt><dd>{payer.inn || "Не указан"}</dd></div>{payer.address && <div><dt>Адрес</dt><dd>{payer.address}</dd></div>}{payer.contacts.map((contact, index) => <div key={index}><dt>Email {contact.confirmed ? "" : "(не подтверждён)"}</dt><dd>{contact.email}{contact.note && <span className="business-cell-note">{contact.note}</span>}</dd></div>)}</dl></details>}
       <AppPanel className="business-register">
         <nav className="business-view-tabs" aria-label="Разделы бизнеса">
           {!counterpartyId && <button type="button" aria-current={view === "payers" ? "page" : undefined} onClick={() => changeScope({ view: "payers" })}><TeamOutlined />Плательщики<span>{workspace.counterparties.length}</span></button>}
           <button type="button" aria-current={view === "invoices" ? "page" : undefined} onClick={() => changeScope({ view: "invoices" })}><FileTextOutlined />Счета и акты<span>{workspace.summary.invoiceCount}</span></button>
-          <button type="button" aria-current={view === "payments" ? "page" : undefined} onClick={() => changeScope({ view: "payments" })}><BankOutlined />Поступления<span>{workspace.payments.length}</span></button>
+          <button type="button" aria-current={view === "payments" ? "page" : undefined} onClick={() => changeScope({ view: "payments" })}><BankOutlined />Поступления <span>{currentPaymentCount}</span></button>
         </nav>
-        <div className="business-register__top"><div><h2>{view === "payers" ? "Расчёты с плательщиками" : view === "invoices" ? "Реестр документов" : "Все поступления"}</h2><p>{view === "payers" ? "Суммы за выбранный период. Архивные версии не учитываются." : view === "invoices" ? "Счёт и акт относятся к одной сумме. Все версии доступны в истории." : "История за все периоды: выбранный месяц счетов не ограничивает список. Оплата по счетам учитывается по периоду услуг."}</p></div><Input prefix={<SearchOutlined />} allowClear placeholder={view === "payers" ? "Название или ИНН" : view === "invoices" ? "Номер, плательщик, основание" : "Плательщик или назначение"} aria-label="Поиск в бизнесе" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></div>
+        <div className="business-register__top"><div><h2>{view === "payers" ? "Расчёты с плательщиками" : view === "invoices" ? "Реестр документов" : includePaymentHistory ? "Поступления и история" : "Текущие поступления"}</h2><p>{view === "payers" ? `${period === "all" ? "Баланс счетов и авансы за все периоды" : `Счета за ${formatPeriod(period).toLocaleLowerCase("ru")}, авансы за все периоды`}. Нажмите на плательщика, чтобы открыть всю историю.` : view === "invoices" ? "Счёт и акт относятся к одной сумме. Все версии доступны в истории." : "Выбранный месяц счетов не ограничивает список текущих поступлений. Оплата по счетам учитывается по периоду услуг."}</p></div><Input prefix={<SearchOutlined />} allowClear placeholder={view === "payers" ? "Название или ИНН" : view === "invoices" ? "Номер, плательщик, основание" : "Плательщик или назначение"} aria-label="Поиск в бизнесе" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></div>
         {view === "invoices" && <div className="business-register__filters"><Select aria-label="Статус счёта" value={invoiceStatus} onChange={value => { setInvoiceStatus(value); setPage(1); }} options={[{ value: "all", label: "Все статусы" }, ...(["paid", "partial", "unmatched", "unreviewed"] as InvoiceStatus[]).map(value => ({ value, label: invoiceStatusLabels[value] }))]} /><label className="business-switch-label"><Switch size="small" checked={includeArchive} onChange={value => { setIncludeArchive(value); setPage(1); }} />Архивные версии</label></div>}
-        {view === "payments" && <div className="business-payments-summary"><div><span>Поступило за выбранный период</span><strong>{paymentsKnown ? formatMoney(workspace.summary.receivedMinor) : "Нет данных"}</strong></div><div><span>Не распределено</span><strong>{paymentsKnown ? formatMoney(workspace.summary.unallocatedMinor) : "Нет данных"}</strong></div><label className="business-switch-label"><Switch size="small" checked={unallocatedOnly} onChange={value => { setUnallocatedOnly(value); setPage(1); }} />Только нераспределённые</label></div>}
+        {view === "payments" && <div className="business-payments-summary"><div><span>{period === "all" ? "Поступило за месяцы учёта" : "Поступило за выбранный период"}</span><strong>{paymentsKnown ? formatMoney(workspace.summary.receivedMinor) : "Нет данных"}</strong><span className="business-cash-periods">{period === "all" ? accountingPeriodLabel || "Месяцы учёта пока не заданы" : formatPeriod(period)}</span>{includePaymentHistory && workspace.summary.historicalReceivedMinor > 0 && <span className="business-cash-history">Поступления до начала учёта за {period === "all" ? accountingPeriodLabel || "выбранные месяцы" : formatPeriod(period).toLocaleLowerCase("ru")}: {formatMoney(workspace.summary.historicalReceivedMinor)}. Не входят в текущие поступления.</span>}</div><div><span>Требует распределения</span><strong>{paymentsKnown ? formatMoney(requiresAllocation) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div><div><span>Аванс</span><strong>{paymentsKnown ? formatMoney(workspace.summary.advanceMinor) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div><label className="business-switch-label"><Switch size="small" checked={unallocatedOnly} onChange={value => { setUnallocatedOnly(value); setPage(1); }} />Требуют распределения</label></div>}
+        {view === "payments" && historicalPaymentCount > 0 && <div className="business-register__filters"><label className="business-switch-label"><Switch size="small" checked={includePaymentHistory} onChange={value => { setIncludePaymentHistory(value); setPage(1); }} />История до учёта ({historicalPaymentCount})</label></div>}
         <div aria-busy={loading}>
           {view === "payers" && <CounterpartyLedger rows={rows.payers.slice(offset, offset + PAGE_SIZE)} onOpen={id => changeScope({ payer: id, view: "invoices", period: "all" })} />}
           {view === "invoices" && <InvoiceLedger rows={rows.invoices.slice(offset, offset + PAGE_SIZE)} counterparties={workspace.counterparties} onOpen={id => setDetailInvoice(workspace.invoices.find(item => item.id === id) ?? null)} />}

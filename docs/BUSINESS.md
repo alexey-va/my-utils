@@ -9,6 +9,11 @@ An aligned financial summary leads into payer, document and incoming-payment
 views. Narrow layouts turn ledger rows into readable records. Payer selection
 opens all-period history; the URL retains period, payer and selected view.
 Invoice creation, reconciliation and bank connection use focused drawers.
+The initial overview includes all periods. Explicit month URLs remain monthly,
+with a visible scope explanation and a one-click return to all periods.
+Quick links use `accountingPeriods` (current invoices); the full selector keeps
+archived document periods. Invoice charges, paid amounts and remainder use the
+selected period; eligible advances remain global and are labelled separately.
 
 ## Accounting semantics
 
@@ -17,7 +22,23 @@ Invoice creation, reconciliation and bank connection use focused drawers.
 - Only current invoices contribute to charges. An act accompanies an invoice
   and does not create another receivable. Archived versions stay downloadable.
 - Paid totals represent allocations to the selected invoice period. Incoming
-  totals represent payment posting dates and are displayed separately.
+  totals represent payment posting dates and are displayed separately. In the
+  all-period view, cash totals cover the calendars in `accountingPeriods`, not
+  every year of bank history. Legacy cash is excluded from current receipts and
+  the payer's last current payment. `historicalReceivedMinor` is a separate,
+  excluded amount, shown only when the user reveals legacy history.
+- Recognized advances across all current contracts/periods remain separate from
+  invoice remainder, including in each payer row. The review amount is
+  `unallocatedMinor - advanceMinor`; advances
+  are still available for future manual allocation and never reduce another
+  contract's balance in the interface.
+- The server excludes own-account/tax transfers from the business response.
+  The payment list and its navigation count show rental/unclassified receipts
+  by default. A separate history toggle reveals historical/outside-period rows
+  without adding them to current totals. `historical` means an older purpose or
+  owner-confirmed legacy receipt; `outside_period` means receipt before current
+  accounting months without claiming old invoices were settled. Neither offers
+  current allocation.
 - Missing coverage is `Не сверено`, not a zero payment or confirmed debt.
   A missing match means no payment was found in the available Tochka statements;
   it does not establish overdue debt or exclude payments through another bank.
