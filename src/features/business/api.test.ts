@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "../../api/client";
 import { storeSession } from "../../auth/session";
-import { allocateBusinessPayment, connectBusinessBank, createBusinessInvoice, disconnectBusinessBank, fetchBusinessWorkspace, reverseBusinessAllocation, syncBusinessBank } from "./api";
+import { allocateBusinessPayment, connectBusinessBank, createBusinessInvoice, disconnectBusinessBank, fetchBusinessWorkspace, reverseBusinessAllocation, setBusinessCounterpartyStatus, syncBusinessBank } from "./api";
 
 afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
 const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
@@ -17,14 +17,17 @@ describe("Business API boundary", () => {
     await connectBusinessBank("synthetic-token");
     await syncBusinessBank("2026-10-01", "2026-10-31");
     await disconnectBusinessBank();
+    await setBusinessCounterpartyStatus("payer /?#", true);
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init.method])).toEqual([
       ["/api/admin/business/?period=2026-10&counterpartyId=payer+%2F%3F%23", "GET"],
       ["/api/admin/business/invoices", "POST"], ["/api/admin/business/allocations", "POST"],
       ["/api/admin/business/allocations/allocation%20%2F%3F%23", "DELETE"],
       ["/api/admin/business/bank/connect", "POST"], ["/api/admin/business/bank/sync", "POST"], ["/api/admin/business/bank/connect", "DELETE"],
+      ["/api/admin/business/counterparties/payer%20%2F%3F%23/status", "PUT"],
     ]);
     expect(fetchMock.mock.calls[0][1].cache).toBe("no-store");
     expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ invoiceId: "invoice", paymentId: "payment", amountMinor: 123 });
+    expect(JSON.parse(fetchMock.mock.calls[7][1].body)).toEqual({ inactive: true });
     expect(localStorage.length).toBe(0);
   });
   it("downloads protected bytes after the shared JWT refresh without corrupting binary data", async () => {

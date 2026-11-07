@@ -19,6 +19,7 @@ export const apiEndpoints = {
   admin: {
     business: "/api/admin/business/",
     businessInvoices: "/api/admin/business/invoices",
+    businessCounterpartyStatus: (id: string) => `/api/admin/business/counterparties/${encodeURIComponent(id)}/status`,
     businessFile: (id: string) => `/api/admin/business/files/${encodeURIComponent(id)}`,
     businessAllocations: "/api/admin/business/allocations",
     businessAllocation: (id: string) => `/api/admin/business/allocations/${encodeURIComponent(id)}`,

@@ -12,6 +12,10 @@ export function createBusinessInvoice(body: CreateBusinessInvoice): Promise<Busi
   return apiClient.post(apiEndpoints.admin.businessInvoices, body);
 }
 
+export function setBusinessCounterpartyStatus(id: string, inactive: boolean): Promise<void> {
+  return apiClient.put(apiEndpoints.admin.businessCounterpartyStatus(id), { inactive });
+}
+
 export function allocateBusinessPayment(invoiceId: string, paymentId: string, amountMinor: number): Promise<BusinessAllocation> {
   return apiClient.post(apiEndpoints.admin.businessAllocations, { invoiceId, paymentId, amountMinor });
 }

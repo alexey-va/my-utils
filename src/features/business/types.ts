@@ -2,7 +2,7 @@ export type BusinessContact = { email: string; note: string; confirmed: boolean 
 export type BusinessLineItem = { description: string; quantity: string; unit: string; priceMinor: number; amountMinor: number };
 export type InvoiceTemplate = { id: string; label: string; basis: string; items: BusinessLineItem[] };
 export type BusinessSeller = { name: string; inn: string; address: string; bankName: string; bankBik: string; bankAccount: string; bankCorrespondentAccount: string };
-export type BusinessCounterparty = { id: string; name: string; entityType: "company" | "ip" | "person"; inn: string; address: string; contacts: BusinessContact[]; templates: InvoiceTemplate[] };
+export type BusinessCounterparty = { id: string; name: string; entityType: "company" | "ip" | "person"; inn: string; address: string; contacts: BusinessContact[]; templates: InvoiceTemplate[]; inactive?: boolean };
 export type BusinessDocument = { id: string; kind: "invoice" | "act" | "other"; filename: string; mimeType: string; size: number; sha256: string };
 export type BusinessInvoice = {
   id: string; counterpartyId: string; templateId: string; number: string; issueDate: string; dueDate: string;
@@ -18,11 +18,11 @@ export type InvoiceStatus = "paid" | "partial" | "unmatched" | "unreviewed" | "a
 export type BusinessInvoiceView = BusinessInvoice & { paidMinor: number; outstandingMinor: number; status: InvoiceStatus; allocations: BusinessAllocation[] };
 export type PaymentClassification = "rental" | "historical" | "outside_period" | "unclassified";
 export type BusinessPaymentView = BusinessPayment & { classification: PaymentClassification; historicalInvoiceId?: string; allocatedMinor: number; unallocatedMinor: number; advanceMinor: number; allocations: BusinessAllocation[] };
-export type BusinessCounterpartyView = BusinessCounterparty & { invoicedMinor: number; paidMinor: number; outstandingMinor: number; receivedMinor: number; advanceMinor: number; invoiceCount: number; unreviewedCount: number; lastPaymentAt: string };
+export type BusinessCounterpartyView = BusinessCounterparty & { invoicedMinor: number; paidMinor: number; outstandingMinor: number; receivedMinor: number; advanceMinor: number; invoiceCount: number; unreviewedCount: number; lastPaymentAt: string; previousPeriodDocuments?: { invoice: boolean; act: boolean } };
 export type BusinessSummary = {
   invoicedMinor: number; paidMinor: number; outstandingMinor: number; receivedMinor: number; unallocatedMinor: number; advanceMinor: number; historicalReceivedMinor: number;
   invoiceCount: number; counterpartyCount: number; paidInvoiceCount: number; partialInvoiceCount: number;
   unreviewedInvoiceCount: number; reconciliationComplete: boolean;
 };
-export type BusinessWorkspace = { seller: BusinessSeller; counterparties: BusinessCounterpartyView[]; invoices: BusinessInvoiceView[]; payments: BusinessPaymentView[]; summary: BusinessSummary; bank: BusinessBank; periods: string[]; accountingPeriods: string[]; nextInvoiceNumber: string };
+export type BusinessWorkspace = { seller: BusinessSeller; counterparties: BusinessCounterpartyView[]; invoices: BusinessInvoiceView[]; payments: BusinessPaymentView[]; summary: BusinessSummary; bank: BusinessBank; periods: string[]; accountingPeriods: string[]; nextInvoiceNumber: string; previousPeriod?: string };
 export type CreateBusinessInvoice = { counterpartyId: string; templateId: string; period: string; issueDate: string; dueDate?: string; number?: string; basis?: string; items: BusinessLineItem[]; provider: "local" | "tochka" };
