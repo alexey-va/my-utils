@@ -26,19 +26,23 @@ selected period; eligible advances remain global and are labelled separately.
   all-period view, cash totals cover the calendars in `accountingPeriods`, not
   every year of bank history. Legacy cash is excluded from current receipts and
   the payer's last current payment. `historicalReceivedMinor` is a separate,
-  excluded amount, shown only when the user reveals legacy history.
+  excluded amount, shown separately whenever it is nonzero.
 - Recognized advances across all current contracts/periods remain separate from
   invoice remainder, including in each payer row. The review amount is
   `unallocatedMinor - advanceMinor`; advances
   are still available for future manual allocation and never reduce another
   contract's balance in the interface.
 - The server excludes own-account/tax transfers from the business response.
-  The payment list and its navigation count show rental/unclassified receipts
-  by default. A separate history toggle reveals historical/outside-period rows
-  without adding them to current totals. `historical` means an older purpose or
+  The payment list and its navigation count include all returned receipts,
+  including unclassified and historical/outside-period rows, in date order.
+  Search and pagination apply to this complete list; the allocation action
+  opens it without adding a hidden filter. Historical rows do not add to
+  current totals. `historical` means an older purpose or
   owner-confirmed legacy receipt; `outside_period` means receipt before current
   accounting months without claiming old invoices were settled. Neither offers
-  current allocation.
+  current allocation. Optional `historicalInvoiceId` links a historical receipt
+  to an archived invoice for reference only; the ledger and payment details
+  show that document without adding an allocation or changing balances.
 - Missing coverage is `Не сверено`, not a zero payment or confirmed debt.
   A missing match means no payment was found in the available Tochka statements;
   it does not establish overdue debt or exclude payments through another bank.

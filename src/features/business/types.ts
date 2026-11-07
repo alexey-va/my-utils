@@ -17,7 +17,7 @@ export type BusinessBank = { connected: boolean; lastSyncedAt: string; coverageS
 export type InvoiceStatus = "paid" | "partial" | "unmatched" | "unreviewed" | "archived";
 export type BusinessInvoiceView = BusinessInvoice & { paidMinor: number; outstandingMinor: number; status: InvoiceStatus; allocations: BusinessAllocation[] };
 export type PaymentClassification = "rental" | "historical" | "outside_period" | "unclassified";
-export type BusinessPaymentView = BusinessPayment & { classification: PaymentClassification; allocatedMinor: number; unallocatedMinor: number; advanceMinor: number; allocations: BusinessAllocation[] };
+export type BusinessPaymentView = BusinessPayment & { classification: PaymentClassification; historicalInvoiceId?: string; allocatedMinor: number; unallocatedMinor: number; advanceMinor: number; allocations: BusinessAllocation[] };
 export type BusinessCounterpartyView = BusinessCounterparty & { invoicedMinor: number; paidMinor: number; outstandingMinor: number; receivedMinor: number; advanceMinor: number; invoiceCount: number; unreviewedCount: number; lastPaymentAt: string };
 export type BusinessSummary = {
   invoicedMinor: number; paidMinor: number; outstandingMinor: number; receivedMinor: number; unallocatedMinor: number; advanceMinor: number; historicalReceivedMinor: number;

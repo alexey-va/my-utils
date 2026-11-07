@@ -125,7 +125,6 @@
 .business-payments-summary > div { display: flex; flex-direction: column; gap: 8px; }
 .business-payments-summary > div > span { color: var(--linear-ink-muted); font-size: 12px; }
 .business-payments-summary strong { color: var(--linear-ink); font-weight: 550; font-size: 20px; }
-.business-payments-summary .business-switch-label { margin-left: auto; }
 .business-payments-summary .business-cash-periods, .business-payments-summary .business-cash-history { font-size: 11px; line-height: 1.6; max-width: 330px; }
 .business-advance-note { margin-top: 18px; }
 .business-drawer .ant-drawer-content { background: var(--linear-surface-1); }
@@ -214,7 +213,6 @@
   .business-payment-grid > div:nth-child(2) .business-mobile-label { display: inline; margin-right: 6px; }
   .business-payment-grid .business-money-cell { font-size: 14px; }
   .business-payments-summary { padding-inline: 18px; flex-wrap: wrap; gap: 24px; }
-  .business-payments-summary .business-switch-label { width: 100%; margin: 0; }
   .business-payments-summary strong { font-size: 18px; }
   .business-drawer .ant-drawer-body, .business-drawer .ant-drawer-header { padding: 20px 18px; }
   .business-drawer .ant-drawer-footer { padding: 16px 18px; }

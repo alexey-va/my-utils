@@ -11,7 +11,7 @@ import { InvoiceLedger, PaymentLedger } from "./BusinessLedgers";
 import { InvoiceDetailDrawer, PaymentDetailDrawer } from "./BusinessDetails";
 import InvoiceEditor from "./InvoiceEditor";
 import BankDrawer from "./BankDrawer";
-import { amountRequiringAllocation, formatMoney, formatPeriod, hasPeriodCoverage, invoiceStatusLabels, paymentOutsideAccounting } from "./format";
+import { amountRequiringAllocation, formatMoney, formatPeriod, hasPeriodCoverage, invoiceStatusLabels } from "./format";
 import type { BusinessInvoiceView, BusinessPaymentView, BusinessWorkspace, InvoiceStatus } from "./types";
 import "./business.css";
 
@@ -30,8 +30,6 @@ export default function BusinessPage() {
   const [query, setQuery] = useState("");
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus | "all">("all");
   const [includeArchive, setIncludeArchive] = useState(false);
-  const [unallocatedOnly, setUnallocatedOnly] = useState(false);
-  const [includePaymentHistory, setIncludePaymentHistory] = useState(false);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
@@ -48,8 +46,6 @@ export default function BusinessPage() {
   const accountingPeriodLabel = accountingPeriods.map(value => formatPeriod(value).toLocaleLowerCase("ru")).join(" · ");
   const periodOptions = Array.from(new Set([...(result?.data.periods ?? []), ...(period !== "all" ? [period] : [])])).sort().reverse();
   const requiresAllocation = workspace ? amountRequiringAllocation(workspace.summary) : 0;
-  const currentPaymentCount = workspace?.payments.filter(item => !paymentOutsideAccounting(item)).length ?? 0;
-  const historicalPaymentCount = (workspace?.payments.length ?? 0) - currentPaymentCount;
   const scopeTitle = period === "all" ? "Расчёты за все периоды" : `Расчёты за ${formatPeriod(period).toLocaleLowerCase("ru")}`;
   const reload = () => setRevision(value => value + 1);
 
@@ -73,9 +69,9 @@ export default function BusinessPage() {
     return {
       payers: workspace.counterparties.filter(item => matches(`${item.name} ${item.inn}`)),
       invoices: workspace.invoices.filter(item => (includeArchive || item.isCurrent) && (invoiceStatus === "all" || item.status === invoiceStatus) && matches(`${item.number} ${item.basis} ${names.get(item.counterpartyId) ?? ""}`)).sort((a, b) => b.period.localeCompare(a.period) || Number(b.isCurrent) - Number(a.isCurrent) || b.number.localeCompare(a.number, "ru", { numeric: true })),
-      payments: workspace.payments.filter(item => (includePaymentHistory || !paymentOutsideAccounting(item)) && (!unallocatedOnly || (!paymentOutsideAccounting(item) && amountRequiringAllocation(item) > 0)) && matches(`${item.counterpartyName} ${item.payerInn} ${item.description}`)).sort((a, b) => b.date.localeCompare(a.date)),
+      payments: workspace.payments.filter(item => matches(`${item.counterpartyName} ${item.payerInn} ${item.description}`)).sort((a, b) => b.date.localeCompare(a.date)),
     };
-  }, [workspace, query, includeArchive, invoiceStatus, unallocatedOnly, includePaymentHistory]);
+  }, [workspace, query, includeArchive, invoiceStatus]);
   const selectedRows = rows[view];
   const currentPage = Math.min(page, Math.max(1, Math.ceil(selectedRows.length / PAGE_SIZE)));
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -98,22 +94,21 @@ export default function BusinessPage() {
     {error && <Alert className="business-load-error" type="error" showIcon message={error} description={workspace ? "На экране остаются данные последней успешной загрузки." : undefined} action={<Button onClick={reload}>Повторить</Button>} />}
     {!workspace ? !error && <div className="business-loading"><Skeleton active paragraph={{ rows: 3 }} /><Skeleton active paragraph={{ rows: 8 }} /></div> : <>
       <BusinessOverview summary={workspace.summary} bank={workspace.bank} onBank={() => setBankOpen(true)} />
-      {requiresAllocation > 0 && <div className="business-review-strip"><InfoCircleOutlined /><p><strong>{formatMoney(requiresAllocation)} требуют распределения.</strong> Авансы учтены отдельно и не входят в эту сумму.</p><Button type="link" onClick={() => { setUnallocatedOnly(true); changeScope({ view: "payments" }); }}>Распределить</Button></div>}
+      {requiresAllocation > 0 && <div className="business-review-strip"><InfoCircleOutlined /><p><strong>{formatMoney(requiresAllocation)} требуют распределения.</strong> Авансы учтены отдельно и не входят в эту сумму.</p><Button type="link" onClick={() => changeScope({ view: "payments" })}>Распределить</Button></div>}
       {payer && <details className="business-payer-details"><summary>Реквизиты и контакты</summary><dl className="business-details"><div><dt>ИНН</dt><dd>{payer.inn || "Не указан"}</dd></div>{payer.address && <div><dt>Адрес</dt><dd>{payer.address}</dd></div>}{payer.contacts.map((contact, index) => <div key={index}><dt>Email {contact.confirmed ? "" : "(не подтверждён)"}</dt><dd>{contact.email}{contact.note && <span className="business-cell-note">{contact.note}</span>}</dd></div>)}</dl></details>}
       <AppPanel className="business-register">
         <nav className="business-view-tabs" aria-label="Разделы бизнеса">
           {!counterpartyId && <button type="button" aria-current={view === "payers" ? "page" : undefined} onClick={() => changeScope({ view: "payers" })}><TeamOutlined />Плательщики<span>{workspace.counterparties.length}</span></button>}
           <button type="button" aria-current={view === "invoices" ? "page" : undefined} onClick={() => changeScope({ view: "invoices" })}><FileTextOutlined />Счета и акты<span>{workspace.summary.invoiceCount}</span></button>
-          <button type="button" aria-current={view === "payments" ? "page" : undefined} onClick={() => changeScope({ view: "payments" })}><BankOutlined />Поступления <span>{currentPaymentCount}</span></button>
+          <button type="button" aria-current={view === "payments" ? "page" : undefined} onClick={() => changeScope({ view: "payments" })}><BankOutlined />Поступления <span>{workspace.payments.length}</span></button>
         </nav>
-        <div className="business-register__top"><div><h2>{view === "payers" ? "Расчёты с плательщиками" : view === "invoices" ? "Реестр документов" : includePaymentHistory ? "Поступления и история" : "Текущие поступления"}</h2><p>{view === "payers" ? `${period === "all" ? "Баланс счетов и авансы за все периоды" : `Счета за ${formatPeriod(period).toLocaleLowerCase("ru")}, авансы за все периоды`}. Нажмите на плательщика, чтобы открыть всю историю.` : view === "invoices" ? "Счёт и акт относятся к одной сумме. Все версии доступны в истории." : "Выбранный месяц счетов не ограничивает список текущих поступлений. Оплата по счетам учитывается по периоду услуг."}</p></div><Input prefix={<SearchOutlined />} allowClear placeholder={view === "payers" ? "Название или ИНН" : view === "invoices" ? "Номер, плательщик, основание" : "Плательщик или назначение"} aria-label="Поиск в бизнесе" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></div>
+        <div className="business-register__top"><div><h2>{view === "payers" ? "Расчёты с плательщиками" : view === "invoices" ? "Реестр документов" : "Поступления"}</h2><p>{view === "payers" ? `${period === "all" ? "Баланс счетов и авансы за все периоды" : `Счета за ${formatPeriod(period).toLocaleLowerCase("ru")}, авансы за все периоды`}. Нажмите на плательщика, чтобы открыть всю историю.` : view === "invoices" ? "Счёт и акт относятся к одной сумме. Все версии доступны в истории." : "Поступления за все периоды. Выбранный месяц ограничивает только сводку; записи до начала учёта не входят в текущие суммы."}</p></div><Input prefix={<SearchOutlined />} allowClear placeholder={view === "payers" ? "Название или ИНН" : view === "invoices" ? "Номер, плательщик, основание" : "Плательщик или назначение"} aria-label="Поиск в бизнесе" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></div>
         {view === "invoices" && <div className="business-register__filters"><Select aria-label="Статус счёта" value={invoiceStatus} onChange={value => { setInvoiceStatus(value); setPage(1); }} options={[{ value: "all", label: "Все статусы" }, ...(["paid", "partial", "unmatched", "unreviewed"] as InvoiceStatus[]).map(value => ({ value, label: invoiceStatusLabels[value] }))]} /><label className="business-switch-label"><Switch size="small" checked={includeArchive} onChange={value => { setIncludeArchive(value); setPage(1); }} />Архивные версии</label></div>}
-        {view === "payments" && <div className="business-payments-summary"><div><span>{period === "all" ? "Поступило за месяцы учёта" : "Поступило за выбранный период"}</span><strong>{paymentsKnown ? formatMoney(workspace.summary.receivedMinor) : "Нет данных"}</strong><span className="business-cash-periods">{period === "all" ? accountingPeriodLabel || "Месяцы учёта пока не заданы" : formatPeriod(period)}</span>{includePaymentHistory && workspace.summary.historicalReceivedMinor > 0 && <span className="business-cash-history">Поступления до начала учёта за {period === "all" ? accountingPeriodLabel || "выбранные месяцы" : formatPeriod(period).toLocaleLowerCase("ru")}: {formatMoney(workspace.summary.historicalReceivedMinor)}. Не входят в текущие поступления.</span>}</div><div><span>Требует распределения</span><strong>{paymentsKnown ? formatMoney(requiresAllocation) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div><div><span>Аванс</span><strong>{paymentsKnown ? formatMoney(workspace.summary.advanceMinor) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div><label className="business-switch-label"><Switch size="small" checked={unallocatedOnly} onChange={value => { setUnallocatedOnly(value); setPage(1); }} />Требуют распределения</label></div>}
-        {view === "payments" && historicalPaymentCount > 0 && <div className="business-register__filters"><label className="business-switch-label"><Switch size="small" checked={includePaymentHistory} onChange={value => { setIncludePaymentHistory(value); setPage(1); }} />История до учёта ({historicalPaymentCount})</label></div>}
+        {view === "payments" && <div className="business-payments-summary"><div><span>{period === "all" ? "Поступило за месяцы учёта" : "Поступило за выбранный период"}</span><strong>{paymentsKnown ? formatMoney(workspace.summary.receivedMinor) : "Нет данных"}</strong><span className="business-cash-periods">{period === "all" ? accountingPeriodLabel || "Месяцы учёта пока не заданы" : formatPeriod(period)}</span>{workspace.summary.historicalReceivedMinor > 0 && <span className="business-cash-history">Поступления до начала учёта за {period === "all" ? accountingPeriodLabel || "выбранные месяцы" : formatPeriod(period).toLocaleLowerCase("ru")}: {formatMoney(workspace.summary.historicalReceivedMinor)}. Не входят в текущие поступления.</span>}</div><div><span>Требует распределения</span><strong>{paymentsKnown ? formatMoney(requiresAllocation) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div><div><span>Аванс</span><strong>{paymentsKnown ? formatMoney(workspace.summary.advanceMinor) : "Нет данных"}</strong><span className="business-cash-periods">За все периоды</span></div></div>}
         <div aria-busy={loading}>
           {view === "payers" && <CounterpartyLedger rows={rows.payers.slice(offset, offset + PAGE_SIZE)} onOpen={id => changeScope({ payer: id, view: "invoices", period: "all" })} />}
           {view === "invoices" && <InvoiceLedger rows={rows.invoices.slice(offset, offset + PAGE_SIZE)} counterparties={workspace.counterparties} onOpen={id => setDetailInvoice(workspace.invoices.find(item => item.id === id) ?? null)} />}
-          {view === "payments" && <PaymentLedger rows={rows.payments.slice(offset, offset + PAGE_SIZE)} onOpen={id => setDetailPayment(workspace.payments.find(item => item.id === id) ?? null)} />}
+          {view === "payments" && <PaymentLedger rows={rows.payments.slice(offset, offset + PAGE_SIZE)} invoices={workspace.invoices} onOpen={id => setDetailPayment(workspace.payments.find(item => item.id === id) ?? null)} />}
         </div>
         <div className="business-register__footer"><span>{selectedRows.length ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, selectedRows.length)} из ${selectedRows.length}` : "Нет записей"}</span>{selectedRows.length > PAGE_SIZE && <Pagination size="small" pageSize={PAGE_SIZE} current={currentPage} total={selectedRows.length} showSizeChanger={false} onChange={setPage} />}</div>
       </AppPanel>

@@ -6,7 +6,7 @@ import BusinessPage from "./BusinessPage";
 import InvoiceEditor from "./InvoiceEditor";
 import BankDrawer from "./BankDrawer";
 import { InvoiceDetailDrawer, PaymentDetailDrawer } from "./BusinessDetails";
-import { InvoiceLedger } from "./BusinessLedgers";
+import { InvoiceLedger, PaymentLedger } from "./BusinessLedgers";
 import { businessTestPayment, businessTestWorkspace } from "./testFixtures";
 import { formatMoney } from "./format";
 
@@ -101,8 +101,8 @@ describe("Business workspace", () => {
     data.payments = [{ id: "payment-october", date: "2026-10-28", amountMinor: 10000, currency: "RUB", counterpartyId: "payer-1", counterpartyName: "Тестовый плательщик", payerInn: "0000000001", description: "Поступление в октябре", accountLabel: "Тестовый счёт", source: "synthetic", classification: "rental", allocatedMinor: 0, unallocatedMinor: 10000, advanceMinor: 0, allocations: [] }];
     api.fetch.mockResolvedValue(data);
     page("/business?period=2026-11&view=payments");
-    expect(await screen.findByRole("heading", { name: "Текущие поступления" })).toBeInTheDocument();
-    expect(screen.getByText(/Выбранный месяц счетов не ограничивает список текущих поступлений/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Поступления" })).toBeInTheDocument();
+    expect(screen.getByText(/Поступления за все периоды. Выбранный месяц ограничивает только сводку/)).toBeInTheDocument();
     expect(screen.getByText("28.10.2026")).toBeInTheDocument();
     const selectedPeriodReceipts = screen.getByText("Поступило за выбранный период").parentElement!;
     expect(within(selectedPeriodReceipts).getByText(formatMoney(0))).toBeInTheDocument();
@@ -133,45 +133,63 @@ describe("Business advances and payment history", () => {
     expect(payers.getByText(formatMoney(30000))).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Распределить" })).not.toBeInTheDocument();
   });
-  it("hides legacy receipts by default and reveals them without including their cash in current receipts", async () => {
+  it("shows all receipts chronologically without switches while keeping historical cash and advances separate", async () => {
     const data = businessTestWorkspace();
-    data.summary = { ...data.summary, receivedMinor: 70000, historicalReceivedMinor: 20000, unallocatedMinor: 40000, advanceMinor: 30000 };
+    data.summary = { ...data.summary, receivedMinor: 90000, historicalReceivedMinor: 20000, unallocatedMinor: 55000, advanceMinor: 30000 };
     data.payments = [
       businessTestPayment({ id: "advance", counterpartyName: "Тестовый аванс", amountMinor: 30000, unallocatedMinor: 30000, advanceMinor: 30000 }),
-      businessTestPayment({ id: "review", counterpartyName: "Тестовое распределение", amountMinor: 40000, allocatedMinor: 30000, unallocatedMinor: 10000 }),
-      businessTestPayment({ id: "historical", counterpartyName: "Тестовая история", amountMinor: 20000, classification: "historical", unallocatedMinor: 0 }),
+      businessTestPayment({ id: "review", counterpartyName: "Тестовое распределение", date: "2026-10-19", amountMinor: 40000, allocatedMinor: 30000, unallocatedMinor: 10000 }),
+      businessTestPayment({ id: "historical", counterpartyName: "Тестовая история", date: "2026-10-25", amountMinor: 20000, classification: "historical", historicalInvoiceId: "invoice-old", unallocatedMinor: 0 }),
       businessTestPayment({ id: "outside", counterpartyName: "Тестовое раннее поступление", amountMinor: 10000, date: "2026-08-20", classification: "outside_period", unallocatedMinor: 0 }),
+      businessTestPayment({ id: "unknown", counterpartyId: "", counterpartyName: "Тестовое неизвестное поступление", date: "2026-10-28", classification: "unclassified", amountMinor: 15000, unallocatedMinor: 15000 }),
+      businessTestPayment({ id: "allocated", counterpartyName: "Тестовое распределённое поступление", date: "2026-10-18", amountMinor: 5000, allocatedMinor: 5000, unallocatedMinor: 0 }),
     ];
     api.fetch.mockResolvedValue(data);
     page("/business?view=payments");
     expect(await screen.findByText("Поступило за месяцы учёта")).toBeInTheDocument();
     expect(screen.getByText("сентябрь 2026 · октябрь 2026")).toBeInTheDocument();
     const receipts = within(screen.getByText("Поступило за месяцы учёта").parentElement!);
-    expect(receipts.getByText(formatMoney(70000))).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Поступления 2/ })).toBeInTheDocument();
-    expect(screen.queryByText("Оплата прошлых периодов")).not.toBeInTheDocument();
-    expect(screen.queryByText("До периода учёта")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Поступления до начала учёта за/)).not.toBeInTheDocument();
-    const historySwitch = screen.getByRole("switch", { name: "История до учёта (2)" });
-    expect(historySwitch).not.toBeChecked();
-    fireEvent.click(historySwitch);
-    expect(screen.getByRole("heading", { name: "Поступления и история" })).toBeInTheDocument();
+    expect(receipts.getByText(formatMoney(90000))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Поступления 6/ })).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Поступления" })).toBeInTheDocument();
     expect(screen.getByText("Оплата прошлых периодов")).toBeInTheDocument();
     expect(screen.getByText("До периода учёта")).toBeInTheDocument();
+    expect(screen.getByText("Архивный счёт № 100")).toBeInTheDocument();
+    expect(screen.getByText("Назначение требует проверки")).toBeInTheDocument();
     expect(screen.getByText(/Поступления до начала учёта за сентябрь 2026 · октябрь 2026: 200.*Не входят в текущие поступления/)).toBeInTheDocument();
-    expect(receipts.getByText(formatMoney(70000))).toBeInTheDocument();
+    expect(receipts.getByText(formatMoney(90000))).toBeInTheDocument();
     expect(screen.queryByText(/В том числе за прошлые периоды/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Поступления 2/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("switch", { name: "Требуют распределения" }));
     const payments = within(screen.getByRole("table", { name: "Поступления" }));
-    expect(payments.getByRole("button", { name: "Тестовое распределение" })).toBeInTheDocument();
-    expect(payments.queryByRole("button", { name: "Тестовый аванс" })).not.toBeInTheDocument();
-    expect(payments.queryByRole("button", { name: "Тестовая история" })).not.toBeInTheDocument();
-    expect(payments.queryByRole("button", { name: "Тестовое раннее поступление" })).not.toBeInTheDocument();
+    expect(payments.getAllByRole("row").slice(1).map(row => within(row).getAllByRole("button")[0].textContent)).toEqual([
+      "Тестовое неизвестное поступление", "Тестовая история", "Тестовый аванс", "Тестовое распределение", "Тестовое распределённое поступление", "Тестовое раннее поступление",
+    ]);
+    expect(screen.getByText("1–6 из 6")).toBeInTheDocument();
+    expect(within(screen.getAllByText("Требует распределения")[0].parentElement!).getByText(formatMoney(25000))).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Поиск в бизнесе" }), { target: { value: "неизвестное" } });
+    expect(payments.getByRole("button", { name: "Тестовое неизвестное поступление" })).toBeInTheDocument();
+    expect(screen.getByText("1–1 из 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Распределить" }));
+    expect(screen.getByText("1–6 из 6")).toBeInTheDocument();
+    expect(payments.getByRole("button", { name: "Тестовый аванс" })).toBeInTheDocument();
+    expect(payments.getByRole("button", { name: "Тестовая история" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Месяцы учёта" })).getByRole("button", { name: "Октябрь 2026" }));
     expect(await screen.findByText(/Поступления до начала учёта за октябрь 2026: 200.*Не входят в текущие поступления/)).toBeInTheDocument();
     expect(screen.queryByText(/Поступления до начала учёта за сентябрь/)).not.toBeInTheDocument();
   }, 15_000);
+  it("keeps a historical invoice association understandable when the invoice is outside the selected month", async () => {
+    const data = businessTestWorkspace();
+    const payment = businessTestPayment({ classification: "historical", historicalInvoiceId: "invoice-old", unallocatedMinor: 0 });
+    data.payments = [payment];
+    api.fetch.mockResolvedValue(data);
+    render(<PaymentLedger rows={[payment]} invoices={[]} onOpen={vi.fn()} />);
+    expect(screen.getByText("Связан с архивным счётом")).toBeInTheDocument();
+    await act(async () => { render(<PaymentDetailDrawer payment={payment} onClose={vi.fn()} onChanged={vi.fn()} />); });
+    const details = within(screen.getByRole("dialog"));
+    expect(details.getByText("Архивный счёт")).toBeInTheDocument();
+    expect(details.getByText("№ 100 от 01.10.2026")).toBeInTheDocument();
+    expect(details.queryByRole("button", { name: "Зачесть оплату" })).not.toBeInTheDocument();
+  });
   it.each(["historical", "outside_period"] as const)("keeps %s payment details readable without current-invoice allocation controls", async classification => {
     const data = businessTestWorkspace();
     const payment = businessTestPayment({ classification, unallocatedMinor: 0, date: classification === "outside_period" ? "2026-08-20" : "2026-10-20", description: "Тестовая аренда за сентябрь–декабрь" });
